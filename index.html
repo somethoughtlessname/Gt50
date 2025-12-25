@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GT50 Component Tester</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background: #243342;
+            color: #e4e4e7;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            padding: 4px;
+            padding-top: calc((var(--card-height) * 2) + 4px);
+            padding-bottom: calc((var(--card-height) * 1.5) + 4px);
+            min-height: 100vh;
+        }
+
+        #frozenHeader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1001;
+        }
+
+        #frozenTabs {
+            position: fixed;
+            top: var(--card-height);
+            left: 0;
+            right: 0;
+            z-index: 1000;
+        }
+
+        #frozenFooter {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+        }
+
+        .container {
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .card-container {
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
+</head>
+<body>
+    <div id="frozenHeader"></div>
+    <div id="frozenTabs"></div>
+    
+    <div class="container">
+        <div id="tabContent">
+            <div class="card-container" id="cards-main"></div>
+        </div>
+    </div>
+
+    <div id="frozenFooter"></div>
+    <div id="impexWindow"></div>
+    <div id="settingsWindow"></div>
+    <div id="cardInfoWindow"></div>
+    <div id="importWindow"></div>
+    <div id="createNewWindow"></div>
+
+<script src="search.js"></script>    
+<script src="styles.js"></script>
+    
+<script src="template.js"></script>        
+    
+<script src="comp-header.js"></script>
+<script src="comp-insert.js"></script>
+<script src="comp-impex.js"></script>
+<script src="comp-settings.js"></script>
+<script src="create-new.js"></script>    
+<script src="comp-utility.js"></script>    
+    
+
+<script src="comp-footer.js"></script>
+    
+<script src="format-gt50.js"></script>
+<script src="format-json.js"></script>
+<script src="format-encrypted.js"></script>    
+    
+<script src="comp-list.js"></script>
+<script src="comp-accumulation.js"></script>
+<script src="comp-history.js"></script>
+<script src="comp-progress.js"></script>
+<script src="comp-tier.js"></script>
+<script src="comp-checklist.js"></script>
+<script src="comp-divider.js"></script>
+<script src="comp-nest.js"></script>
+<script src="comp-cycle.js"></script>
+<script src="comp-tab.js"></script>
+<script src="comp-radio.js"></script>
+<script src="comp-threshold.js"></script>
+<script src="comp-text.js"></script>
+<script src="comp-import.js"></script>
+<script src="info.js"></script>
+<script src="comp-scale.js"></script>    
+    
+    <script>
+        // State management
+        let state = {
+            header: null,
+            tabs: null,
+            impex: null,
+            settings: null,
+            footer: null,
+            cardInfo: null,
+            createNew: null,
+            tabComponents: [[]]
+        };
+        
+        let nextId = 1;
+        let activeMode = 'view';
+        let selectedInsertionPoint = 0;
+        let navigationStack = [];
+        let scrollStack = [];
+        let pendingDeleteId = null;
+        let deleteTimeout = null;
+
+        function resetAllTabsToFirst(tabComponentsArray) {
+            if (!tabComponentsArray || !Array.isArray(tabComponentsArray)) return;
+            
+            tabComponentsArray.forEach(componentArray => {
+                if (!Array.isArray(componentArray)) return;
+                
+                componentArray.forEach(component => {
+                    if (component.type === 'nest' || component.type === 'cycle') {
+                        if (component.state.tabs && component.state.tabs.tabs && component.state.tabs.tabs.length > 0) {
+                            component.state.tabs.activeViewTab = 0;
+                            component.state.tabs.selectedBuildTab = 0;
+                        }
+                        
+                        if (component.state.tabComponents) {
+                            resetAllTabsToFirst(component.state.tabComponents);
+                        }
+                    }
+                });
+            });
+        }
+
+        function loadState() {
+            navigationStack = [];
+            scrollStack = [];
+            
+            const saved = localStorage.getItem('gt50-tester-state');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    if (parsed.nextId) nextId = parsed.nextId;
+                    
+                    if (parsed.header) {
+                        state.header = parsed.header;
+                    } else {
+                        state.header = GT50Lib.Header.defaultState();
+                        state.header.title = 'GT50 TESTER';
+                    }
+                    
+                    state.header.isMain = true;
+                    state.header.activeMode = activeMode;
+                    
+                    if (parsed.tabs) {
+                        state.tabs = parsed.tabs;
+                    } else {
+                        state.tabs = GT50Lib.Tabs.defaultState();
+                    }
+                    
+                    if (parsed.impex) {
+                        state.impex = parsed.impex;
+                    } else {
+                        state.impex = GT50Lib.ImpEx.defaultState();
+                    }
+                    
+                    if (parsed.settings) {
+                        state.settings = parsed.settings;
+                    } else {
+                        state.settings = GT50Lib.Settings.defaultState();
+                    }
+                    
+                    if (parsed.footer) {
+                        state.footer = parsed.footer;
+                    } else {
+                        state.footer = GT50Lib.Footer.defaultState();
+                    }
+                    
+                    if (parsed.cardInfo) {
+                        state.cardInfo = parsed.cardInfo;
+                    } else {
+                        state.cardInfo = GT50Lib.CardInfo.defaultState();
+                    }
+                    
+                    if (parsed.createNew) {
+                        state.createNew = parsed.createNew;
+                    } else {
+                        state.createNew = GT50Lib.CreateNew.defaultState();
+                    }
+                    
+                    state.createNew.isOpen = false;
+                    
+                    if (parsed.tabComponents && Array.isArray(parsed.tabComponents) && parsed.tabComponents.length > 0) {
+                        state.tabComponents = parsed.tabComponents;
+                    } else {
+                        state.tabComponents = [[]];
+                    }
+                    
+                    if (state.tabs.tabs.length > 0) {
+                        state.tabs.activeViewTab = 0;
+                        state.tabs.selectedBuildTab = 0;
+                    }
+                    
+                    state.impex.isOpen = false;
+                    state.settings.isOpen = false;
+                    
+                    const footerSlots = state.footer.slots;
+                    for (let i = 0; i < footerSlots.length; i++) {
+                        const slot = footerSlots[i];
+                        
+                        if ((slot.currentVariant === 'divider' || slot.currentVariant === 'text')) {
+                            slot.variants = [
+                                { type: 'divider', label: 'DIVIDER', color: 'var(--color-10)' },
+                                { type: 'text', label: 'TEXT', color: 'var(--color-9)' }
+                            ];
+                            if (!slot.currentVariant) {
+                                slot.currentVariant = 'divider';
+                            }
+                        }
+                    }
+                    
+                } catch (e) {
+                    console.error('Failed to load state:', e);
+                    state.header = GT50Lib.Header.defaultState();
+                    state.header.title = 'GT50 TESTER';
+                    state.tabs = GT50Lib.Tabs.defaultState();
+                    state.impex = GT50Lib.ImpEx.defaultState();
+                    state.settings = GT50Lib.Settings.defaultState();
+                    state.footer = GT50Lib.Footer.defaultState();
+                    state.cardInfo = GT50Lib.CardInfo.defaultState();
+                    state.createNew = GT50Lib.CreateNew.defaultState();
+                    state.tabComponents = [[]];
+                    
+                    state.createNew.isOpen = false;
+                    
+                    if (state.tabs.tabs.length > 0) {
+                        state.tabs.activeViewTab = 0;
+                        state.tabs.selectedBuildTab = 0;
+                    }
+                    
+                    state.impex.isOpen = false;
+                    state.settings.isOpen = false;
+                }
+            } else {
+                state.header = GT50Lib.Header.defaultState();
+                state.header.title = 'GT50 TESTER';
+                state.tabs = GT50Lib.Tabs.defaultState();
+                state.impex = GT50Lib.ImpEx.defaultState();
+                state.settings = GT50Lib.Settings.defaultState();
+                state.footer = GT50Lib.Footer.defaultState();
+                state.cardInfo = GT50Lib.CardInfo.defaultState();
+                state.createNew = GT50Lib.CreateNew.defaultState();
+                state.tabComponents = [[]];
+            }
+            
+            state.header.isMain = true;
+            state.impex.isOpen = false;
+            state.settings.isOpen = false;
+            state.createNew.isOpen = false;
+            
+            if (state.tabs && state.tabs.tabs && state.tabs.tabs.length > 0) {
+                state.tabs.activeViewTab = 0;
+                state.tabs.selectedBuildTab = 0;
+            }
+            resetAllTabsToFirst(state.tabComponents);
+        }
+        
+        function saveState() {
+            const toSave = {
+                nextId,
+                header: state.header,
+                tabs: state.tabs,
+                impex: state.impex,
+                settings: state.settings,
+                footer: state.footer,
+                cardInfo: state.cardInfo,
+                createNew: state.createNew,
+                tabComponents: state.tabComponents
+            };
+            localStorage.setItem('gt50-tester-state', JSON.stringify(toSave));
+        }
+        
+        window.saveState = saveState;
+        window.render = render;
+
+        function getCurrentTabs() {
+            if (navigationStack.length === 0) {
+                return { tabs: state.tabs, tabComponents: state.tabComponents };
+            }
+            
+            let current = state.tabComponents;
+            let currentTabs = null;
+            let currentTabComponents = null;
+            
+            for (const nestId of navigationStack) {
+                const component = current.flat().find(c => c.id === nestId);
+                if (!component) break;
+                
+                if (!component.state.tabs) {
+                    component.state.tabs = GT50Lib.Tabs.defaultState();
+                }
+                if (!component.state.tabComponents) {
+                    component.state.tabComponents = [[]];
+                }
+                
+                currentTabs = component.state.tabs;
+                currentTabComponents = component.state.tabComponents;
+                current = component.state.tabComponents;
+            }
+            
+            return { tabs: currentTabs || state.tabs, tabComponents: currentTabComponents || state.tabComponents };
+        }
+
+        function getCurrentComponents() {
+            const { tabs, tabComponents } = getCurrentTabs();
+            
+            if (activeMode === 'build') {
+                const activeTab = tabs.selectedBuildTab || 0;
+                if (!tabComponents[activeTab]) {
+                    tabComponents[activeTab] = [];
+                }
+                return tabComponents[activeTab];
+            } else {
+                const activeTab = tabs.activeViewTab || 0;
+                if (!tabComponents[activeTab]) {
+                    tabComponents[activeTab] = [];
+                }
+                return tabComponents[activeTab];
+            }
+        }
+
+        function getCurrentNest() {
+            if (navigationStack.length === 0) return null;
+            
+            let current = state.tabComponents;
+            let nestComponent = null;
+            
+            for (const nestId of navigationStack) {
+                const component = current.flat().find(c => c.id === nestId);
+                if (!component) break;
+                
+                nestComponent = component;
+                current = component.state.tabComponents || [[]];
+            }
+            
+            return nestComponent;
+        }
+
+        function navigateInto(nestId) {
+            scrollStack.push(window.scrollY);
+            navigationStack.push(nestId);
+            
+            if (deleteTimeout) {
+                clearTimeout(deleteTimeout);
+                deleteTimeout = null;
+            }
+            pendingDeleteId = null;
+            
+            const currentNest = getCurrentNest();
+            
+            if (currentNest) {
+                if (!currentNest.state.tabs) {
+                    currentNest.state.tabs = GT50Lib.Tabs.defaultState();
+                }
+                if (!currentNest.state.tabComponents) {
+                    currentNest.state.tabComponents = [[]];
+                }
+                
+                if (currentNest.state.tabs.tabs.length > 0) {
+                    currentNest.state.tabs.activeViewTab = 0;
+                    currentNest.state.tabs.selectedBuildTab = 0;
+                }
+                
+                if (GT50Lib.Utils && GT50Lib.Utils.closeAllDropdowns) {
+                    GT50Lib.Utils.closeAllDropdowns(currentNest.state.tabComponents);
+                }
+                
+                state.header.isMain = false;
+                state.header.title = currentNest.state.name || (currentNest.type === 'cycle' ? 'CYCLE' : 'SECTION');
+            }
+            
+            selectedInsertionPoint = getCurrentComponents().length;
+            
+            render(true);
+            window.scrollTo(0, 0);
+        }
+
+        function navigateBack() {
+            if (navigationStack.length === 0) return;
+            
+            const { tabs: currentTabs } = getCurrentTabs();
+            if (currentTabs && currentTabs.tabs && currentTabs.tabs.length > 0) {
+                currentTabs.activeViewTab = 0;
+                currentTabs.selectedBuildTab = 0;
+            }
+            
+            navigationStack.pop();
+            
+            if (deleteTimeout) {
+                clearTimeout(deleteTimeout);
+                deleteTimeout = null;
+            }
+            pendingDeleteId = null;
+            
+            if (GT50Lib.Utils && GT50Lib.Utils.closeAllDropdowns) {
+                GT50Lib.Utils.closeAllDropdowns(state.tabComponents);
+            }
+            
+            if (navigationStack.length === 0) {
+                state.header.isMain = true;
+                state.header.title = 'GT50 TESTER';
+                activeMode = 'view';
+            } else {
+                const currentNest = getCurrentNest();
+                if (currentNest) {
+                    state.header.title = currentNest.state.name || 'SECTION';
+                }
+            }
+            
+            selectedInsertionPoint = getCurrentComponents().length;
+            
+            render(true);
+            
+            setTimeout(() => {
+                const scrollPos = scrollStack.pop();
+                if (scrollPos !== undefined) {
+                    window.scrollTo(0, scrollPos);
+                }
+            }, 10);
+        }
+
+        function navigateHome() {
+            resetAllTabsToFirst(state.tabComponents);
+            if (state.tabs && state.tabs.tabs && state.tabs.tabs.length > 0) {
+                state.tabs.activeViewTab = 0;
+                state.tabs.selectedBuildTab = 0;
+            }
+            
+            navigationStack = [];
+            scrollStack = [];
+            
+            if (deleteTimeout) {
+                clearTimeout(deleteTimeout);
+                deleteTimeout = null;
+            }
+            pendingDeleteId = null;
+            
+            if (GT50Lib.Utils && GT50Lib.Utils.closeAllDropdowns) {
+                GT50Lib.Utils.closeAllDropdowns(state.tabComponents);
+            }
+            
+            state.header.isMain = true;
+            state.header.title = 'GT50 TESTER';
+            activeMode = 'view';
+            
+            selectedInsertionPoint = getCurrentComponents().length;
+            
+            render(true);
+            window.scrollTo(0, 0);
+        }
+
+        function openDataWindow() {
+            GT50Lib.ImpEx.open(state.impex, render);
+        }
+
+        function closeDataWindow() {
+            GT50Lib.ImpEx.close(state.impex, render);
+        }
+
+        function openSettingsWindow() {
+            GT50Lib.Settings.open(state.settings, render);
+        }
+
+        function closeSettingsWindow() {
+            GT50Lib.Settings.close(state.settings, render);
+        }
+
+        function openNewWindow() {
+            state.createNew.isOpen = true;
+            render();
+        }
+
+        function closeCardInfo() {
+            GT50Lib.CardInfo.close(state.cardInfo, render);
+        }
+
+        function renderHeader() {
+            const headerContainer = document.getElementById('frozenHeader');
+            if (!headerContainer) return;
+            
+            if (activeMode === 'build') {
+                GT50Lib.Header.renderBuild(headerContainer, state.header, render, navigateBack, navigateHome, switchMode, activeMode, openDataWindow, openSettingsWindow, openNewWindow);
+            } else {
+                GT50Lib.Header.renderView(headerContainer, state.header, render, navigateBack, navigateHome, switchMode, activeMode, openDataWindow, openSettingsWindow, openNewWindow);
+            }
+        }
+
+        function renderTabs() {
+            const tabsContainer = document.getElementById('frozenTabs');
+            if (!tabsContainer) return;
+            
+            const currentContext = getCurrentTabs();
+            
+            const targetLength = Math.max(1, currentContext.tabs.tabs.length);
+            
+            while (currentContext.tabComponents.length < targetLength) {
+                currentContext.tabComponents.push([]);
+            }
+            while (currentContext.tabComponents.length > targetLength) {
+                currentContext.tabComponents.pop();
+            }
+            
+            if (currentContext.tabs.activeViewTab >= currentContext.tabs.tabs.length && currentContext.tabs.tabs.length > 0) {
+                currentContext.tabs.activeViewTab = currentContext.tabs.tabs.length - 1;
+            } else if (currentContext.tabs.tabs.length === 0) {
+                currentContext.tabs.activeViewTab = 0;
+            }
+            
+            if (activeMode === 'view' && currentContext.tabs.tabs.length === 0) {
+                tabsContainer.style.display = 'none';
+                document.body.style.paddingTop = 'calc(var(--card-height) + 4px)';
+                return;
+            } else {
+                tabsContainer.style.display = '';
+                document.body.style.paddingTop = 'calc((var(--card-height) * 2) + var(--border-width) + 4px)';
+            }
+            
+            if (activeMode === 'build') {
+                GT50Lib.Tabs.renderBuild(tabsContainer, currentContext.tabs, render);
+            } else {
+                GT50Lib.Tabs.renderView(tabsContainer, currentContext.tabs, render);
+            }
+        }
+
+        function renderFooter() {
+            const footerContainer = document.getElementById('frozenFooter');
+            if (!footerContainer) return;
+            
+            const visible = activeMode === 'build';
+            GT50Lib.Footer.render(footerContainer, state.footer, visible, addComponent);
+        }
+
+        function renderImpEx() {
+            const impexContainer = document.getElementById('impexWindow');
+            if (!impexContainer) return;
+            
+            GT50Lib.ImpEx.render(impexContainer, state.impex, render, closeDataWindow, state);
+        }
+
+        function renderSettings() {
+    const settingsContainer = document.getElementById('settingsWindow');
+    if (!settingsContainer) return;
+    
+    GT50Lib.Settings.render(settingsContainer, state.settings, render, closeSettingsWindow, state.cardInfo);
+}
+
+        function renderCardInfo() {
+            const cardInfoContainer = document.getElementById('cardInfoWindow');
+            if (!cardInfoContainer) return;
+            
+            GT50Lib.CardInfo.render(cardInfoContainer, state.cardInfo, closeCardInfo);
+        }
+
+        function renderImportWindow() {
+            const importContainer = document.getElementById('importWindow');
+            if (!importContainer) return;
+            
+            function findOpenImportComponent(tabComponentsArray) {
+                for (const components of tabComponentsArray) {
+                    if (!Array.isArray(components)) continue;
+                    
+                    for (const comp of components) {
+                        if (comp.type === 'import' && comp.state.importWindow && comp.state.importWindow.isOpen) {
+                            return comp;
+                        }
+                        if ((comp.type === 'nest' || comp.type === 'cycle') && comp.state.tabComponents) {
+                            const found = findOpenImportComponent(comp.state.tabComponents);
+                            if (found) return found;
+                        }
+                    }
+                }
+                return null;
+            }
+            
+            const openImportComp = findOpenImportComponent(state.tabComponents);
+            if (openImportComp) {
+                GT50Lib.Import.renderImportWindow(importContainer, openImportComp, render);
+            } else {
+                importContainer.innerHTML = '';
+                importContainer.style.display = 'none';
+            }
+        }
+
+        function renderCreateNew() {
+            const container = document.getElementById('createNewWindow');
+            if (!container) return;
+            
+            GT50Lib.CreateNew.render(
+                container,
+                state.createNew,
+                render,
+                () => {
+                    state.createNew.isOpen = false;
+                    state.createNew.name = '';
+                    state.createNew.selectedTemplate = 'custom';
+                    state.createNew.currentColorIndex = 4;
+                    state.createNew.cycleMode = false;
+                    activeMode = 'view';
+                    render();
+                },
+                () => {
+                    const currentComponents = getCurrentComponents();
+                    const newEntry = GT50Lib.CreateNew.createEntry(
+                        state.createNew,
+                        nextId,
+                        currentComponents
+                    );
+                    
+                    if (newEntry) {
+                        nextId++;
+                        currentComponents.unshift(newEntry);
+                        state.createNew.isOpen = false;
+                        
+                        state.createNew.name = '';
+                        state.createNew.selectedTemplate = 'custom';
+                        state.createNew.currentColorIndex = 4;
+                        state.createNew.cycleMode = false;
+                        
+                        activeMode = 'build';
+                        saveState();
+                        navigateInto(newEntry.id);
+                    }
+                }
+            );
+        }
+
+        function render(skipScrollRestore = false) {
+            const currentScroll = window.scrollY;
+            
+            renderHeader();
+            renderTabs();
+            renderFooter();
+
+            renderImpEx();
+            renderSettings();
+            renderCardInfo();
+            renderImportWindow();
+            renderCreateNew();
+            
+            if (activeMode === 'build') {
+                renderBuild();
+            } else {
+                renderView();
+            }
+            
+            saveState();
+            
+            if (!skipScrollRestore) {
+                setTimeout(() => {
+                    window.scrollTo(0, currentScroll);
+                }, 10);
+            }
+        }
+
+        function renderBuild() {
+            const container = document.getElementById('cards-main');
+            container.innerHTML = '';
+            
+            const components = getCurrentComponents();
+            const depth = navigationStack.length;
+            
+            const currentNest = getCurrentNest();
+            if (currentNest && currentNest.type === 'cycle') {
+                GT50Lib.Cycle.renderBuildControlCard(container, currentNest.state, render);
+                GT50Lib.Cycle.renderCountdownCard(container, currentNest.state, render);
+            }
+            
+            const layoutWrapper = document.createElement('div');
+            layoutWrapper.style.cssText = 'display: flex; gap: var(--margin); align-items: flex-start; width: 100%;';
+            
+            const selectorContainer = document.createElement('div');
+            const cardsContainer = document.createElement('div');
+            cardsContainer.style.cssText = 'flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden;';
+            
+            GT50Lib.Insert.render(selectorContainer, components.length, selectedInsertionPoint, (index) => {
+                selectedInsertionPoint = index;
+                renderBuild();
+            });
+            
+            components.forEach(component => {
+                const wrapper = document.createElement('div');
+                const isDeletePending = pendingDeleteId === component.id;
+                
+                if (component.type === 'divider') {
+    GT50Lib.Divider.renderBuild(wrapper, component.state, render, (dir) => moveComponent(component.id, dir), () => deleteComponent(component.id), isDeletePending);
+} else if (component.type === 'scale') {
+    GT50Lib.Scale.renderBuild(wrapper, component.state, render, (dir) => moveComponent(component.id, dir), () => deleteComponent(component.id), isDeletePending);
+} else if (component.type === 'nest') {
+                    GT50Lib.Nest.renderBuild(wrapper, component.state, depth, () => navigateInto(component.id), render, (dir) => moveComponent(component.id, dir), () => deleteComponent(component.id), isDeletePending);
+                } else if (component.type === 'cycle') {
+                    GT50Lib.Cycle.renderBuild(wrapper, component.state, depth, () => navigateInto(component.id), render, (dir) => moveComponent(component.id, dir), () => deleteComponent(component.id), isDeletePending);
+                } else if (component.type === 'import') {
+                    GT50Lib.Import.renderBuild(wrapper, component.state, depth, () => navigateInto(component.id), render, (dir) => moveComponent(component.id, dir), () => deleteComponent(component.id), isDeletePending);
+                } else if (component.type === 'list') {
+                    GT50Lib.List.renderBuild(wrapper, component.state, render, (dir) => moveComponent(component.id, dir), () => deleteComponent(component.id), isDeletePending);
+                } else if (component.type === 'accumulation') {
+                    GT50Lib.Accumulation.renderBuild(wrapper, component.state, render, (dir) => moveComponent(component.id, dir), () => deleteComponent(component.id), isDeletePending);
+                } else if (component.type === 'history') {
+                    GT50Lib.History.renderBuild(wrapper, component.state, render, (dir) => moveComponent(component.id, dir), () => deleteComponent(component.id), isDeletePending);
+                } else if (component.type === 'progress') {
+                    GT50Lib.Progress.renderBuild(wrapper, component.state, render, (dir) => moveComponent(component.id, dir), () => deleteComponent(component.id), isDeletePending);
+                } else if (component.type === 'tier') {
+                    GT50Lib.Tier.renderBuild(wrapper, component.state, render, (dir) => moveComponent(component.id, dir), () => deleteComponent(component.id), isDeletePending);
+                } else if (component.type === 'checklist') {
+                    GT50Lib.Checklist.renderBuild(wrapper, component.state, render, (dir) => moveComponent(component.id, dir), () => deleteComponent(component.id), isDeletePending);
+                } else if (component.type === 'radio') {
+                    GT50Lib.Radio.renderBuild(wrapper, component.state, render, (dir) => moveComponent(component.id, dir), () => deleteComponent(component.id), isDeletePending);
+                } else if (component.type === 'threshold') {
+                    GT50Lib.Threshold.renderBuild(wrapper, component.state, render, (dir) => moveComponent(component.id, dir), () => deleteComponent(component.id), isDeletePending);
+                } else if (component.type === 'text') {
+                    GT50Lib.Text.renderBuild(wrapper, component.state, render, (dir) => moveComponent(component.id, dir), () => deleteComponent(component.id), isDeletePending);
+                }
+                
+                cardsContainer.appendChild(wrapper);
+            });
+            
+            layoutWrapper.appendChild(selectorContainer);
+            layoutWrapper.appendChild(cardsContainer);
+            container.appendChild(layoutWrapper);
+        }
+    
+    function closeAllNestActions() {
+    const components = getCurrentComponents();
+    components.forEach(component => {
+    // Skip import components entirely in view mode
+    if (component.type === 'import') return;
+    
+    const componentWrapper = document.createElement('div');
+        if ((component.type === 'nest' || component.type === 'cycle') && component.state.actionState) {
+            component.state.actionState.isOpen = false;
+            component.state.actionState.deletePending = false;
+        }
+    });
+}
+
+        function renderView() {
+            const container = document.getElementById('cards-main');
+            container.innerHTML = '';
+            
+            const currentNest = getCurrentNest();
+            if (currentNest && currentNest.type === 'cycle') {
+                GT50Lib.Cycle.renderViewCountdown(container, currentNest.state, render);
+            }
+            
+            const components = getCurrentComponents();
+const depth = navigationStack.length;
+
+// Get current tab color once
+const currentContext = getCurrentTabs();
+const currentTabColor = currentContext.tabs.tabs[currentContext.tabs.activeViewTab]?.color;
+
+components.forEach(component => {
+                const componentWrapper = document.createElement('div');
+                
+                if (component.type === 'divider') {
+    GT50Lib.Divider.renderView(componentWrapper, component.state, render);
+} else if (component.type === 'scale') {
+    const currentContext = getCurrentTabs();
+    const currentTabColor = currentContext.tabs.tabs[currentContext.tabs.activeViewTab]?.color;
+    console.log('Calling Scale.renderView with color:', currentTabColor);
+    GT50Lib.Scale.renderView(componentWrapper, component.state, render, currentTabColor);
+} else if (component.type === 'nest') {
+    GT50Lib.Nest.renderView(
+        componentWrapper, 
+        component.state, 
+        depth, 
+        () => navigateInto(component.id),
+        (dir) => moveComponent(component.id, dir),
+        () => deleteComponent(component.id),
+        render,
+        closeAllNestActions
+    );
+} else if (component.type === 'cycle') {
+    GT50Lib.Cycle.renderView(
+        componentWrapper, 
+        component.state, 
+        depth, 
+        () => navigateInto(component.id),
+        (dir) => moveComponent(component.id, dir),
+        () => deleteComponent(component.id),
+        render,
+        closeAllNestActions
+    );
+                } else if (component.type !== 'import') {
+                    if (component.type === 'list') {
+    GT50Lib.List.renderView(componentWrapper, component.state, render, currentTabColor);
+                    } else if (component.type === 'accumulation') {
+                        GT50Lib.Accumulation.renderView(componentWrapper, component.state, render);
+                    } else if (component.type === 'history') {
+    GT50Lib.History.renderView(componentWrapper, component.state, render, currentTabColor);
+                    } else if (component.type === 'progress') {
+    const currentContext = getCurrentTabs();
+    const currentTabColor = currentContext.tabs.tabs[currentContext.tabs.activeViewTab]?.color;
+    GT50Lib.Progress.renderView(componentWrapper, component.state, render, currentTabColor);
+                    } else if (component.type === 'tier') {
+    const currentContext = getCurrentTabs();
+    const currentTabColor = currentContext.tabs.tabs[currentContext.tabs.activeViewTab]?.color;
+    GT50Lib.Tier.renderView(componentWrapper, component.state, render, currentTabColor);
+                    } else if (component.type === 'checklist') {
+    GT50Lib.Checklist.renderView(componentWrapper, component.state, render, currentTabColor);
+                    } else if (component.type === 'radio') {
+    GT50Lib.Radio.renderView(componentWrapper, component.state, render, currentTabColor);
+                    } else if (component.type === 'threshold') {
+    GT50Lib.Threshold.renderView(componentWrapper, component.state, render, currentTabColor);
+                    } else if (component.type === 'text') {
+                        GT50Lib.Text.renderView(componentWrapper, component.state, render);
+                    }
+                    
+                    const dropdownSections = componentWrapper.querySelectorAll('div[style*="border-radius: 0 0 8px 8px"]');
+                    dropdownSections.forEach(section => {
+                        const currentPadding = 'var(--margin)';
+                        section.style.padding = `${currentPadding} ${currentPadding} 0 ${currentPadding}`;
+                        
+                        const lastChild = section.lastElementChild;
+                        if (lastChild && !lastChild.style.marginBottom) {
+                            lastChild.style.marginBottom = currentPadding;
+                        }
+                    });
+                    
+                    container.appendChild(componentWrapper);
+                }
+                
+                if (component.type === 'divider' || component.type === 'scale' || component.type === 'nest' || component.type === 'cycle') {
+    container.appendChild(componentWrapper);
+}
+            });
+            
+            // INJECT SEARCH BAR AT THE END
+if (GT50Lib.Search) {
+    const isMainWindow = navigationStack.length === 0;
+    GT50Lib.Search.inject(container, { visible: isMainWindow });
+}
+        }
+
+        function switchMode() {
+    activeMode = activeMode === 'build' ? 'view' : 'build';
+    
+    // When switching to view mode, remove all import components
+    if (activeMode === 'view') {
+        const components = getCurrentComponents();
+        const filtered = components.filter(c => c.type !== 'import');
+        
+        // Replace the array contents
+        components.length = 0;
+        components.push(...filtered);
+        
+        // Reset selector to bottom when entering View mode
+        selectedInsertionPoint = getCurrentComponents().length;
+    } else if (activeMode === 'build') {
+        // Reset selector to bottom when entering Build mode
+        selectedInsertionPoint = getCurrentComponents().length;
+    }
+    
+    const components = getCurrentComponents();
+    
+    if (GT50Lib.Utils && GT50Lib.Utils.closeAllDropdowns) {
+        GT50Lib.Utils.closeAllDropdowns([components]);
+    }
+    
+    render(true);
+}
+
+        function addComponent(type) {
+            const components = getCurrentComponents();
+            
+            let newComponent = null;
+            
+            if (type === 'divider') {
+                newComponent = {
+                    id: nextId++,
+                    type: 'divider',
+                    state: GT50Lib.Divider.defaultState()
+                };
+            } else if (type === 'text') {
+    newComponent = {
+        id: nextId++,
+        type: 'text',
+        state: GT50Lib.Text.defaultState()
+    };
+} else if (type === 'scale') {
+    newComponent = {
+        id: nextId++,
+        type: 'scale',
+        state: GT50Lib.Scale.defaultState()
+    };
+} else if (type === 'list') {
+                newComponent = {
+                    id: nextId++,
+                    type: 'list',
+                    state: GT50Lib.List.defaultState()
+                };
+            } else if (type === 'accumulation') {
+                newComponent = {
+                    id: nextId++,
+                    type: 'accumulation',
+                    state: GT50Lib.Accumulation.defaultState()
+                };
+            } else if (type === 'history') {
+                newComponent = {
+                    id: nextId++,
+                    type: 'history',
+                    state: GT50Lib.History.defaultState()
+                };
+            } else if (type === 'progress') {
+                newComponent = {
+                    id: nextId++,
+                    type: 'progress',
+                    state: GT50Lib.Progress.defaultState()
+                };
+            } else if (type === 'tier') {
+                newComponent = {
+                    id: nextId++,
+                    type: 'tier',
+                    state: GT50Lib.Tier.defaultState()
+                };
+            } else if (type === 'checklist') {
+                newComponent = {
+                    id: nextId++,
+                    type: 'checklist',
+                    state: GT50Lib.Checklist.defaultState()
+                };
+            } else if (type === 'radio') {
+                newComponent = {
+                    id: nextId++,
+                    type: 'radio',
+                    state: GT50Lib.Radio.defaultState()
+                };
+            } else if (type === 'threshold') {
+                newComponent = {
+                    id: nextId++,
+                    type: 'threshold',
+                    state: GT50Lib.Threshold.defaultState()
+                };
+                
+                } else if (type === 'nest') {
+    newComponent = {
+        id: nextId++,
+        type: 'nest',
+        state: GT50Lib.Nest.defaultState()
+    };
+} else if (type === 'cycle') {
+    newComponent = {
+        id: nextId++,
+        type: 'cycle',
+        state: GT50Lib.Cycle.defaultState()
+    };
+} else if (type === 'import') {
+    newComponent = {
+        id: nextId++,
+        type: 'import',
+        state: GT50Lib.Import.defaultState()
+    };
+
+            }
+            
+            if (newComponent) {
+                components.splice(selectedInsertionPoint, 0, newComponent);
+                
+                selectedInsertionPoint = Math.min(selectedInsertionPoint + 1, components.length);
+                
+                render();
+            }
+        }
+
+        function moveComponent(id, direction) {
+    const components = getCurrentComponents();
+    const idx = components.findIndex(c => c.id === id);
+    if (direction === -1 && idx > 0) {
+        [components[idx], components[idx - 1]] = [components[idx - 1], components[idx]];
+    } else if (direction === 1 && idx < components.length - 1) {
+        [components[idx], components[idx + 1]] = [components[idx + 1], components[idx]];
+    }
+    render();
+}
+
+        function deleteComponent(id) {
+    const components = getCurrentComponents();
+    const index = components.findIndex(c => c.id === id);
+    
+    if (index === -1) return;
+    
+    if (pendingDeleteId === id) {
+        // Second tap - delete immediately without modal
+        components.splice(index, 1);
+            
+        if (selectedInsertionPoint > index) {
+            selectedInsertionPoint = Math.max(0, selectedInsertionPoint - 1);
+        } else if (selectedInsertionPoint >= components.length) {
+            selectedInsertionPoint = components.length;
+        }
+
+        clearTimeout(deleteTimeout);
+        deleteTimeout = null;
+        pendingDeleteId = null;
+        
+        render();
+    } else {
+        // First tap - set pending state
+        if (deleteTimeout) {
+            clearTimeout(deleteTimeout);
+        }
+        
+        pendingDeleteId = id;
+        
+        deleteTimeout = setTimeout(() => {
+            pendingDeleteId = null;
+            deleteTimeout = null;
+            render();
+        }, 3000);
+        
+        render();
+    }
+}
+        loadState();
+        render();
+        
+        // ===== KEYBOARD HANDLING FOR MOBILE =====
+let focusedInput = null;
+let initialViewportHeight = window.innerHeight;
+
+// Scroll helper - positions input at consistent location (just above footer)
+function scrollInputIntoView(input) {
+    if (!input) return;
+    
+    setTimeout(() => {
+        const rect = input.getBoundingClientRect();
+        const currentHeight = window.visualViewport ? 
+            window.visualViewport.height : window.innerHeight;
+        
+        // Footer total height: 67.5 base + 22.5 dropdown + 20 safety = 110px
+        const footerSpace = 90;
+        
+        // Target: position input just above footer (110px from bottom)
+        const targetPosition = currentHeight - footerSpace - (rect.height / 2);
+        
+        // Calculate how much to scroll to get input to target position
+        const currentPosition = rect.top;
+        const scrollAmount = currentPosition - targetPosition;
+        
+        // Always scroll to position input at target location
+        if (Math.abs(scrollAmount) > 5) { // Only scroll if difference > 5px
+            window.scrollBy({
+                top: scrollAmount,
+                behavior: 'smooth'
+            });
+        }
+    }, 200); // Wait for keyboard animation
+}
+
+// Track when input gets focus
+document.addEventListener('focusin', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        focusedInput = e.target;
+        initialViewportHeight = window.visualViewport ? 
+            window.visualViewport.height : window.innerHeight;
+        scrollInputIntoView(focusedInput);
+    }
+});
+
+document.addEventListener('focusout', () => {
+    focusedInput = null;
+});
+
+// Handle keyboard open/close
+if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+        if (focusedInput) {
+            const currentHeight = window.visualViewport.height;
+            const heightDiff = initialViewportHeight - currentHeight;
+            
+            // Keyboard opened (viewport shrunk by more than 100px)
+            if (heightDiff > 100) {
+                scrollInputIntoView(focusedInput);
+            }
+        }
+    });
+}
+
+window.addEventListener('beforeunload', saveState);
+setInterval(saveState, 5000);
+    </script>
+</body>
+</html>
