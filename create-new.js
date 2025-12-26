@@ -603,13 +603,21 @@
                 closeBtn.onmouseout = () => closeBtn.style.filter = 'brightness(1)';
             }
             
-            const nameInput = container.querySelector('[data-field="name"]');
-            if (nameInput) {
-                nameInput.oninput = (e) => {
-                    state.name = e.target.value;
-                    onChange();
-                };
-            }
+           const nameInput = container.querySelector('[data-field="name"]');
+if (nameInput) {
+    nameInput.oninput = (e) => {
+        state.name = e.target.value;
+        // DON'T call onChange() - just update the footer button
+        const footerBtn = container.querySelector('[data-action="create"]');
+        const canCreate = state.name && state.name.trim() !== '';
+        if (footerBtn) {
+            footerBtn.disabled = !canCreate;
+            footerBtn.style.background = canCreate ? 'var(--accent)' : 'var(--bg-4)';
+            footerBtn.style.color = canCreate ? 'var(--color-10)' : 'var(--color-9)';
+            footerBtn.style.cursor = canCreate ? 'pointer' : 'not-allowed';
+        }
+    };
+}
             
             container.querySelectorAll('[data-action="select-template"]').forEach(btn => {
                 const templateId = btn.dataset.template;
