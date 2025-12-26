@@ -74,6 +74,7 @@
     <div id="cardInfoWindow"></div>
     <div id="importWindow"></div>
     <div id="createNewWindow"></div>
+    <div id="nestEditWindow"></div>
 
 <script src="search.js"></script>    
 <script src="styles.js"></script>
@@ -655,6 +656,58 @@
             );
         }
 
+function renderNestEditWindow() {
+    const container = document.getElementById('nestEditWindow');
+    if (!container) return;
+    
+    // Find any nest component with an open edit window
+    function findOpenEditNest(tabComponentsArray) {
+        if (!Array.isArray(tabComponentsArray)) return null;
+        
+        for (const components of tabComponentsArray) {
+            if (!Array.isArray(components)) continue;
+            
+            for (const comp of components) {
+                // Check if this is a nest with open edit window
+                if (comp.type === 'nest' && comp.state.editWindow && comp.state.editWindow.isOpen) {
+                    return comp;
+                }
+                // Recursively check nested structures
+                if ((comp.type === 'nest' || comp.type === 'cycle') && comp.state.tabComponents) {
+                    const found = findOpenEditNest(comp.state.tabComponents);
+                    if (found) return found;
+                }
+            }
+        }
+        return null;
+    }
+    
+    const openEditNest = findOpenEditNest(state.tabComponents);
+    
+    if (openEditNest) {
+        GT50Lib.Nest.renderEditWindow(
+            container,
+            openEditNest.state,
+            render,  // onChange
+            () => {
+                // onClose - close without saving
+                openEditNest.state.editWindow.isOpen = false;
+                render();
+            },
+            () => {
+                // onSave - save changes and navigate into nest in BUILD mode
+    openEditNest.state.editWindow.isOpen = false;
+    activeMode = 'build';  // Switch to build mode before navigating
+    saveState();
+    navigateInto(openEditNest.id);
+}
+        );
+    } else {
+        container.innerHTML = '';
+        container.style.display = 'none';
+    }
+}
+    
         function render(skipScrollRestore = false) {
             const currentScroll = window.scrollY;
             
@@ -667,6 +720,7 @@
             renderCardInfo();
             renderImportWindow();
             renderCreateNew();
+            renderNestEditWindow()
             
             if (activeMode === 'build') {
                 renderBuild();

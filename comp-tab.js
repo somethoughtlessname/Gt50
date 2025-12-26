@@ -31,7 +31,7 @@
                 top: var(--card-height);
                 left: 0;
                 right: 0;
-                height: var(--card-height);
+                height: calc(var(--card-height) + 4px);
                 background: var(--bg-3);
                 border-bottom: var(--border-width) solid var(--border-color);
                 z-index: 1000;
@@ -166,7 +166,7 @@
                 top: var(--card-height);
                 left: 0;
                 right: 0;
-                height: var(--card-height);
+                height: calc(var(--card-height) + 4px);
                 background: transparent;
                 z-index: 1000;
                 display: flex;

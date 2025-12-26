@@ -7,7 +7,7 @@
     
     // ===== TEMPLATE REGISTRY =====
     window.GT50 = window.GT50 || {};
-    window.GT50.Templates = window.GT50.Templates || {
+    window.GT50.Templates = {
         registry: [],
         
         register: function(template) {
@@ -59,7 +59,7 @@
                 isOpen: false,
                 name: '',
                 selectedTemplate: 'custom',
-                currentColorIndex: 4, // Blue (default)
+                currentColorIndex: 7, // Gray (default)
                 cycleMode: false
             };
         },
@@ -86,14 +86,12 @@
         // ===== CREATE ENTRY =====
         createEntry: function(state, nextId, existingComponents) {
             const validation = this.validateName(state.name, existingComponents);
-            
             if (!validation.valid) {
                 alert(validation.error);
                 return null;
             }
             
             const entryType = state.cycleMode ? 'cycle' : 'nest';
-            
             const newEntry = {
                 id: nextId,
                 type: entryType,
@@ -124,11 +122,18 @@
         
         // ===== WINDOW RENDERER =====
         render: function(container, state, onChange, onClose, onCreate) {
+            console.log('CreateNew.render called, state.isOpen:', state.isOpen);
+            
             if (!state.isOpen) {
                 container.innerHTML = '';
                 container.style.display = 'none';
                 return;
             }
+            
+            // Check if we're in edit mode
+            const isEditMode = state.editMode === true;
+            
+            console.log('CreateNew window should be visible');
             
             container.style.display = 'block';
             container.style.cssText = `
@@ -146,220 +151,145 @@
             // ===== HEADER =====
             const headerHTML = `
                 <div style="
-                    height: var(--card-height);
                     background: var(--bg-3);
                     border-bottom: var(--border-width) solid var(--border-color);
+                    padding: var(--margin);
                     display: flex;
                     align-items: center;
+                    justify-content: space-between;
                     flex-shrink: 0;
                 ">
-                    <div data-action="close" style="
-                        width: var(--square-section);
-                        min-width: var(--square-section);
-                        height: 100%;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        background: var(--bg-4);
-                        padding: 0;
-                        font-size: 18px;
-                        border-right: var(--border-width) solid var(--border-color);
-                        cursor: pointer;
-                        color: var(--color-10);
-                    ">◀</div>
                     <div style="
-                        flex: 1;
-                        height: 100%;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
+                        font-size: 18px;
+                        font-weight: 700;
+                        color: var(--color-10);
+                    ">${isEditMode ? 'EDIT NEST' : 'NEW ENTRY'}</div>
+                    <button data-action="close" style="
+                        background: var(--color-1);
+                        border: var(--border-width) solid var(--border-color);
+                        border-radius: 8px;
+                        color: var(--color-10);
+                        cursor: pointer;
+                        font-family: inherit;
                         font-size: 16px;
                         font-weight: 700;
-                        letter-spacing: 1px;
-                        color: var(--font-color-3);
-                    ">CREATE ENTRY</div>
-                    <div data-action="home" style="
-                        width: var(--square-section);
-                        min-width: var(--square-section);
-                        height: 100%;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        background: var(--bg-4);
-                        padding: 0;
-                        border-left: var(--border-width) solid var(--border-color);
-                        cursor: pointer;
-                        position: relative;
-                    ">
-                        <div style="
-                            width: 20px;
-                            height: 20px;
-                            border: 3px solid var(--color-10);
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                        ">
-                            <div style="
-                                width: 6px;
-                                height: 6px;
-                                background: var(--color-10);
-                                border-radius: 50%;
-                            "></div>
-                        </div>
-                    </div>
+                        height: 40px;
+                        width: 80px;
+                        transition: filter 0.2s;
+                    ">CLOSE</button>
                 </div>
             `;
             
-            // ===== CONTENT =====
+            // Get available templates
             const templates = window.GT50.Templates.getAll();
-            const hasTemplates = templates.length > 0;
+            const hasTemplates = templates && templates.length > 0;
             
-            const contentHTML = `
-                <div style="
-                    flex: 1;
-                    overflow-y: auto;
-                    padding: 4px;
+            // ===== NAME SECTION =====
+            const nameHTML = `
+                <!-- Name Section -->
+                <div class="divider" style="
+                    height: var(--card-height);
+                    background: transparent;
+                    border: var(--border-width) solid rgba(0, 0, 0, 0.0);
+                    border-radius: 8px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin-bottom: var(--margin);
+                    position: relative;
                 ">
-                    <!-- Name Section -->
-                    <div class="divider" style="
-                        height: var(--card-height);
-                        background: transparent;
-                        border: var(--border-width) solid rgba(0, 0, 0, 0.0);
-                        border-radius: 8px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        margin-bottom: var(--margin);
-                        position: relative;
-                    ">
-                        <div style="
-                            position: absolute;
-                            top: 50%;
-                            left: calc(var(--border-width) * -1);
-                            right: calc(var(--border-width) * -1);
-                            height: var(--border-width);
-                            background: var(--border-color);
-                            transform: translateY(-50%);
-                            z-index: 1;
-                        "></div>
-                        <div style="
-                            background: var(--bg-2);
-                            padding: 0 12px;
-                            font-size: 12px;
-                            font-weight: 700;
-                            color: var(--font-color-3);
-                            text-transform: uppercase;
-                            letter-spacing: 0.5px;
-                            position: relative;
-                            z-index: 2;
-                        ">NAME</div>
-                    </div>
-                    
                     <div style="
-                        background: var(--bg-3);
-                        border: var(--border-width) solid var(--border-color);
-                        border-radius: 8px;
-                        height: var(--card-height);
-                        display: flex;
-                        align-items: center;
-                        overflow: hidden;
-                        margin-bottom: var(--margin);
-                    ">
-                        <input type="text" 
-                            data-field="name"
-                            value="${state.name || ''}"
-                            placeholder="Enter entry name..." 
-                            style="
-                                flex: 1;
-                                background: transparent;
-                                border: none;
-                                color: var(--font-color-3);
-                                padding: 0 16px;
-                                font-size: 14px;
-                                font-weight: 600;
-                                height: 100%;
-                                outline: none;
-                                font-family: inherit;
-                            ">
-                    </div>
-                    
-                    <!-- Template Section -->
-                    <div class="divider" style="
-                        height: var(--card-height);
-                        background: transparent;
-                        border: var(--border-width) solid rgba(0, 0, 0, 0.0);
-                        border-radius: 8px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        margin-bottom: var(--margin);
+                        position: absolute;
+                        top: 50%;
+                        left: calc(var(--border-width) * -1);
+                        right: calc(var(--border-width) * -1);
+                        height: var(--border-width);
+                        background: var(--border-color);
+                        transform: translateY(-50%);
+                        z-index: 1;
+                    "></div>
+                    <div style="
+                        background: var(--bg-2);
+                        padding: 0 12px;
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: var(--font-color-3);
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
                         position: relative;
-                    ">
-                        <div style="
-                            position: absolute;
-                            top: 50%;
-                            left: calc(var(--border-width) * -1);
-                            right: calc(var(--border-width) * -1);
-                            height: var(--border-width);
-                            background: var(--border-color);
-                            transform: translateY(-50%);
-                            z-index: 1;
-                        "></div>
-                        <div style="
-                            background: var(--bg-2);
-                            padding: 0 12px;
-                            font-size: 12px;
-                            font-weight: 700;
+                        z-index: 2;
+                    ">NAME</div>
+                </div>
+                
+                <div style="
+                    background: var(--bg-3);
+                    border: var(--border-width) solid var(--border-color);
+                    border-radius: 8px;
+                    height: var(--card-height);
+                    display: flex;
+                    align-items: center;
+                    overflow: hidden;
+                    margin-bottom: var(--margin);
+                ">
+                    <input type="text" 
+                        data-field="name"
+                        value="${state.name || ''}"
+                        placeholder="Enter entry name..." 
+                        style="
+                            flex: 1;
+                            background: transparent;
+                            border: none;
                             color: var(--font-color-3);
-                            text-transform: uppercase;
-                            letter-spacing: 0.5px;
-                            position: relative;
-                            z-index: 2;
-                        ">TEMPLATE</div>
-                    </div>
-                    
-                    ${templates.map(t => `
-                        <div data-action="select-template" data-template="${t.id}" style="
-                            background: ${state.selectedTemplate === t.id ? 'var(--accent)' : 'var(--bg-3)'};
-                            border: var(--border-width) solid var(--border-color);
-                            border-radius: 8px;
-                            height: var(--card-height);
-                            display: flex;
-                            align-items: center;
-                            margin-bottom: var(--margin);
-                            cursor: pointer;
-                            transition: filter 0.2s;
                             padding: 0 16px;
+                            font-size: 14px;
+                            font-weight: 600;
+                            height: 100%;
+                            outline: none;
+                            font-family: inherit;
                         ">
-                            <div style="
-                                flex: 1;
-                                display: flex;
-                                flex-direction: column;
-                                justify-content: center;
-                                min-width: 0;
-                            ">
-                                <div style="
-                                    font-size: 12px;
-                                    font-weight: 700;
-                                    color: var(--color-10);
-                                    margin-bottom: 2px;
-                                    line-height: 1;
-                                ">${t.name}</div>
-                                <div style="
-                                    font-size: 9px;
-                                    font-weight: 500;
-                                    color: var(--color-10);
-                                    white-space: nowrap;
-                                    overflow: hidden;
-                                    text-overflow: ellipsis;
-                                    line-height: 1.2;
-                                ">${t.description}</div>
-                            </div>
-                        </div>
-                    `).join('')}
-                    
-                    <div data-action="select-template" data-template="custom" style="
-                        background: ${state.selectedTemplate === 'custom' ? 'var(--accent)' : 'var(--bg-3)'};
+                </div>
+            `;
+            
+            // ===== TEMPLATE SECTION (only in create mode) =====
+            const templateHTML = isEditMode ? '' : `
+                <!-- Template Section -->
+                <div class="divider" style="
+                    height: var(--card-height);
+                    background: transparent;
+                    border: var(--border-width) solid rgba(0, 0, 0, 0.0);
+                    border-radius: 8px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin-bottom: var(--margin);
+                    position: relative;
+                ">
+                    <div style="
+                        position: absolute;
+                        top: 50%;
+                        left: calc(var(--border-width) * -1);
+                        right: calc(var(--border-width) * -1);
+                        height: var(--border-width);
+                        background: var(--border-color);
+                        transform: translateY(-50%);
+                        z-index: 1;
+                    "></div>
+                    <div style="
+                        background: var(--bg-2);
+                        padding: 0 12px;
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: var(--font-color-3);
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                        position: relative;
+                        z-index: 2;
+                    ">TEMPLATE</div>
+                </div>
+                
+                ${templates.map(t => `
+                    <div data-action="select-template" data-template="${t.id}" style="
+                        background: ${state.selectedTemplate === t.id ? 'var(--accent)' : 'var(--bg-3)'};
                         border: var(--border-width) solid var(--border-color);
                         border-radius: 8px;
                         height: var(--card-height);
@@ -383,7 +313,7 @@
                                 color: var(--color-10);
                                 margin-bottom: 2px;
                                 line-height: 1;
-                            ">CUSTOM</div>
+                            ">${t.name}</div>
                             <div style="
                                 font-size: 9px;
                                 font-weight: 500;
@@ -392,108 +322,50 @@
                                 overflow: hidden;
                                 text-overflow: ellipsis;
                                 line-height: 1.2;
-                            ">Build your own template from scratch</div>
+                            ">${t.description}</div>
                         </div>
                     </div>
-                    
-                    ${!hasTemplates ? `
-                        <div style="
-                            background: var(--bg-4);
-                            border: var(--border-width) solid var(--border-color);
-                            border-radius: 8px;
-                            height: var(--card-height);
-                            display: flex;
-                            align-items: center;
-                            margin-bottom: var(--margin);
-                            padding: 0 16px;
-                        ">
-                            <div style="
-                                flex: 1;
-                                display: flex;
-                                flex-direction: column;
-                                justify-content: center;
-                                min-width: 0;
-                            ">
-                                <div style="
-                                    font-size: 12px;
-                                    font-weight: 700;
-                                    color: var(--color-10);
-                                    line-height: 1;
-                                ">TEMPLATES COMING SOON</div>
-                            </div>
-                        </div>
-                    ` : ''}
-                    
-                    <!-- Settings Section -->
-                    <div class="divider" style="
-                        height: var(--card-height);
-                        background: transparent;
-                        border: var(--border-width) solid rgba(0, 0, 0, 0.0);
-                        border-radius: 8px;
+                `).join('')}
+                
+                <div data-action="select-template" data-template="custom" style="
+                    background: ${state.selectedTemplate === 'custom' ? 'var(--accent)' : 'var(--bg-3)'};
+                    border: var(--border-width) solid var(--border-color);
+                    border-radius: 8px;
+                    height: var(--card-height);
+                    display: flex;
+                    align-items: center;
+                    margin-bottom: var(--margin);
+                    cursor: pointer;
+                    transition: filter 0.2s;
+                    padding: 0 16px;
+                ">
+                    <div style="
+                        flex: 1;
                         display: flex;
-                        align-items: center;
+                        flex-direction: column;
                         justify-content: center;
-                        margin-bottom: var(--margin);
-                        position: relative;
+                        min-width: 0;
                     ">
                         <div style="
-                            position: absolute;
-                            top: 50%;
-                            left: calc(var(--border-width) * -1);
-                            right: calc(var(--border-width) * -1);
-                            height: var(--border-width);
-                            background: var(--border-color);
-                            transform: translateY(-50%);
-                            z-index: 1;
-                        "></div>
-                        <div style="
-                            background: var(--bg-2);
-                            padding: 0 12px;
                             font-size: 12px;
                             font-weight: 700;
-                            color: var(--font-color-3);
-                            text-transform: uppercase;
-                            letter-spacing: 0.5px;
-                            position: relative;
-                            z-index: 2;
-                        ">SETTINGS</div>
-                    </div>
-                    
-                    <div data-action="toggle-cycle" style="
-                        background: var(--bg-3);
-                        border: var(--border-width) solid var(--border-color);
-                        border-radius: 8px;
-                        height: var(--card-height);
-                        display: flex;
-                        align-items: center;
-                        margin-bottom: var(--margin);
-                        cursor: pointer;
-                        overflow: hidden;
-                    ">
-                        <div style="
-                            width: var(--card-height);
-                            min-width: var(--card-height);
-                            height: 100%;
-                            background: ${state.cycleMode ? 'var(--accent)' : 'var(--color-10)'};
-                            border-right: var(--border-width) solid var(--border-color);
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            font-size: 18px;
                             color: var(--color-10);
-                            padding-left: 1px;
-                            padding-bottom: 3px;
-                            transition: background 0.2s;
-                        ">${state.cycleMode ? '✓' : ''}</div>
+                            margin-bottom: 2px;
+                            line-height: 1;
+                        ">CUSTOM</div>
                         <div style="
-                            flex: 1;
-                            padding: 0 16px;
-                            font-size: 12px;
-                            font-weight: 600;
+                            font-size: 9px;
+                            font-weight: 500;
                             color: var(--color-10);
-                        ">Enable cycle mode - Auto-reset contents on schedule</div>
+                            white-space: nowrap;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                            line-height: 1.2;
+                        ">Build your own template from scratch</div>
                     </div>
-                    
+                </div>
+                
+                ${!hasTemplates ? `
                     <div style="
                         background: var(--bg-4);
                         border: var(--border-width) solid var(--border-color);
@@ -516,57 +388,200 @@
                                 font-weight: 700;
                                 color: var(--color-10);
                                 line-height: 1;
-                            ">MORE SETTINGS COMING SOON</div>
+                            ">TEMPLATES COMING SOON</div>
                         </div>
                     </div>
-                    
-                    <!-- Color Section -->
-                    <div class="divider" style="
-                        height: var(--card-height);
-                        background: transparent;
-                        border: var(--border-width) solid rgba(0, 0, 0, 0.0);
-                        border-radius: 8px;
+                ` : ''}
+            `;
+            
+            // ===== SETTINGS SECTION (only in create mode) =====
+            const settingsHTML = isEditMode ? '' : `
+                <!-- Settings Section -->
+                <div class="divider" style="
+                    height: var(--card-height);
+                    background: transparent;
+                    border: var(--border-width) solid rgba(0, 0, 0, 0.0);
+                    border-radius: 8px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin-bottom: var(--margin);
+                    position: relative;
+                ">
+                    <div style="
+                        position: absolute;
+                        top: 50%;
+                        left: calc(var(--border-width) * -1);
+                        right: calc(var(--border-width) * -1);
+                        height: var(--border-width);
+                        background: var(--border-color);
+                        transform: translateY(-50%);
+                        z-index: 1;
+                    "></div>
+                    <div style="
+                        background: var(--bg-2);
+                        padding: 0 12px;
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: var(--font-color-3);
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                        position: relative;
+                        z-index: 2;
+                    ">SETTINGS</div>
+                </div>
+                
+                <div data-action="toggle-cycle" style="
+                    background: var(--bg-3);
+                    border: var(--border-width) solid var(--border-color);
+                    border-radius: 8px;
+                    height: var(--card-height);
+                    display: flex;
+                    align-items: center;
+                    margin-bottom: var(--margin);
+                    cursor: pointer;
+                    overflow: hidden;
+                ">
+                    <div style="
+                        width: var(--card-height);
+                        min-width: var(--card-height);
+                        height: 100%;
+                        background: ${state.cycleMode ? 'var(--accent)' : 'var(--color-10)'};
+                        border-right: var(--border-width) solid var(--border-color);
                         display: flex;
                         align-items: center;
                         justify-content: center;
-                        margin-bottom: var(--margin);
-                        position: relative;
+                        font-size: 18px;
+                        color: var(--color-10);
+                        padding-left: 1px;
+                        padding-bottom: 3px;
+                        transition: background 0.2s;
+                    ">${state.cycleMode ? '✓' : ''}</div>
+                    <div style="
+                        flex: 1;
+                        padding: 0 16px;
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: var(--color-10);
+                    ">Enable cycle mode - Auto-reset contents on schedule</div>
+                </div>
+                
+                <div style="
+                    background: var(--bg-4);
+                    border: var(--border-width) solid var(--border-color);
+                    border-radius: 8px;
+                    height: var(--card-height);
+                    display: flex;
+                    align-items: center;
+                    margin-bottom: var(--margin);
+                    padding: 0 16px;
+                ">
+                    <div style="
+                        flex: 1;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        min-width: 0;
                     ">
                         <div style="
-                            position: absolute;
-                            top: 50%;
-                            left: calc(var(--border-width) * -1);
-                            right: calc(var(--border-width) * -1);
-                            height: var(--border-width);
-                            background: var(--border-color);
-                            transform: translateY(-50%);
-                            z-index: 1;
-                        "></div>
-                        <div style="
-                            background: var(--bg-2);
-                            padding: 0 12px;
                             font-size: 12px;
                             font-weight: 700;
-                            color: var(--font-color-3);
-                            text-transform: uppercase;
-                            letter-spacing: 0.5px;
-                            position: relative;
-                            z-index: 2;
-                        ">COLOR</div>
+                            color: var(--color-10);
+                            line-height: 1;
+                        ">MORE SETTINGS COMING SOON</div>
                     </div>
-                    
-                    <div data-action="cycle-color" style="
-                        background: ${this.colors[state.currentColorIndex].value};
-                        border: var(--border-width) solid var(--border-color);
-                        border-radius: 8px;
-                        height: var(--card-height);
+                </div>
+            `;
+            
+            // ===== COLOR SECTION =====
+            const colorHTML = `
+                <!-- Color Section -->
+                <div class="divider" style="
+                    height: var(--card-height);
+                    background: transparent;
+                    border: var(--border-width) solid rgba(0, 0, 0, 0.0);
+                    border-radius: 8px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin-bottom: var(--margin);
+                    position: relative;
+                ">
+                    <div style="
+                        position: absolute;
+                        top: 50%;
+                        left: calc(var(--border-width) * -1);
+                        right: calc(var(--border-width) * -1);
+                        height: var(--border-width);
+                        background: var(--border-color);
+                        transform: translateY(-50%);
+                        z-index: 1;
+                    "></div>
+                    <div style="
+                        background: var(--bg-2);
+                        padding: 0 12px;
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: var(--font-color-3);
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                        position: relative;
+                        z-index: 2;
+                    ">COLOR</div>
+                </div>
+                
+                <div data-action="cycle-color" style="
+                    background: ${this.colors[state.currentColorIndex].value};
+                    border: var(--border-width) solid var(--border-color);
+                    border-radius: 8px;
+                    height: var(--card-height);
+                    display: flex;
+                    align-items: center;
+                    overflow: hidden;
+                    margin-bottom: var(--margin);
+                    cursor: pointer;
+                    transition: background 0.2s;
+                ">
+                    <div style="
+                        width: var(--card-height);
+                        min-width: var(--card-height);
+                        height: 100%;
+                        background: var(--blur);
+                        border-right: var(--border-width) solid var(--border-color);
                         display: flex;
                         align-items: center;
-                        overflow: hidden;
-                        margin-bottom: var(--margin);
-                        cursor: pointer;
-                        transition: background 0.2s;
-                    "></div>
+                        justify-content: center;
+                    ">
+                        <div style="
+                            width: 20px;
+                            height: 20px;
+                            background: ${this.colors[state.currentColorIndex].value};
+                            border: 2px solid var(--color-10);
+                            border-radius: 50%;
+                        "></div>
+                    </div>
+                    <div style="
+                        flex: 1;
+                        padding: 0 16px;
+                        font-size: 14px;
+                        font-weight: 700;
+                        color: var(--color-10);
+                    ">${this.colors[state.currentColorIndex].name}</div>
+                </div>
+            `;
+            
+            // ===== ASSEMBLE CONTENT =====
+            const contentHTML = `
+                <div style="
+                    flex: 1;
+                    overflow-y: auto;
+                    padding: var(--margin);
+                    padding-bottom: calc(var(--card-height) + var(--margin));
+                ">
+                    ${nameHTML}
+                    ${templateHTML}
+                    ${settingsHTML}
+                    ${colorHTML}
                 </div>
             `;
             
@@ -578,7 +593,7 @@
             container.appendChild(footerContainer);
             
             const canCreate = state.name && state.name.trim() !== '';
-            this.renderFooter(footerContainer, canCreate, onCreate);
+            this.renderFooter(footerContainer, canCreate, onCreate, isEditMode);
             
             // ===== EVENT LISTENERS =====
             const closeBtn = container.querySelector('[data-action="close"]');
@@ -588,40 +603,11 @@
                 closeBtn.onmouseout = () => closeBtn.style.filter = 'brightness(1)';
             }
             
-            const homeBtn = container.querySelector('[data-action="home"]');
-            if (homeBtn) {
-                homeBtn.onclick = onClose;
-                homeBtn.onmouseover = () => homeBtn.style.filter = 'brightness(1.2)';
-                homeBtn.onmouseout = () => homeBtn.style.filter = 'brightness(1)';
-            }
-            
             const nameInput = container.querySelector('[data-field="name"]');
             if (nameInput) {
                 nameInput.oninput = (e) => {
                     state.name = e.target.value;
-                    // Don't call onChange - just update state silently to prevent keyboard closing
-                    
-                    // Update the footer enabled state
-                    const createBtn = container.querySelector('[data-action="create"]');
-                    const canCreate = state.name && state.name.trim() !== '';
-                    if (createBtn) {
-                        createBtn.disabled = !canCreate;
-                        createBtn.style.background = canCreate ? 'var(--accent)' : 'var(--bg-4)';
-                        createBtn.style.color = canCreate ? 'var(--color-10)' : 'var(--color-9)';
-                        createBtn.style.cursor = canCreate ? 'pointer' : 'not-allowed';
-                        
-                        if (canCreate) {
-                            // Set up the click handler when enabling
-                            createBtn.onclick = onCreate;
-                            createBtn.onmouseover = () => createBtn.style.filter = 'brightness(1.2)';
-                            createBtn.onmouseout = () => createBtn.style.filter = 'brightness(1)';
-                        } else {
-                            // Remove handlers when disabled
-                            createBtn.onclick = null;
-                            createBtn.onmouseover = null;
-                            createBtn.onmouseout = null;
-                        }
-                    }
+                    onChange();
                 };
             }
             
@@ -657,7 +643,7 @@
         },
         
         // ===== FOOTER RENDERER =====
-        renderFooter: function(container, enabled, onCreate) {
+        renderFooter: function(container, enabled, onCreate, isEditMode) {
             container.style.cssText = `
                 position: fixed;
                 bottom: 0;
@@ -686,7 +672,7 @@
                     transition: filter 0.2s;
                     border: none;
                     font-family: inherit;
-                ">CREATE</button>
+                ">${isEditMode ? 'SAVE & OPEN' : 'CREATE'}</button>
             `;
             
             const createBtn = container.querySelector('[data-action="create"]');
