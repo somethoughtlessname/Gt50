@@ -18,6 +18,7 @@
     // DIVIDER:      DIVIDER|Title (no progress indicator)
     // TEXT:         TEXT|Title (state.text, alignment, fontWeight, fontStyle)
     // HISTORY:      HISTORY|Title (no progress indicator)
+    // SCALE:        SCALE (no title, uses dropdown text, items with number/unit/title)
     // NEST:         Uses --- NEST X START/END --- with internal tabs or direct components
     // CYCLE:        Uses --- CYCLE X START/END --- with scheduling info
     //
@@ -26,6 +27,7 @@
     // SUB-ITEMS:
     // tier-level:   tier-level|[level #]|xx/yy|title (1-based)
     // radio-option: radio-option|[order #]|name (1-based)
+    // scale-item:   scale-item|number|unit|ingredient (e.g. scale-item|2|cups|flour)
     // ============================================================
     
     const GT50Format = {
@@ -52,51 +54,21 @@
             const tabs = jsonData.data && jsonData.data.tabs;
             const tabComponents = jsonData.data && jsonData.data.tabComponents;
             
-            // Check if we have multiple tabs
-            const hasMultipleTabs = tabs && tabs.tabs && tabs.tabs.length > 1;
-            const hasContent = tabComponents && tabComponents.some(arr => arr.length > 0);
-            
-            // Workspace header
+            // Header
             output.push('===== WORKSPACE START =====');
-            
-            // If completely empty (single default tab with no cards), just workspace markers
-            if (!hasMultipleTabs && !hasContent) {
-                output.push('');
-                output.push('===== WORKSPACE END =====');
-                return output.join('\n');
-            }
-            
+            output.push(`TIMESTAMP|${jsonData.timestamp || new Date().toISOString()}`);
+            output.push(`APP|${jsonData.app || 'GT50'}`);
             output.push('');
             
-            // Only include metadata if there are multiple tabs
-            if (hasMultipleTabs) {
-                output.push(`WORKSPACE|${this.escape(jsonData.app || 'GT50 Tester')}`);
-                output.push(`TIMESTAMP|${jsonData.timestamp || new Date().toISOString()}`);
-                output.push(`TAB_STRUCTURE|${tabs.tabs.length}`);
-                output.push(`TAB_CURRENT|${tabs.activeViewTab !== undefined ? tabs.activeViewTab : 0}`);
-                
-                const tabNames = tabs.tabs.map(t => {
-                    const label = t.label || t.name || 'Untitled';
-                    return this.escape(label);
-                }).join(',');
-                output.push(`TAB_LIST|${tabNames}`);
-                output.push('');
-                
-                // Full tab structure for multiple tabs
-                tabComponents.forEach((componentArray, tabIndex) => {
-                    let tab = { label: 'Untitled', color: '' };
-                    if (tabs && tabs.tabs && tabs.tabs[tabIndex]) {
-                        const tabData = tabs.tabs[tabIndex];
-                        tab = {
-                            label: tabData.name || tabData.label || tabData.title || 'Untitled',
-                            color: tabData.color || ''
-                        };
-                    }
-                    
-                    const tabLabel = this.escape(tab.label);
+            // Check if we have tabs
+            if (tabs && tabs.tabs && tabs.tabs.length > 0) {
+                // Multiple tabs - output each one
+                tabs.tabs.forEach((tab, index) => {
+                    const tabLabel = tab.label || tab.name || `Tab ${index + 1}`;
+                    const componentArray = tabComponents[index] || [];
                     
                     output.push(`--- TAB START: ${tabLabel} ---`);
-                    output.push(`CARD_COUNT|${componentArray.length}`);
+                    output.push(`COUNT|${componentArray.length}`);
                     output.push('');
                     
                     if (componentArray.length > 0) {
@@ -144,15 +116,19 @@
             
             // Component header based on type (skip for nest/cycle)
             if (type !== 'nest' && type !== 'cycle') {
-                switch(type) {
-                    case 'list':
-                        if (state.items && state.items.length > 0) {
-                            output.push(`LIST|${title}`);
-                        } else {
-                            const completed = state.completed ? 1 : 0;
-                            output.push(`LIST|${completed}|${title}`);
-                        }
-                        break;
+                // Check for divider variants (scale) OR type === 'scale'
+                if ((type === 'divider' && state.variant === 'scale') || type === 'scale') {
+                    output.push(`SCALE`);
+                } else {
+                    switch(type) {
+                        case 'list':
+                            if (state.items && state.items.length > 0) {
+                                output.push(`LIST|${title}`);
+                            } else {
+                                const completed = state.completed ? 1 : 0;
+                                output.push(`LIST|${completed}|${title}`);
+                            }
+                            break;
                         
                     case 'checklist':
                         output.push(`CHECKLIST|${title}`);
@@ -201,10 +177,23 @@
                 if (state.dropdownText) {
                     output.push(`dropdown|${this.escape(state.dropdownText)}`);
                 }
+                }
             }
             
             // Type-specific content
-            switch(type) {
+            // Handle scale cards (both divider variant: scale AND type: scale)
+            if ((type === 'divider' && state.variant === 'scale') || type === 'scale') {
+                if (state.items && state.items.length > 0) {
+                    state.items.forEach(item => {
+                        const number = this.escape(item.number || '');
+                        const unit = this.escape(item.unit || '');
+                        const itemTitle = this.escape(item.title || '');
+                        output.push(`scale-item|${number}|${unit}|${itemTitle}`);
+                    });
+                }
+            } else {
+                // Regular component content
+                switch(type) {
                 case 'list':
                     if (state.items && state.items.length > 0) {
                         state.items.forEach(item => {
@@ -226,41 +215,41 @@
                     break;
                     
                 case 'tier':
-                    if (state.tiers && state.tiers.length > 0) {
-                        let cumulativeAmount = 0;
-                        const currentProgress = state.current || 0;
-                        
-                        state.tiers.forEach((tier, index) => {
-                            const tierAmount = parseInt(tier.amount) || 0;
-                            const tierName = this.escape(tier.name || tier.title || '');
-                            
-                            // Calculate how much progress is in this specific tier
-                            let tierCurrent = 0;
-                            if (currentProgress > cumulativeAmount) {
-                                tierCurrent = Math.min(currentProgress - cumulativeAmount, tierAmount);
-                            }
-                            
-                            // Tier levels are 1-based (1 = first tier)
-                            output.push(`tier-level|${index + 1}|${tierCurrent}/${tierAmount}|${tierName}`);
-                            
-                            cumulativeAmount += tierAmount;
-                        });
-                    }
-                    break;
+    if (state.tiers && state.tiers.length > 0) {
+        // Calculate which tier we're in and distribute current progress
+        let cumulativeAmount = 0;
+        let remainingCurrent = state.current || 0;
+        
+        state.tiers.forEach((tier, idx) => {
+            const level = idx + 1;
+            const name = this.escape(tier.name || '');
+            const amount = parseInt(tier.amount) || 0;
+            
+            // Calculate current for this tier
+            let tierCurrent = 0;
+            if (remainingCurrent > 0) {
+                tierCurrent = Math.min(remainingCurrent, amount);
+                remainingCurrent -= tierCurrent;
+            }
+            
+            output.push(`tier-level|${level}|${tierCurrent}/${amount}|${name}`);
+            cumulativeAmount += amount;
+        });
+    }
+    break;
                     
                 case 'radio':
-                    // Radio uses state.items (with text property)
-                    // Radio options are 1-based (1 = first option)
                     if (state.items && state.items.length > 0) {
-                        state.items.forEach((item, index) => {
-                            const label = this.escape(item.text || item.label || item.name || '');
-                            output.push(`radio-option|${index + 1}|${label}`);
+                        state.items.forEach((item, idx) => {
+                            const order = idx + 1;
+                            const text = this.escape(item.text || item);
+                            output.push(`radio-option|${order}|${text}`);
                         });
                     } else if (state.options && state.options.length > 0) {
-                        // Fallback for old format
-                        state.options.forEach((option, index) => {
-                            const label = this.escape(option.label || option.text || option.name || '');
-                            output.push(`radio-option|${index + 1}|${label}`);
+                        state.options.forEach((opt, idx) => {
+                            const order = idx + 1;
+                            const text = this.escape(opt);
+                            output.push(`radio-option|${order}|${text}`);
                         });
                     }
                     break;
@@ -277,10 +266,9 @@
                     
                 case 'text':
                     if (state.text || state.value) {
-                        const textContent = state.text || state.value || '';
-                        output.push(`text-content|${this.escape(textContent)}`);
+                        const content = this.escape(state.text || state.value || '');
+                        output.push(`text-content|${content}`);
                     }
-                    // Text formatting properties
                     if (state.alignment) {
                         output.push(`text-alignment|${state.alignment}`);
                     }
@@ -295,107 +283,66 @@
                 case 'history':
                     if (state.entries && state.entries.length > 0) {
                         state.entries.forEach(entry => {
-                            output.push(`history-entry|${entry.timestamp}`);
+                            output.push(`history-entry|${entry}`);
                         });
                     }
                     break;
-                    
-                case 'nest':
-                case 'cycle':
-                    // Nests and Cycles contain their own internal tabs or direct components
-                    const nestName = state.name || state.title || 'Untitled';
-                    const componentType = type === 'cycle' ? 'CYCLE' : 'NEST';
-                    
-                    // Generate nest/cycle number based on position
-                    const currentNestNumber = nestPath ? `${nestPath}.${nestNumber}` : `${nestNumber}`;
-                    
-                    output.push(`--- ${componentType} ${currentNestNumber} START ---`);
-                    output.push(`${type}-name|${this.escape(nestName)}`);
-                    
-                    // For cycles, add the cycle scheduling info
-                    if (type === 'cycle') {
-                        const resetInterval = state.resetInterval || 'daily';
-                        output.push(`cycle-interval|${resetInterval}`);
+                }
+            }
+            
+            // Handle nest/cycle
+            if (type === 'nest' || type === 'cycle') {
+                const componentType = type === 'nest' ? 'NEST' : 'CYCLE';
+                const currentNestNumber = nestPath ? `${nestPath}.${nestNumber}` : `${nestNumber}`;
+                
+                output.push(`--- ${componentType} ${currentNestNumber} START: ${title} ---`);
+                
+                // Cycle-specific metadata
+                if (type === 'cycle') {
+                    if (state.resetInterval) output.push(`cycle-interval|${state.resetInterval}`);
+                    if (state.resetInterval === 'custom') {
+                        output.push(`cycle-custom|${state.customMonths||0}|${state.customDays||0}|${state.customHours||0}|${state.customMinutes||0}`);
+                    }
+                    if (state.lastReset) output.push(`cycle-last-reset|${state.lastReset}`);
+                    if (state.resetTime) output.push(`cycle-reset-time|${state.resetTime}`);
+                    if (state.resetDay !== undefined) output.push(`cycle-reset-day|${state.resetDay}`);
+                    if (state.resetHour !== undefined) output.push(`cycle-reset-hour|${state.resetHour}`);
+                }
+                
+                // Tabs if present
+                if (state.tabs && state.tabs.tabs && state.tabs.tabs.length > 0) {
+                    state.tabs.tabs.forEach((tab, tabIdx) => {
+                        const tabLabel = tab.label || tab.name || `Tab ${tabIdx + 1}`;
+                        const tabNumber = `${currentNestNumber}.${tabIdx + 1}`;
+                        const nestedArray = state.tabComponents[tabIdx] || [];
                         
-                        // If custom interval, output the custom values and last reset
-                        if (resetInterval === 'custom') {
-                            const months = state.customMonths || 0;
-                            const days = state.customDays || 0;
-                            const hours = state.customHours || 0;
-                            const minutes = state.customMinutes || 0;
-                            output.push(`cycle-custom|${months}|${days}|${hours}|${minutes}`);
-                            
-                            // Last reset timestamp (when custom, app calculates from here)
-                            if (state.lastReset) {
-                                output.push(`cycle-last-reset|${state.lastReset}`);
-                            }
-                        } else {
-                            // For daily/weekly/monthly, output reset time
-                            if (state.resetTime) {
-                                output.push(`cycle-reset-time|${state.resetTime}`);
-                            }
-                            
-                            // Reset day only for weekly
-                            if (resetInterval === 'weekly' && state.resetDay !== undefined) {
-                                output.push(`cycle-reset-day|${state.resetDay}`);
+                        output.push(`--- TAB ${tabNumber} START: ${tabLabel} ---`);
+                        
+                        // Tab color if present
+                        if (tab.color) {
+                            const colorMatch = tab.color.match(/--color-(\d+)/);
+                            if (colorMatch) {
+                                output.push(`tab-color|${colorMatch[1]}`);
                             }
                         }
+                        
+                        output.push('');
+                        
+                        // Output components inside this tab
+                        this.serializeComponents(nestedArray, output, tabNumber);
+                        
+                        output.push(`--- TAB ${tabNumber} END ---`);
+                        output.push('');
+                    });
+                } else {
+                    // No tabs defined - output components directly
+                    if (state.tabComponents && state.tabComponents[0] && state.tabComponents[0].length > 0) {
+                        this.serializeComponents(state.tabComponents[0], output, currentNestNumber);
                     }
-                    
-                    output.push('');
-                    
-                    // Check if tabs are explicitly defined
-                    const hasExplicitTabs = state.tabs && state.tabs.tabs && state.tabs.tabs.length > 0;
-                    
-                    if (hasExplicitTabs) {
-                        // Output the tabs structure
-                        if (state.tabComponents && state.tabComponents.length > 0) {
-                            state.tabComponents.forEach((nestedArray, tabIndex) => {
-                                // Skip empty tab arrays
-                                if (!nestedArray || nestedArray.length === 0) {
-                                    return;
-                                }
-                                
-                                // Get tab name from tabs array
-                                let tabName = 'Untitled';
-                                let tabColor = '';
-                                
-                                if (state.tabs.tabs[tabIndex]) {
-                                    const tab = state.tabs.tabs[tabIndex];
-                                    tabName = tab.label || tab.name || tab.title || 'Untitled';
-                                    tabColor = tab.color || '';
-                                }
-                                
-                                // Tabs inside nests/cycles use hierarchical numbering
-                                const tabNumber = `${currentNestNumber}.${tabIndex + 1}`;
-                                
-                                output.push(`--- TAB ${tabNumber} START ---`);
-                                output.push(`tab-name|${this.escape(tabName)}`);
-                                if (tabColor) {
-                                    const colorMatch = tabColor.match(/var\(--color-(\d+)\)/);
-                                    if (colorMatch) {
-                                        output.push(`tab-color|${colorMatch[1]}`);
-                                    }
-                                }
-                                output.push('');
-                                
-                                // Output components inside this tab
-                                this.serializeComponents(nestedArray, output, tabNumber);
-                                
-                                output.push(`--- TAB ${tabNumber} END ---`);
-                                output.push('');
-                            });
-                        }
-                    } else {
-                        // No tabs defined - output components directly (like single-tab at root)
-                        if (state.tabComponents && state.tabComponents[0] && state.tabComponents[0].length > 0) {
-                            this.serializeComponents(state.tabComponents[0], output, currentNestNumber);
-                        }
-                    }
-                    
-                    output.push(`--- ${componentType} ${currentNestNumber} END ---`);
-                    output.push('');
-                    break;
+                }
+                
+                output.push(`--- ${componentType} ${currentNestNumber} END ---`);
+                output.push('');
             }
             
             // Add blank line after non-nest components
@@ -413,16 +360,15 @@
                 app: null,
                 data: {
                     tabs: { tabs: [], activeViewTab: 0, selectedBuildTab: 0 },
-                    tabComponents: [[]] // Initialize with empty first tab for single-tab mode
+                    tabComponents: [[]]
                 }
             };
             
-            let currentSection = 'header';
-            let currentTabIndex = 0; // Start at 0 for single-tab mode
+            let currentTabIndex = 0;
             let hasMainWindowTabs = false;
             
             // Stack to track nested containers
-            let containerStack = []; // Each entry: { card, hasTabStructure }
+            let containerStack = [];
             let currentContainer = null;
             let currentTabInContainer = -1;
             
@@ -430,187 +376,178 @@
                 const line = lines[i].trim();
                 if (!line) continue;
                 
-                // Section markers
                 if (line.startsWith('=====')) continue;
+                
+                const parts = line.split('|');
+                const type = parts[0];
+                
+                // Parse header
+                if (type === 'TIMESTAMP') {
+                    result.timestamp = parts[1];
+                    continue;
+                }
+                if (type === 'APP') {
+                    result.app = parts[1];
+                    continue;
+                }
                 
                 // Main window tabs
                 if (line.startsWith('--- TAB START:')) {
                     if (!hasMainWindowTabs) {
-                        // First main window tab found - clear the default empty array
                         result.data.tabComponents = [];
                         hasMainWindowTabs = true;
-                        currentTabIndex = -1; // Will be incremented to 0
                     }
-                    
-                    currentSection = 'tab';
-                    currentTabIndex++;
-                    result.data.tabComponents[currentTabIndex] = [];
-                    
-                    // Extract tab name from marker
-                    const match = line.match(/--- TAB START: (.+) ---/);
-                    if (match) {
-                        result.data.tabs.tabs.push({
-                            name: this.unescape(match[1]),
-                            label: this.unescape(match[1]),
-                            color: ''
-                        });
+                    const tabLabel = line.match(/--- TAB START: (.+) ---/)[1];
+                    result.data.tabs.tabs.push({ label: tabLabel, name: tabLabel });
+                    currentTabIndex = result.data.tabs.tabs.length - 1;
+                    if (!result.data.tabComponents[currentTabIndex]) {
+                        result.data.tabComponents[currentTabIndex] = [];
                     }
                     continue;
                 }
+                if (line.startsWith('--- TAB END:')) continue;
                 
-                if (line.startsWith('--- TAB END:')) {
-                    currentSection = 'header';
-                    continue;
-                }
-                
-                if (line === '--- CARDS ---') {
-                    currentSection = 'cards';
-                    continue;
-                }
-                
-                // NEST/CYCLE START - create the container
-                if ((line.startsWith('--- NEST ') || line.startsWith('--- CYCLE ')) && line.includes('START ---')) {
-                    const isNest = line.startsWith('--- NEST ');
-                    const componentType = isNest ? 'NEST' : 'CYCLE';
-                    const nestCard = this.parseCardHeader(componentType, [componentType, 'Untitled']);
+                // Nested structures (NEST/CYCLE)
+                if (line.match(/^--- (NEST|CYCLE) .+ START:/)) {
+                    const isNest = line.includes('NEST');
+                    const match = line.match(/^--- (NEST|CYCLE) ([^ ]+) START: (.+) ---$/);
+                    const nestName = match[3];
                     
-                    // Add to appropriate location
+                    const nestCard = {
+                        id: Date.now() + Math.random(),
+                        type: isNest ? 'nest' : 'cycle',
+                        state: {
+                            name: nestName,
+                            title: nestName,
+                            components: [],
+                            tabs: { tabs: [], activeViewTab: 0, selectedBuildTab: 0 },
+                            tabComponents: [[]]
+                        }
+                    };
+                    
+                    if (!isNest) {
+                        nestCard.state.resetInterval = 'daily';
+                        nestCard.state.lastReset = 0;
+                        nestCard.state.resetTime = '00:00';
+                        nestCard.state.resetDay = 1;
+                        nestCard.state.resetHour = 0;
+                        nestCard.state.customMonths = 0;
+                        nestCard.state.customDays = 0;
+                        nestCard.state.customHours = 0;
+                        nestCard.state.customMinutes = 0;
+                    }
+                    
+                    // Add to current location
                     if (currentContainer) {
-                        // Inside another container
                         if (currentContainer.hasTabStructure) {
-                            // Inside a tab
                             currentContainer.card.state.tabComponents[currentTabInContainer].push(nestCard);
                         } else {
-                            // No tab structure
                             currentContainer.card.state.tabComponents[0].push(nestCard);
                         }
                     } else {
-                        // Root level
                         result.data.tabComponents[currentTabIndex].push(nestCard);
                     }
                     
-                    // Push to stack and set as current
+                    // Push current container to stack and set new container
                     containerStack.push(currentContainer);
                     currentContainer = { card: nestCard, hasTabStructure: false };
-                    currentTabInContainer = -1;
+                    currentTabInContainer = 0;
                     continue;
                 }
                 
-                // TAB inside NEST/CYCLE - numbered tabs like "--- TAB 1.1 START ---"
-                if (line.startsWith('--- TAB ') && line.includes('START ---') && !line.includes('TAB START:')) {
-                    if (currentContainer) {
-                        currentContainer.hasTabStructure = true;
-                        currentTabInContainer++;
-                        
-                        // Ensure arrays exist
-                        while (currentContainer.card.state.tabComponents.length <= currentTabInContainer) {
-                            currentContainer.card.state.tabComponents.push([]);
-                        }
-                        while (currentContainer.card.state.tabs.tabs.length <= currentTabInContainer) {
-                            currentContainer.card.state.tabs.tabs.push({ name: '', label: '', color: '' });
-                        }
-                    }
-                    continue;
-                }
-                
-                if (line.startsWith('--- TAB ') && line.includes('END ---') && !line.includes('TAB END:')) {
-                    continue;
-                }
-                
-                // NEST/CYCLE END - pop from stack
-                if ((line.startsWith('--- NEST') || line.startsWith('--- CYCLE')) && line.includes('END ---')) {
+                if (line.match(/^--- (NEST|CYCLE) .+ END/)) {
+                    // Pop from stack
                     currentContainer = containerStack.pop();
                     if (currentContainer) {
-                        currentTabInContainer = currentContainer.hasTabStructure ? 
-                            currentContainer.card.state.tabComponents.length - 1 : -1;
+                        currentTabInContainer = currentContainer.hasTabStructure ?
+                            currentContainer.card.state.tabComponents.length - 1 : 0;
                     } else {
                         currentTabInContainer = -1;
                     }
                     continue;
                 }
                 
-                // Parse line content
-                const parts = line.split('|');
-                const type = parts[0];
-                
-                // Header metadata
-                if (currentSection === 'header') {
-                    if (type === 'WORKSPACE') {
-                        result.app = this.unescape(parts[1]);
-                        continue;
-                    } else if (type === 'TIMESTAMP') {
-                        result.timestamp = parts[1];
-                        continue;
-                    } else if (type === 'TAB_CURRENT') {
-                        const current = parseInt(parts[1]);
-                        result.data.tabs.activeViewTab = current;
-                        result.data.tabs.selectedBuildTab = current;
-                        continue;
-                    } else if (type === 'TAB_STRUCTURE' || type === 'TAB_LIST' || type === 'CARD_COUNT') {
-                        continue;
+                // Nest/cycle internal tabs (format: --- TAB 1 START: or --- TAB 1.1 START:)
+                if (line.match(/^--- TAB [\d.]+ START:/)) {
+                    if (currentContainer) {
+                        const match = line.match(/^--- TAB [\d.]+ START: (.+) ---$/);
+                        const tabName = match[1];
+                        
+                        // Initialize tabs structure if needed
+                        if (!currentContainer.card.state.tabs) {
+                            currentContainer.card.state.tabs = { tabs: [], activeViewTab: 0, selectedBuildTab: 0 };
+                        }
+                        if (!currentContainer.card.state.tabComponents) {
+                            currentContainer.card.state.tabComponents = [];
+                        }
+                        
+                        currentContainer.card.state.tabs.tabs.push({ label: tabName, name: tabName });
+                        currentContainer.hasTabStructure = true;
+                        currentTabInContainer = currentContainer.card.state.tabs.tabs.length - 1;
+                        
+                        while (currentContainer.card.state.tabComponents.length <= currentTabInContainer) {
+                            currentContainer.card.state.tabComponents.push([]);
+                        }
                     }
+                    continue;
                 }
                 
-                // Container metadata
-                if (currentContainer) {
-                    if (type === 'nest-name' || type === 'cycle-name') {
-                        currentContainer.card.state.name = this.unescape(parts[1]);
-                        currentContainer.card.state.title = this.unescape(parts[1]);
+                if (line.match(/^--- TAB [\d.]+ END ---$/)) {
+                    if (currentContainer) {
+                        currentTabInContainer = currentContainer.hasTabStructure ? 
+                            currentContainer.card.state.tabComponents.length - 1 : 0;
+                    }
+                    continue;
+                }
+                
+                // Tab color
+                if (type === 'tab-color' && currentContainer && currentContainer.hasTabStructure) {
+                    const colorNum = parts[1];
+                    const lastTabIdx = currentContainer.card.state.tabs.tabs.length - 1;
+                    if (lastTabIdx >= 0) {
+                        currentContainer.card.state.tabs.tabs[lastTabIdx].color = `var(--color-${colorNum})`;
+                    }
+                    continue;
+                }
+                
+                // Cycle metadata
+                if (currentContainer && currentContainer.card.type === 'cycle') {
+                    if (type === 'cycle-interval') {
+                        currentContainer.card.state.resetInterval = parts[1];
                         continue;
                     }
-                    
-                    if (type === 'tab-name' && currentContainer.hasTabStructure) {
-                        currentContainer.card.state.tabs.tabs[currentTabInContainer].name = this.unescape(parts[1]);
-                        currentContainer.card.state.tabs.tabs[currentTabInContainer].label = this.unescape(parts[1]);
+                    if (type === 'cycle-custom') {
+                        currentContainer.card.state.customMonths = parseInt(parts[1]) || 0;
+                        currentContainer.card.state.customDays = parseInt(parts[2]) || 0;
+                        currentContainer.card.state.customHours = parseInt(parts[3]) || 0;
+                        currentContainer.card.state.customMinutes = parseInt(parts[4]) || 0;
                         continue;
                     }
-                    
-                    if (type === 'tab-color' && currentContainer.hasTabStructure) {
-                        const colorNum = parts[1];
-                        currentContainer.card.state.tabs.tabs[currentTabInContainer].color = `var(--color-${colorNum})`;
+                    if (type === 'cycle-last-reset') {
+                        currentContainer.card.state.lastReset = parseInt(parts[1]);
                         continue;
                     }
-                    
-                    // Cycle-specific metadata
-                    if (currentContainer.card.type === 'cycle') {
-                        if (type === 'cycle-interval') {
-                            currentContainer.card.state.resetInterval = parts[1];
-                            continue;
-                        }
-                        if (type === 'cycle-custom') {
-                            currentContainer.card.state.customMonths = parseInt(parts[1]) || 0;
-                            currentContainer.card.state.customDays = parseInt(parts[2]) || 0;
-                            currentContainer.card.state.customHours = parseInt(parts[3]) || 0;
-                            currentContainer.card.state.customMinutes = parseInt(parts[4]) || 0;
-                            continue;
-                        }
-                        if (type === 'cycle-last-reset') {
-                            currentContainer.card.state.lastReset = parseInt(parts[1]);
-                            continue;
-                        }
-                        if (type === 'cycle-reset-time') {
-                            currentContainer.card.state.resetTime = parts[1];
-                            continue;
-                        }
-                        if (type === 'cycle-reset-day') {
-                            currentContainer.card.state.resetDay = parseInt(parts[1]);
-                            continue;
-                        }
-                        if (type === 'cycle-reset-hour') {
-                            currentContainer.card.state.resetHour = parseInt(parts[1]);
-                            continue;
-                        }
+                    if (type === 'cycle-reset-time') {
+                        currentContainer.card.state.resetTime = parts[1];
+                        continue;
+                    }
+                    if (type === 'cycle-reset-day') {
+                        currentContainer.card.state.resetDay = parseInt(parts[1]);
+                        continue;
+                    }
+                    if (type === 'cycle-reset-hour') {
+                        currentContainer.card.state.resetHour = parseInt(parts[1]);
+                        continue;
                     }
                 }
                 
                 // Component types
                 const componentTypes = ['LIST', 'ACCUMULATION', 'PROGRESS', 'TIER', 'HISTORY', 
-                                      'CHECKLIST', 'DIVIDER', 'RADIO', 'THRESHOLD', 'TEXT'];
-                
+                                      'CHECKLIST', 'DIVIDER', 'RADIO', 'THRESHOLD', 'TEXT', 'SCALE'];
+        
                 if (componentTypes.includes(type)) {
                     const card = this.parseCardHeader(type, parts);
                     
-                    // Add to appropriate location
                     if (currentContainer) {
                         if (currentContainer.hasTabStructure) {
                             currentContainer.card.state.tabComponents[currentTabInContainer].push(card);
@@ -621,10 +558,8 @@
                         result.data.tabComponents[currentTabIndex].push(card);
                     }
                     
-                    // Set as current for sub-item parsing
                     const currentCard = card;
                     
-                    // Parse any sub-items on following lines
                     for (let j = i + 1; j < lines.length; j++) {
                         const nextLine = lines[j].trim();
                         if (!nextLine) continue;
@@ -632,16 +567,14 @@
                         const nextParts = nextLine.split('|');
                         const nextType = nextParts[0];
                         
-                        // Check if this is a sub-item for current card
                         const subItemTypes = ['dropdown', 'list-item', 'checklist-item', 'tier-level', 
                                             'radio-option', 'threshold-item', 'text-content', 'text-alignment',
-                                            'text-weight', 'text-font', 'history-entry'];
+                                            'text-weight', 'text-font', 'history-entry', 'scale-item'];
                         
                         if (subItemTypes.includes(nextType)) {
                             this.parseCardContent(nextType, nextParts, currentCard.state);
-                            i = j; // Skip this line in main loop
+                            i = j;
                         } else {
-                            // Not a sub-item, break and let main loop handle it
                             break;
                         }
                     }
@@ -707,12 +640,22 @@
                     break;
                     
                 case 'RADIO':
-                    const radioIndex = parseInt(parts[1]) - 1; // Convert from 1-based to 0-based
+                    const radioIndex = parseInt(parts[1]) - 1;
                     card.state.selectedIndex = radioIndex;
                     card.state.value = radioIndex;
                     card.state.title = this.unescape(parts[2]);
                     card.state.items = [];
                     card.state.options = [];
+                    break;
+                    
+                case 'SCALE':
+                    // Scale cards are type: 'scale' (not divider variant)
+                    card.type = 'scale';
+                    card.state.multiplier = 1;
+                    card.state.items = [];
+                    card.state.open = false;
+                    card.state.dropdownText = '';
+                    delete card.state.title;
                     break;
                     
                 case 'DIVIDER':
@@ -732,27 +675,6 @@
                     card.state.title = this.unescape(parts[1]);
                     card.state.entries = [];
                     break;
-                    
-                case 'NEST':
-                case 'CYCLE':
-                    card.state.name = this.unescape(parts[1]);
-                    card.state.title = this.unescape(parts[1]);
-                    card.state.components = [];
-                    card.state.tabs = { tabs: [], activeViewTab: 0, selectedBuildTab: 0 };
-                    card.state.tabComponents = [[]]; // Initialize with one empty array
-                    if (type === 'CYCLE') {
-                        card.state.resetInterval = 'daily';
-                        card.state.lastReset = Date.now();
-                        card.state.resetTime = '00:00';
-                        card.state.resetDay = 1;
-                        card.state.resetHour = 0;
-                        card.state.customMonths = 0;
-                        card.state.customDays = 0;
-                        card.state.customHours = 0;
-                        card.state.customMinutes = 0;
-                        card.state.customDropdownOpen = false;
-                    }
-                    break;
             }
             
             return card;
@@ -760,72 +682,93 @@
         
         // ===== PARSE CARD CONTENT =====
         parseCardContent: function(type, parts, state) {
-            if (type === 'dropdown') {
-                state.dropdownText = this.unescape(parts[1]);
-            } else if (type === 'list-item') {
-                if (!state.items) state.items = [];
-                state.items.push({
-                    text: this.unescape(parts[2]),
-                    completed: parts[1] === '1',
-                    timestamp: Date.now()
-                });
-            } else if (type === 'checklist-item') {
-                if (!state.items) state.items = [];
-                state.items.push({
-                    text: this.unescape(parts[2]),
-                    completed: parts[1] === '1',
-                    timestamp: Date.now()
-                });
-            } else if (type === 'tier-level') {
-                if (!state.tiers) state.tiers = [];
-                const [tierCurrent, tierAmount] = parts[2].split('/').map(Number);
-                const tierName = this.unescape(parts[3]);
-                
-                state.tiers.push({
-                    name: tierName,
-                    amount: tierAmount.toString()
-                });
-                
-                state.total = (state.total || 0) + tierAmount;
-                state.current = (state.current || 0) + tierCurrent;
-            } else if (type === 'history-entry') {
-                if (!state.entries) state.entries = [];
-                state.entries.push({
-                    timestamp: parseInt(parts[1]) || Date.now()
-                });
-            } else if (type === 'radio-option') {
-                if (!state.items) state.items = [];
-                if (!state.options) state.options = [];
-                
-                const optionText = this.unescape(parts[2]);
-                state.items.push({
-                    text: optionText
-                });
-                state.options.push({
-                    label: optionText,
-                    text: optionText
-                });
-            } else if (type === 'threshold-item') {
-                if (!state.items) state.items = [];
-                state.items.push({
-                    text: this.unescape(parts[2]),
-                    completed: parts[1] === '1',
-                    timestamp: Date.now()
-                });
-                state.threshold = state.items.length;
-            } else if (type === 'text-content') {
-                state.text = this.unescape(parts[1]);
-                state.value = this.unescape(parts[1]);
-            } else if (type === 'text-alignment') {
-                state.alignment = parts[1];
-            } else if (type === 'text-weight') {
-                state.fontWeight = parts[1];
-            } else if (type === 'text-font') {
-                state.fontStyle = parts[1];
+            switch(type) {
+                case 'dropdown':
+                    state.dropdownText = this.unescape(parts[1]);
+                    break;
+                    
+                case 'list-item':
+                    if (!state.items) state.items = [];
+                    state.items.push({
+                        completed: parts[1] === '1',
+                        text: this.unescape(parts[2])
+                    });
+                    break;
+                    
+                case 'checklist-item':
+                    if (!state.items) state.items = [];
+                    state.items.push({
+                        completed: parts[1] === '1',
+                        text: this.unescape(parts[2])
+                    });
+                    break;
+                    
+                case 'tier-level':
+                    if (!state.tiers) state.tiers = [];
+                    const [tierCurrent, tierAmount] = parts[2].split('/').map(Number);
+                    state.tiers.push({
+                        name: this.unescape(parts[3]),
+                        amount: tierAmount,
+                        current: tierCurrent
+                    });
+                    state.total = state.tiers.reduce((sum, t) => sum + t.amount, 0);
+                    state.current = state.tiers.reduce((sum, t) => sum + t.current, 0);
+                    break;
+                    
+                case 'radio-option':
+                    if (!state.items) state.items = [];
+                    if (!state.options) state.options = [];
+                    const optionText = this.unescape(parts[2]);
+                    state.items.push({ text: optionText });
+                    state.options.push(optionText);
+                    break;
+                    
+                case 'threshold-item':
+                    if (!state.items) state.items = [];
+                    const item = {
+                        completed: parts[1] === '1',
+                        text: this.unescape(parts[2])
+                    };
+                    state.items.push(item);
+                    if (item.completed) {
+                        state.threshold = (state.threshold || 0) + 1;
+                    }
+                    break;
+                    
+                case 'text-content':
+                    state.text = this.unescape(parts[1]);
+                    state.value = this.unescape(parts[1]);
+                    break;
+                    
+                case 'text-alignment':
+                    state.alignment = parts[1];
+                    break;
+                    
+                case 'text-weight':
+                    state.fontWeight = parts[1];
+                    break;
+                    
+                case 'text-font':
+                    state.fontStyle = parts[1];
+                    break;
+                    
+                case 'history-entry':
+                    if (!state.entries) state.entries = [];
+                    state.entries.push(parseInt(parts[1]));
+                    break;
+                    
+                case 'scale-item':
+                    if (!state.items) state.items = [];
+                    state.items.push({
+                        number: this.unescape(parts[1]),
+                        unit: this.unescape(parts[2]),
+                        title: this.unescape(parts[3])
+                    });
+                    break;
             }
         },
         
-        // ===== VALIDATE =====
+        // ===== VALIDATION =====
         validate: function(formatData) {
             try {
                 if (!formatData.includes('===== WORKSPACE START =====')) {
@@ -851,23 +794,26 @@
             }
         },
         
-        // ===== HELPER: ESCAPE SPECIAL CHARACTERS =====
+        // ===== ESCAPE/UNESCAPE =====
         escape: function(str) {
             if (typeof str !== 'string') return str;
-            return str.replace(/\|/g, '\\|').replace(/\n/g, '\\n').replace(/,/g, '\\,');
+            return str
+                .replace(/\\/g, '\\\\')
+                .replace(/\|/g, '\\|')
+                .replace(/\n/g, '\\n');
         },
         
-        // ===== HELPER: UNESCAPE SPECIAL CHARACTERS =====
         unescape: function(str) {
             if (typeof str !== 'string') return str;
-            return str.replace(/\\\|/g, '|').replace(/\\n/g, '\n').replace(/\\,/g, ',');
+            return str
+                .replace(/\\n/g, '\n')
+                .replace(/\\\|/g, '|')
+                .replace(/\\\\/g, '\\');
         }
     };
     
-    // ===== AUTO-REGISTER FORMAT =====
+    // ===== REGISTER FORMAT =====
     if (window.GT50Lib && window.GT50Lib.ImpEx) {
         window.GT50Lib.ImpEx.registerFormat(GT50Format);
-    } else {
-        console.warn('GT50 Format: ImpEx not yet loaded, format not registered');
     }
 })();
