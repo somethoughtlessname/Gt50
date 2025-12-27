@@ -19,8 +19,8 @@
     // TEXT:         TEXT|Title (state.text, alignment, fontWeight, fontStyle)
     // HISTORY:      HISTORY|Title (no progress indicator)
     // SCALE:        SCALE (no title, uses dropdown text, items with number/unit/title)
-    // NEST:         Uses --- NEST X START/END --- with internal tabs or direct components
-    // CYCLE:        Uses --- CYCLE X START/END --- with scheduling info
+    // NEST:         Uses --- NEST X START: Name --- with internal tabs or direct components
+    // CYCLE:        Uses --- CYCLE X START: Name --- with scheduling info
     //
     // ALL COMPONENTS: Can have optional dropdownText field
     // 
@@ -130,53 +130,53 @@
                             }
                             break;
                         
-                    case 'checklist':
-                        output.push(`CHECKLIST|${title}`);
-                        break;
+                        case 'checklist':
+                            output.push(`CHECKLIST|${title}`);
+                            break;
                         
-                    case 'progress':
-                        const current = state.current || 0;
-                        const target = state.total !== undefined ? state.total : state.target || 100;
-                        output.push(`PROGRESS|${current}/${target}|${title}`);
-                        break;
+                        case 'progress':
+                            const current = state.current || 0;
+                            const target = state.total !== undefined ? state.total : state.target || 100;
+                            output.push(`PROGRESS|${current}/${target}|${title}`);
+                            break;
                         
-                    case 'accumulation':
-                        const total = state.value !== undefined ? state.value : state.total || 0;
-                        output.push(`ACCUMULATION|${total}|${title}`);
-                        break;
+                        case 'accumulation':
+                            const total = state.value !== undefined ? state.value : state.total || 0;
+                            output.push(`ACCUMULATION|${total}|${title}`);
+                            break;
                         
-                    case 'threshold':
-                        const threshold = state.number1 || state.threshold || 1;
-                        output.push(`THRESHOLD|${threshold}|${title}`);
-                        break;
+                        case 'threshold':
+                            const threshold = state.number1 || state.threshold || 1;
+                            output.push(`THRESHOLD|${threshold}|${title}`);
+                            break;
                         
-                    case 'tier':
-                        output.push(`TIER|${title}`);
-                        break;
+                        case 'tier':
+                            output.push(`TIER|${title}`);
+                            break;
                         
-                    case 'radio':
-                        const selectedIndex = state.selectedIndex !== undefined ? state.selectedIndex : 
-                                            state.value !== undefined ? state.value : 0;
-                        output.push(`RADIO|${selectedIndex + 1}|${title}`);
-                        break;
+                        case 'radio':
+                            const selectedIndex = state.selectedIndex !== undefined ? state.selectedIndex : 
+                                                state.value !== undefined ? state.value : 0;
+                            output.push(`RADIO|${selectedIndex + 1}|${title}`);
+                            break;
                         
-                    case 'divider':
-                        output.push(`DIVIDER|${title}`);
-                        break;
+                        case 'divider':
+                            output.push(`DIVIDER|${title}`);
+                            break;
                         
-                    case 'text':
-                        output.push(`TEXT|${title}`);
-                        break;
+                        case 'text':
+                            output.push(`TEXT|${title}`);
+                            break;
                         
-                    case 'history':
-                        output.push(`HISTORY|${title}`);
-                        break;
-                }
-                
-                // Dropdown text (optional for all components)
-                if (state.dropdownText) {
-                    output.push(`dropdown|${this.escape(state.dropdownText)}`);
-                }
+                        case 'history':
+                            output.push(`HISTORY|${title}`);
+                            break;
+                    }
+                    
+                    // Dropdown text (optional for all components)
+                    if (state.dropdownText) {
+                        output.push(`dropdown|${this.escape(state.dropdownText)}`);
+                    }
                 }
             }
             
@@ -194,131 +194,142 @@
             } else {
                 // Regular component content
                 switch(type) {
-                case 'list':
-                    if (state.items && state.items.length > 0) {
-                        state.items.forEach(item => {
-                            const completed = item.completed ? 1 : 0;
-                            const text = this.escape(item.text);
-                            output.push(`list-item|${completed}|${text}`);
-                        });
-                    }
-                    break;
+                    case 'list':
+                        if (state.items && state.items.length > 0) {
+                            state.items.forEach(item => {
+                                const completed = item.completed ? 1 : 0;
+                                const text = this.escape(item.text);
+                                output.push(`list-item|${completed}|${text}`);
+                            });
+                        }
+                        break;
                     
-                case 'checklist':
-                    if (state.items && state.items.length > 0) {
-                        state.items.forEach(item => {
-                            const completed = item.completed ? 1 : 0;
-                            const text = this.escape(item.text);
-                            output.push(`checklist-item|${completed}|${text}`);
-                        });
-                    }
-                    break;
+                    case 'checklist':
+                        if (state.items && state.items.length > 0) {
+                            state.items.forEach(item => {
+                                const completed = item.completed ? 1 : 0;
+                                const text = this.escape(item.text);
+                                output.push(`checklist-item|${completed}|${text}`);
+                            });
+                        }
+                        break;
                     
-                case 'tier':
-    if (state.tiers && state.tiers.length > 0) {
-        // Calculate which tier we're in and distribute current progress
-        let cumulativeAmount = 0;
-        let remainingCurrent = state.current || 0;
-        
-        state.tiers.forEach((tier, idx) => {
-            const level = idx + 1;
-            const name = this.escape(tier.name || '');
-            const amount = parseInt(tier.amount) || 0;
-            
-            // Calculate current for this tier
-            let tierCurrent = 0;
-            if (remainingCurrent > 0) {
-                tierCurrent = Math.min(remainingCurrent, amount);
-                remainingCurrent -= tierCurrent;
-            }
-            
-            output.push(`tier-level|${level}|${tierCurrent}/${amount}|${name}`);
-            cumulativeAmount += amount;
-        });
-    }
-    break;
+                    case 'tier':
+                        if (state.tiers && state.tiers.length > 0) {
+                            state.tiers.forEach((tier, idx) => {
+                                const tierNum = idx + 1;
+                                const tierName = this.escape(tier.name || `Tier ${tierNum}`);
+                                const tierCurrent = tier.current || 0;
+                                const tierAmount = tier.amount || 0;
+                                output.push(`tier-level|${tierNum}|${tierCurrent}/${tierAmount}|${tierName}`);
+                            });
+                        }
+                        break;
                     
-                case 'radio':
-                    if (state.items && state.items.length > 0) {
-                        state.items.forEach((item, idx) => {
-                            const order = idx + 1;
-                            const text = this.escape(item.text || item);
-                            output.push(`radio-option|${order}|${text}`);
-                        });
-                    } else if (state.options && state.options.length > 0) {
-                        state.options.forEach((opt, idx) => {
-                            const order = idx + 1;
-                            const text = this.escape(opt);
-                            output.push(`radio-option|${order}|${text}`);
-                        });
-                    }
-                    break;
+                    case 'radio':
+                        if (state.items && state.items.length > 0) {
+                            state.items.forEach((item, idx) => {
+                                const optionNum = idx + 1;
+                                const optionText = this.escape(item.text || item);
+                                output.push(`radio-option|${optionNum}|${optionText}`);
+                            });
+                        }
+                        break;
                     
-                case 'threshold':
-                    if (state.items && state.items.length > 0) {
-                        state.items.forEach(item => {
-                            const completed = item.completed ? 1 : 0;
-                            const text = this.escape(item.text);
-                            output.push(`threshold-item|${completed}|${text}`);
-                        });
-                    }
-                    break;
+                    case 'threshold':
+                        if (state.items && state.items.length > 0) {
+                            state.items.forEach(item => {
+                                const completed = item.completed ? 1 : 0;
+                                const text = this.escape(item.text);
+                                output.push(`threshold-item|${completed}|${text}`);
+                            });
+                        }
+                        break;
                     
-                case 'text':
-                    if (state.text || state.value) {
-                        const content = this.escape(state.text || state.value || '');
-                        output.push(`text-content|${content}`);
-                    }
-                    if (state.alignment) {
-                        output.push(`text-alignment|${state.alignment}`);
-                    }
-                    if (state.fontWeight) {
-                        output.push(`text-weight|${state.fontWeight}`);
-                    }
-                    if (state.fontStyle) {
-                        output.push(`text-font|${state.fontStyle}`);
-                    }
-                    break;
+                    case 'text':
+                        if (state.text || state.value) {
+                            const content = this.escape(state.text || state.value || '');
+                            output.push(`text-content|${content}`);
+                        }
+                        if (state.alignment) {
+                            output.push(`text-alignment|${state.alignment}`);
+                        }
+                        if (state.fontWeight) {
+                            output.push(`text-weight|${state.fontWeight}`);
+                        }
+                        if (state.fontStyle) {
+                            output.push(`text-font|${state.fontStyle}`);
+                        }
+                        break;
                     
-                case 'history':
-                    if (state.entries && state.entries.length > 0) {
-                        state.entries.forEach(entry => {
-                            output.push(`history-entry|${entry}`);
-                        });
-                    }
-                    break;
+                    case 'history':
+                        // Export timestamp entries
+                        if (state.entries && state.entries.length > 0) {
+                            state.entries.forEach(entry => {
+                                // Handle both object format {timestamp: X} and raw timestamp format
+                                const timestamp = typeof entry === 'object' ? entry.timestamp : entry;
+                                const date = new Date(timestamp);
+                                const formattedDate = date.toISOString();
+                                output.push(`history-entry|${timestamp}|${formattedDate}`);
+                            });
+                        }
+                        // Export display mode
+                        if (state.displayMode) {
+                            output.push(`history-displayMode|${state.displayMode}`);
+                        }
+                        // Export locked status
+                        if (state.locked !== undefined) {
+                            output.push(`history-locked|${state.locked ? '1' : '0'}`);
+                        }
+                        break;
                 }
             }
             
             // Handle nest/cycle
             if (type === 'nest' || type === 'cycle') {
                 const componentType = type === 'nest' ? 'NEST' : 'CYCLE';
-                const currentNestNumber = nestPath ? `${nestPath}.${nestNumber}` : `${nestNumber}`;
+                const currentNestNumber = nestPath ? 
+                    `${nestPath}.${nestNumber}` : 
+                    nestNumber.toString();
                 
-                output.push(`--- ${componentType} ${currentNestNumber} START: ${title} ---`);
+                const containerName = this.escape(state.name || state.title || 'Container');
+                output.push(`--- ${componentType} ${currentNestNumber} START: ${containerName} ---`);
                 
                 // Cycle-specific metadata
                 if (type === 'cycle') {
-                    if (state.resetInterval) output.push(`cycle-interval|${state.resetInterval}`);
-                    if (state.resetInterval === 'custom') {
-                        output.push(`cycle-custom|${state.customMonths||0}|${state.customDays||0}|${state.customHours||0}|${state.customMinutes||0}`);
+                    if (state.resetInterval) {
+                        output.push(`cycle-interval|${state.resetInterval}`);
                     }
-                    if (state.lastReset) output.push(`cycle-last-reset|${state.lastReset}`);
-                    if (state.resetTime) output.push(`cycle-reset-time|${state.resetTime}`);
-                    if (state.resetDay !== undefined) output.push(`cycle-reset-day|${state.resetDay}`);
-                    if (state.resetHour !== undefined) output.push(`cycle-reset-hour|${state.resetHour}`);
+                    if (state.resetInterval === 'custom') {
+                        const months = state.customMonths || 0;
+                        const days = state.customDays || 0;
+                        const hours = state.customHours || 0;
+                        const minutes = state.customMinutes || 0;
+                        output.push(`cycle-custom|${months}|${days}|${hours}|${minutes}`);
+                    }
+                    if (state.lastReset) {
+                        output.push(`cycle-last-reset|${state.lastReset}`);
+                    }
+                    if (state.resetTime) {
+                        output.push(`cycle-reset-time|${state.resetTime}`);
+                    }
+                    if (state.resetDay !== undefined) {
+                        output.push(`cycle-reset-day|${state.resetDay}`);
+                    }
+                    if (state.resetHour !== undefined) {
+                        output.push(`cycle-reset-hour|${state.resetHour}`);
+                    }
                 }
                 
-                // Tabs if present
+                // Handle tabs within nest/cycle
                 if (state.tabs && state.tabs.tabs && state.tabs.tabs.length > 0) {
                     state.tabs.tabs.forEach((tab, tabIdx) => {
-                        const tabLabel = tab.label || tab.name || `Tab ${tabIdx + 1}`;
                         const tabNumber = `${currentNestNumber}.${tabIdx + 1}`;
+                        const tabName = this.escape(tab.name || tab.label || `Tab ${tabIdx + 1}`);
                         const nestedArray = state.tabComponents[tabIdx] || [];
                         
-                        output.push(`--- TAB ${tabNumber} START: ${tabLabel} ---`);
+                        output.push(`--- TAB ${tabNumber} START: ${tabName} ---`);
                         
-                        // Tab color if present
                         if (tab.color) {
                             const colorMatch = tab.color.match(/--color-(\d+)/);
                             if (colorMatch) {
@@ -370,18 +381,16 @@
             // Stack to track nested containers
             let containerStack = [];
             let currentContainer = null;
-            let currentTabInContainer = -1;
+            let currentTabInContainer = 0;
             
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i].trim();
                 if (!line) continue;
                 
-                if (line.startsWith('=====')) continue;
-                
                 const parts = line.split('|');
                 const type = parts[0];
                 
-                // Parse header
+                // Header metadata
                 if (type === 'TIMESTAMP') {
                     result.timestamp = parts[1];
                     continue;
@@ -392,110 +401,150 @@
                 }
                 
                 // Main window tabs
-                if (line.startsWith('--- TAB START:')) {
-                    if (!hasMainWindowTabs) {
-                        result.data.tabComponents = [];
-                        hasMainWindowTabs = true;
-                    }
-                    const tabLabel = line.match(/--- TAB START: (.+) ---/)[1];
-                    result.data.tabs.tabs.push({ label: tabLabel, name: tabLabel });
+                if (line.match(/^--- TAB START:/)) {
+                    hasMainWindowTabs = true;
+                    const tabName = line.split(':')[1].trim().replace(' ---', '');
+                    result.data.tabs.tabs.push({
+                        name: tabName,
+                        label: tabName,
+                        color: 'var(--accent)'
+                    });
+                    result.data.tabComponents.push([]);
                     currentTabIndex = result.data.tabs.tabs.length - 1;
-                    if (!result.data.tabComponents[currentTabIndex]) {
-                        result.data.tabComponents[currentTabIndex] = [];
-                    }
                     continue;
                 }
-                if (line.startsWith('--- TAB END:')) continue;
                 
-                // Nested structures (NEST/CYCLE)
+                // Nest/Cycle start (format: --- NEST 1 START: Name ---)
                 if (line.match(/^--- (NEST|CYCLE) .+ START:/)) {
-                    const isNest = line.includes('NEST');
-                    const match = line.match(/^--- (NEST|CYCLE) ([^ ]+) START: (.+) ---$/);
-                    const nestName = match[3];
+                    const containerType = line.includes('NEST') ? 'nest' : 'cycle';
                     
-                    const nestCard = {
-                        id: Date.now() + Math.random(),
-                        type: isNest ? 'nest' : 'cycle',
-                        state: {
-                            name: nestName,
-                            title: nestName,
-                            components: [],
+                    // Extract name from line: "--- NEST 1 START: Name ---"
+                    const nameMatch = line.match(/START:\s*(.+?)\s*---$/);
+                    const containerName = nameMatch ? this.unescape(nameMatch[1]) : '';
+                    
+                    // Get default state from component library if available
+                    let defaultState;
+                    if (containerType === 'nest' && window.GT50Lib && window.GT50Lib.Nest) {
+                        defaultState = window.GT50Lib.Nest.defaultState();
+                    } else if (containerType === 'cycle' && window.GT50Lib && window.GT50Lib.Cycle) {
+                        defaultState = window.GT50Lib.Cycle.defaultState();
+                    } else {
+                        // Fallback default state
+                        defaultState = {
+                            name: '',
+                            title: '',
+                            open: false,
                             tabs: { tabs: [], activeViewTab: 0, selectedBuildTab: 0 },
                             tabComponents: [[]]
+                        };
+                        if (containerType === 'cycle') {
+                            defaultState.resetInterval = 'daily';
+                            defaultState.lastReset = 0;
+                            defaultState.resetTime = '00:00';
+                            defaultState.resetDay = 1;
+                            defaultState.resetHour = 0;
+                            defaultState.customMonths = 0;
+                            defaultState.customDays = 0;
+                            defaultState.customHours = 0;
+                            defaultState.customMinutes = 0;
                         }
-                    };
-                    
-                    if (!isNest) {
-                        nestCard.state.resetInterval = 'daily';
-                        nestCard.state.lastReset = 0;
-                        nestCard.state.resetTime = '00:00';
-                        nestCard.state.resetDay = 1;
-                        nestCard.state.resetHour = 0;
-                        nestCard.state.customMonths = 0;
-                        nestCard.state.customDays = 0;
-                        nestCard.state.customHours = 0;
-                        nestCard.state.customMinutes = 0;
                     }
+                    
+                    // Set the name
+                    defaultState.name = containerName;
+                    defaultState.title = containerName;
+                    
+                    // CRITICAL: Ensure tabComponents is initialized
+                    if (!defaultState.tabComponents) {
+                        defaultState.tabComponents = [[]];
+                    }
+                    
+                    const newContainer = {
+                        id: Date.now() + Math.random(),
+                        type: containerType,
+                        state: defaultState
+                    };
                     
                     // Add to current location
                     if (currentContainer) {
                         if (currentContainer.hasTabStructure) {
-                            currentContainer.card.state.tabComponents[currentTabInContainer].push(nestCard);
+                            // Ensure the tab exists
+                            if (!currentContainer.card.state.tabComponents[currentTabInContainer]) {
+                                currentContainer.card.state.tabComponents[currentTabInContainer] = [];
+                            }
+                            currentContainer.card.state.tabComponents[currentTabInContainer].push(newContainer);
                         } else {
-                            currentContainer.card.state.tabComponents[0].push(nestCard);
+                            // Ensure tabComponents[0] exists
+                            if (!currentContainer.card.state.tabComponents[0]) {
+                                currentContainer.card.state.tabComponents[0] = [];
+                            }
+                            currentContainer.card.state.tabComponents[0].push(newContainer);
                         }
                     } else {
-                        result.data.tabComponents[currentTabIndex].push(nestCard);
+                        result.data.tabComponents[currentTabIndex].push(newContainer);
                     }
                     
-                    // Push current container to stack and set new container
                     containerStack.push(currentContainer);
-                    currentContainer = { card: nestCard, hasTabStructure: false };
+                    currentContainer = {
+                        card: newContainer,
+                        hasTabStructure: false
+                    };
                     currentTabInContainer = 0;
                     continue;
                 }
                 
-                if (line.match(/^--- (NEST|CYCLE) .+ END/)) {
-                    // Pop from stack
-                    currentContainer = containerStack.pop();
+                // Tab start inside nest/cycle (format: --- TAB 1.1 START: Name ---)
+                if (line.match(/^--- TAB .+ START:/)) {
                     if (currentContainer) {
-                        currentTabInContainer = currentContainer.hasTabStructure ?
-                            currentContainer.card.state.tabComponents.length - 1 : 0;
-                    } else {
-                        currentTabInContainer = -1;
-                    }
-                    continue;
-                }
-                
-                // Nest/cycle internal tabs (format: --- TAB 1 START: or --- TAB 1.1 START:)
-                if (line.match(/^--- TAB [\d.]+ START:/)) {
-                    if (currentContainer) {
-                        const match = line.match(/^--- TAB [\d.]+ START: (.+) ---$/);
-                        const tabName = match[1];
+                        // Extract name from line
+                        const nameMatch = line.match(/START:\s*(.+?)\s*---$/);
+                        const tabName = nameMatch ? this.unescape(nameMatch[1]) : '';
                         
-                        // Initialize tabs structure if needed
-                        if (!currentContainer.card.state.tabs) {
-                            currentContainer.card.state.tabs = { tabs: [], activeViewTab: 0, selectedBuildTab: 0 };
-                        }
-                        if (!currentContainer.card.state.tabComponents) {
+                        if (!currentContainer.hasTabStructure) {
+                            currentContainer.hasTabStructure = true;
+                            // Ensure tabs object exists before setting tabs.tabs
+                            if (!currentContainer.card.state.tabs) {
+                                currentContainer.card.state.tabs = { tabs: [], activeViewTab: 0, selectedBuildTab: 0 };
+                            } else {
+                                currentContainer.card.state.tabs.tabs = [];
+                            }
                             currentContainer.card.state.tabComponents = [];
                         }
                         
-                        currentContainer.card.state.tabs.tabs.push({ label: tabName, name: tabName });
-                        currentContainer.hasTabStructure = true;
+                        currentContainer.card.state.tabs.tabs.push({
+                            name: tabName,
+                            label: tabName,
+                            color: 'var(--accent)'
+                        });
+                        currentContainer.card.state.tabComponents.push([]);
                         currentTabInContainer = currentContainer.card.state.tabs.tabs.length - 1;
-                        
-                        while (currentContainer.card.state.tabComponents.length <= currentTabInContainer) {
-                            currentContainer.card.state.tabComponents.push([]);
+                    }
+                    continue;
+                }
+                
+                // Nest/Cycle end
+                if (line.match(/^--- (NEST|CYCLE) .+ END ---$/)) {
+                    // Pop and restore the previous container
+                    const poppedContainer = containerStack.pop();
+                    currentContainer = poppedContainer !== undefined ? poppedContainer : null;
+                    
+                    if (currentContainer) {
+                        if (currentContainer.hasTabStructure && currentContainer.card.state.tabComponents) {
+                            currentTabInContainer = currentContainer.card.state.tabComponents.length - 1;
+                        } else {
+                            currentTabInContainer = 0;
                         }
                     }
                     continue;
                 }
                 
-                if (line.match(/^--- TAB [\d.]+ END ---$/)) {
-                    if (currentContainer) {
-                        currentTabInContainer = currentContainer.hasTabStructure ? 
-                            currentContainer.card.state.tabComponents.length - 1 : 0;
+                // Tab end
+                if (line.match(/^--- TAB .+ END ---$/)) {
+                    if (currentContainer && currentContainer.hasTabStructure) {
+                        // Ensure tabComponents exists before accessing length
+                        if (currentContainer.card.state.tabComponents) {
+                            currentTabInContainer = currentContainer.card.state.tabComponents.length - 1;
+                        }
                     }
                     continue;
                 }
@@ -503,9 +552,12 @@
                 // Tab color
                 if (type === 'tab-color' && currentContainer && currentContainer.hasTabStructure) {
                     const colorNum = parts[1];
-                    const lastTabIdx = currentContainer.card.state.tabs.tabs.length - 1;
-                    if (lastTabIdx >= 0) {
-                        currentContainer.card.state.tabs.tabs[lastTabIdx].color = `var(--color-${colorNum})`;
+                    // Ensure tabs object exists
+                    if (currentContainer.card.state.tabs && currentContainer.card.state.tabs.tabs) {
+                        const lastTabIdx = currentContainer.card.state.tabs.tabs.length - 1;
+                        if (lastTabIdx >= 0) {
+                            currentContainer.card.state.tabs.tabs[lastTabIdx].color = `var(--color-${colorNum})`;
+                        }
                     }
                     continue;
                 }
@@ -550,8 +602,16 @@
                     
                     if (currentContainer) {
                         if (currentContainer.hasTabStructure) {
+                            // Ensure the tab exists
+                            if (!currentContainer.card.state.tabComponents[currentTabInContainer]) {
+                                currentContainer.card.state.tabComponents[currentTabInContainer] = [];
+                            }
                             currentContainer.card.state.tabComponents[currentTabInContainer].push(card);
                         } else {
+                            // Ensure tabComponents[0] exists
+                            if (!currentContainer.card.state.tabComponents[0]) {
+                                currentContainer.card.state.tabComponents[0] = [];
+                            }
                             currentContainer.card.state.tabComponents[0].push(card);
                         }
                     } else {
@@ -569,7 +629,8 @@
                         
                         const subItemTypes = ['dropdown', 'list-item', 'checklist-item', 'tier-level', 
                                             'radio-option', 'threshold-item', 'text-content', 'text-alignment',
-                                            'text-weight', 'text-font', 'history-entry', 'scale-item'];
+                                            'text-weight', 'text-font', 'history-entry', 'history-displayMode',
+                                            'history-locked', 'scale-item'];
                         
                         if (subItemTypes.includes(nextType)) {
                             this.parseCardContent(nextType, nextParts, currentCard.state);
@@ -589,7 +650,7 @@
             const card = {
                 id: Date.now() + Math.random(),
                 type: type.toLowerCase(),
-                state: { title: '' }
+                state: { open: false }
             };
             
             switch(type) {
@@ -597,7 +658,6 @@
                     if (parts.length === 2) {
                         card.state.title = this.unescape(parts[1]);
                         card.state.items = [];
-                        card.state.completed = false;
                     } else {
                         card.state.completed = parts[1] === '1';
                         card.state.title = this.unescape(parts[2]);
@@ -611,17 +671,18 @@
                     break;
                     
                 case 'PROGRESS':
-                    const [current, target] = parts[1].split('/').map(Number);
+                    const [current, total] = parts[1].split('/').map(Number);
                     card.state.current = current;
-                    card.state.total = target;
-                    card.state.target = target;
+                    card.state.total = total;
+                    card.state.target = total;
                     card.state.title = this.unescape(parts[2]);
                     break;
                     
                 case 'ACCUMULATION':
-                    card.state.value = parseFloat(parts[1]);
-                    card.state.total = parseFloat(parts[1]);
+                    card.state.value = parseInt(parts[1]);
+                    card.state.total = parseInt(parts[1]);
                     card.state.title = this.unescape(parts[2]);
+                    card.state.numpadOpen = false;
                     break;
                     
                 case 'THRESHOLD':
@@ -640,16 +701,15 @@
                     break;
                     
                 case 'RADIO':
-                    const radioIndex = parseInt(parts[1]) - 1;
-                    card.state.selectedIndex = radioIndex;
-                    card.state.value = radioIndex;
+                    const selectedIndex = parseInt(parts[1]) - 1;
+                    card.state.selectedIndex = selectedIndex;
+                    card.state.value = selectedIndex;
                     card.state.title = this.unescape(parts[2]);
                     card.state.items = [];
                     card.state.options = [];
                     break;
                     
                 case 'SCALE':
-                    // Scale cards are type: 'scale' (not divider variant)
                     card.type = 'scale';
                     card.state.multiplier = 1;
                     card.state.items = [];
@@ -674,6 +734,9 @@
                 case 'HISTORY':
                     card.state.title = this.unescape(parts[1]);
                     card.state.entries = [];
+                    card.state.dropdownText = '';
+                    card.state.displayMode = 'timeSince';
+                    card.state.locked = false;
                     break;
             }
             
@@ -754,7 +817,17 @@
                     
                 case 'history-entry':
                     if (!state.entries) state.entries = [];
-                    state.entries.push(parseInt(parts[1]));
+                    // Parse timestamp (parts[1]) and ignore formatted date (parts[2] if exists)
+                    const timestamp = parseInt(parts[1]);
+                    state.entries.push({ timestamp: timestamp });
+                    break;
+                    
+                case 'history-displayMode':
+                    state.displayMode = parts[1];
+                    break;
+                    
+                case 'history-locked':
+                    state.locked = parts[1] === '1';
                     break;
                     
                 case 'scale-item':

@@ -11,7 +11,8 @@
                 title: '', 
                 entries: [],
                 dropdownText: '',
-                displayMode: 'timeSince' // 'none', 'date', or 'timeSince'
+                displayMode: 'timeSince', // 'none', 'date', or 'timeSince'
+                locked: false
             };
         },
         
@@ -21,41 +22,48 @@
             const now = Date.now();
             const diff = now - timestamp;
             
-            const minutes = Math.floor(diff / 60000);
-            const hours = Math.floor(diff / 3600000);
-            const days = Math.floor(diff / 86400000);
+            // FUTURE DATE SUPPORT: Detect if timestamp is in the future
+            const isFuture = diff < 0;
+            const absDiff = Math.abs(diff);
+            
+            const minutes = Math.floor(absDiff / 60000);
+            const hours = Math.floor(absDiff / 3600000);
+            const days = Math.floor(absDiff / 86400000);
             const weeks = Math.floor(days / 7);
             const months = Math.floor(days / 30.44);
             const years = Math.floor(days / 365.25);
             
             let timeAgo = '';
             
+            // FUTURE DATE SUPPORT: Dynamic suffix based on past/future
+            const suffix = isFuture ? ' from now' : ' ago';
+            
             if (years >= 1000000000) {
                 const billions = (years / 1000000000).toFixed(1);
-                timeAgo = billions + ' billion years ago';
+                timeAgo = billions + ' billion years' + suffix;
             } else if (years >= 1000000) {
                 const millions = (years / 1000000).toFixed(1);
-                timeAgo = millions + ' million years ago';
+                timeAgo = millions + ' million years' + suffix;
             } else if (years >= 100) {
-                timeAgo = years + ' years ago';
+                timeAgo = years + ' years' + suffix;
             } else if (years >= 1) {
                 const remainingMonths = Math.floor((days % 365.25) / 30.44);
                 timeAgo = years + (years === 1 ? ' year' : ' years');
                 if (remainingMonths > 0) {
-                    timeAgo += ' ' + remainingMonths + (remainingMonths === 1 ? ' month' : ' months');
+                    timeAgo += ', ' + remainingMonths + (remainingMonths === 1 ? ' month' : ' months');
                 }
-                timeAgo += ' ago';
+                timeAgo += suffix;
             } else if (weeks >= 1) {
                 const remainingDays = days % 30;
                 if (months > 0) {
                     timeAgo = months + (months === 1 ? ' month' : ' months');
                     if (remainingDays > 0) {
-                        timeAgo += ' ' + remainingDays + (remainingDays === 1 ? ' day' : ' days');
+                        timeAgo += ', ' + remainingDays + (remainingDays === 1 ? ' day' : ' days');
                     }
                 } else {
                     timeAgo = days + (days === 1 ? ' day' : ' days');
                 }
-                timeAgo += ' ago';
+                timeAgo += suffix;
             } else {
                 const remainingHours = hours % 24;
                 const remainingMinutes = minutes % 60;
@@ -63,15 +71,15 @@
                 if (days > 0) {
                     timeAgo = days + (days === 1 ? ' day' : ' days');
                     if (remainingHours > 0) {
-                        timeAgo += ' ' + remainingHours + (remainingHours === 1 ? ' hour' : ' hours');
+                        timeAgo += ', ' + remainingHours + (remainingHours === 1 ? ' hour' : ' hours');
                     }
                     if (remainingMinutes > 0 && remainingHours === 0) {
-                        timeAgo += ' ' + remainingMinutes + (remainingMinutes === 1 ? ' minute' : ' minutes');
+                        timeAgo += ', ' + remainingMinutes + (remainingMinutes === 1 ? ' minute' : ' minutes');
                     }
                 } else if (hours > 0) {
                     timeAgo = hours + (hours === 1 ? ' hour' : ' hours');
                     if (remainingMinutes > 0) {
-                        timeAgo += ' ' + remainingMinutes + (remainingMinutes === 1 ? ' minute' : ' minutes');
+                        timeAgo += ', ' + remainingMinutes + (remainingMinutes === 1 ? ' minute' : ' minutes');
                     }
                 } else if (minutes > 0) {
                     timeAgo = minutes + (minutes === 1 ? ' minute' : ' minutes');
@@ -80,7 +88,7 @@
                 }
                 
                 if (timeAgo !== 'Just now') {
-                    timeAgo += ' ago';
+                    timeAgo += suffix;
                 }
             }
             
@@ -440,7 +448,7 @@
                             cursor: pointer;
                             font-family: inherit;
                             position: relative;
-                            font-size: 14px;
+                            font-size: 16px;
                             font-weight: 700;
                             display: flex;
                             align-items: center;
@@ -457,7 +465,7 @@
                                 background: var(--color-2-2);
                                 filter: brightness(0.75);
                                 z-index: -1;
-                            "></div>▲
+                            "></div>↑
                         </button>
                         <button data-action="move-down-card" style="
                             width: var(--square-section);
@@ -469,7 +477,7 @@
                             cursor: pointer;
                             font-family: inherit;
                             position: relative;
-                            font-size: 14px;
+                            font-size: 16px;
                             font-weight: 700;
                             display: flex;
                             align-items: center;
@@ -486,7 +494,7 @@
                                 background: var(--color-2-2);
                                 filter: brightness(0.75);
                                 z-index: -1;
-                            "></div>▼
+                            "></div>↓
                         </button>
                         <button data-action="delete-card" style="
                             width: var(--square-section);
@@ -754,7 +762,7 @@
         renderView: function(container, state, onChange, currentTabColor) {
             const count = state.entries.length;
             const hasDropdownText = state.dropdownText && state.dropdownText.trim() !== '';
-            const showDropdown = count > 0;
+            const showDropdown = count > 0 || state.locked;
             
             // Sort entries newest first
             state.entries.sort((a, b) => b.timestamp - a.timestamp);
@@ -800,7 +808,7 @@
                     <div data-action="set-mode-date" style="
                         flex: 1;
                         height: 100%;
-                        background: ${state.displayMode === 'date' ? currentTabColor || 'var(--accent)' : 'var(--bg-4)'};
+                        background: ${state.displayMode === 'date' ? '#FFFFFF' : 'var(--bg-4)'};
                         border-right: var(--border-width) solid var(--border-color);
                         display: flex;
                         align-items: center;
@@ -810,14 +818,14 @@
                         <div style="
                             font-size: 10px;
                             font-weight: 600;
-                            color: var(--color-10);
+                            color: ${state.displayMode === 'date' ? currentTabColor || 'var(--accent)' : 'var(--color-10)'};
                             text-align: center;
                         ">Show Date</div>
                     </div>
                     <div data-action="set-mode-time" style="
                         flex: 1;
                         height: 100%;
-                        background: ${state.displayMode === 'timeSince' ? currentTabColor || 'var(--accent)' : 'var(--bg-4)'};
+                        background: ${state.displayMode === 'timeSince' ? '#FFFFFF' : 'var(--bg-4)'};
                         display: flex;
                         align-items: center;
                         justify-content: center;
@@ -826,9 +834,36 @@
                         <div style="
                             font-size: 10px;
                             font-weight: 600;
-                            color: var(--color-10);
+                            color: ${state.displayMode === 'timeSince' ? currentTabColor || 'var(--accent)' : 'var(--color-10)'};
                             text-align: center;
-                        ">Show Time Since</div>
+                        ">Time Calculations</div>
+                    </div>
+                </div>
+                <div style="
+                    background: var(--bg-3);
+                    border: var(--border-width) solid var(--border-color);
+                    border-radius: 8px;
+                    height: 32px;
+                    display: flex;
+                    align-items: center;
+                    margin-bottom: var(--margin);
+                    overflow: hidden;
+                ">
+                    <div data-action="toggle-lock" style="
+                        flex: 1;
+                        height: 100%;
+                        background: ${state.locked ? '#FFFFFF' : 'var(--bg-4)'};
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        cursor: pointer;
+                    ">
+                        <div style="
+                            font-size: 10px;
+                            font-weight: 600;
+                            color: ${state.locked ? currentTabColor || 'var(--accent)' : 'var(--color-10)'};
+                            text-align: center;
+                        ">Lock This Card</div>
                     </div>
                 </div>
             `;
@@ -850,7 +885,7 @@
                         <div style="
                             flex: 1;
                             height: 100%;
-                            background: ${currentTabColor || 'var(--accent)'};
+                            background: var(--bg-4);
                             border-right: var(--border-width) solid var(--border-color);
                             display: flex;
                             align-items: center;
@@ -860,7 +895,7 @@
                             color: var(--color-10);
                             text-align: center;
                             padding: 0 4px;
-                        ">${relative}</div>
+                        ">${full}</div>
                         <div style="
                             flex: 1;
                             background: var(--bg-4);
@@ -873,7 +908,7 @@
                             color: var(--color-10);
                             text-align: center;
                             padding: 0 4px;
-                        ">${full}</div>
+                        ">${relative}</div>
                     </div>
                 `;
             }).join('');
@@ -891,7 +926,7 @@
                     margin-bottom: ${state.open && showDropdown ? '0' : 'var(--margin)'};
                     position: relative;
                 ">
-                    <div data-action="log-entry" style="
+                    ${!state.locked ? `<div data-action="log-entry" style="
                         width: var(--square-section);
                         height: 100%;
                         background: ${currentTabColor || 'var(--accent)'};
@@ -905,18 +940,18 @@
                         cursor: pointer;
                         z-index: 2;
                         position: relative;
-                    ">+</div>
-                    <div ${showDropdown ? 'data-action="toggle-dropdown"' : ''} style="
+                    ">+</div>` : ''}
+                    <div ${showDropdown || state.locked ? 'data-action="toggle-dropdown"' : ''} style="
                         flex: 1;
                         background: var(--bg-4);
                         height: 100%;
-                        ${showDropdown ? 'cursor: pointer;' : ''}
+                        ${showDropdown || state.locked ? 'cursor: pointer;' : ''}
                     "></div>
                     <div style="
                         position: absolute;
                         top: 0;
-                        left: var(--square-section);
-                        right: ${showDropdown ? 'var(--square-section)' : 'var(--square-section)'};
+                        left: 0;
+                        right: ${showDropdown && !state.locked ? 'var(--square-section)' : '0'};
                         height: 100%;
                         display: flex;
                         align-items: center;
@@ -931,7 +966,7 @@
                             text-align: center;
                         ">${displayLines.join('<br>')}</div>
                     </div>
-                    ${showDropdown ? `<div data-action="toggle-dropdown" style="
+                    ${showDropdown && !state.locked ? `<div data-action="toggle-dropdown" style="
                         width: var(--square-section);
                         height: 100%;
                         background: var(--bg-4);
@@ -954,7 +989,7 @@
                     </div>` : ''}
                 </div>
                 ${state.open && showDropdown ? `<div style="
-                    background: var(--bg-2);
+                    background: ${currentTabColor || 'var(--accent)'};
                     border-radius: 0 0 8px 8px;
                     display: block;
                     padding: var(--margin);
@@ -963,7 +998,7 @@
                     margin-bottom: var(--margin);
                 ">
                     ${settingsHTML}
-                    ${hasDropdownText ? `<div style="
+                    ${!state.locked && hasDropdownText ? `<div style="
                         background: var(--bg-3);
                         border: var(--border-width) solid var(--border-color);
                         border-radius: 8px;
@@ -987,13 +1022,13 @@
                             color: var(--color-10);
                         ">${state.dropdownText}</div>
                     </div>` : ''}
-                    ${entriesHTML}
+                    ${!state.locked ? entriesHTML : ''}
                 </div>` : ''}
             `;
             
             // ===== EVENT LISTENERS =====
             const logBtn = container.querySelector('[data-action="log-entry"]');
-            if (logBtn) {
+            if (logBtn && !state.locked) {
                 logBtn.onclick = () => {
                     state.entries.unshift({ timestamp: Date.now() });
                     onChange();
@@ -1022,6 +1057,14 @@
             if (setModeTime) {
                 setModeTime.onclick = () => {
                     state.displayMode = state.displayMode === 'timeSince' ? 'none' : 'timeSince';
+                    onChange();
+                };
+            }
+            
+            const toggleLock = container.querySelector('[data-action="toggle-lock"]');
+            if (toggleLock) {
+                toggleLock.onclick = () => {
+                    state.locked = !state.locked;
                     onChange();
                 };
             }
