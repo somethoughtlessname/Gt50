@@ -37,7 +37,281 @@
                     activeViewTab: 0,
                     selectedBuildTab: 0
                 },
-                tabComponents: [[], [], [], []]
+                tabComponents: [
+                    [
+                        {
+                            type: 'divider',
+                            state: {
+                                title: 'CHAPTER 1'
+                            }
+                        },
+                        {
+                            type: 'list',
+                            state: {
+                                open: true,
+                                title: '',
+                                items: [],
+                                completed: false,
+                                dropdownText: ''
+                            }
+                        },
+                        {
+                            type: 'list',
+                            state: {
+                                open: false,
+                                title: '',
+                                items: [],
+                                completed: false,
+                                dropdownText: ''
+                            }
+                        },
+                        {
+                            type: 'divider',
+                            state: {
+                                title: 'CHAPTER 2'
+                            }
+                        },
+                        {
+                            type: 'list',
+                            state: {
+                                open: false,
+                                title: '',
+                                items: [],
+                                completed: false,
+                                dropdownText: ''
+                            }
+                        },
+                        {
+                            type: 'list',
+                            state: {
+                                open: false,
+                                title: '',
+                                items: [],
+                                completed: false,
+                                dropdownText: ''
+                            }
+                        }
+                    ],
+                    [
+                        {
+                            type: 'divider',
+                            state: {
+                                title: 'CHARACTER MISSIONS'
+                            }
+                        },
+                        {
+                            type: 'list',
+                            state: {
+                                open: true,
+                                title: 'Character 1',
+                                items: [
+                                    { text: 'Mission 1', checked: false },
+                                    { text: 'Mission 2', checked: false }
+                                ],
+                                completed: false,
+                                dropdownText: ''
+                            }
+                        },
+                        {
+                            type: 'list',
+                            state: {
+                                open: false,
+                                title: 'Character 2',
+                                items: [
+                                    { text: 'Mission 1', checked: false },
+                                    { text: 'Mission 2', checked: false }
+                                ],
+                                completed: false,
+                                dropdownText: ''
+                            }
+                        },
+                        {
+                            type: 'divider',
+                            state: {
+                                title: 'REGIONAL MISSIONS'
+                            }
+                        },
+                        {
+                            type: 'list',
+                            state: {
+                                open: false,
+                                title: 'Location 1',
+                                items: [
+                                    { text: 'Mission 1', checked: false },
+                                    { text: 'Mission 2', checked: false }
+                                ],
+                                completed: false,
+                                dropdownText: ''
+                            }
+                        },
+                        {
+                            type: 'list',
+                            state: {
+                                open: false,
+                                title: 'Location 2',
+                                items: [
+                                    { text: 'Mission 1', checked: false },
+                                    { text: 'Mission 2', checked: false }
+                                ],
+                                completed: false,
+                                dropdownText: ''
+                            }
+                        }
+                    ],
+                    [
+                        {
+                            type: 'divider',
+                            state: {
+                                title: 'PROGRESS TRACKERS'
+                            }
+                        },
+                        {
+                            type: 'progress',
+                            state: {
+                                open: true,
+                                current: 0,
+                                total: '20',
+                                title: 'Items',
+                                dropdownText: ''
+                            }
+                        },
+                        {
+                            type: 'progress',
+                            state: {
+                                current: 0,
+                                total: '50',
+                                title: 'Objects',
+                                dropdownText: ''
+                            }
+                        },
+                        {
+                            type: 'divider',
+                            state: {
+                                title: 'LIST TRACKERS'
+                            }
+                        },
+                        {
+                            type: 'checklist',
+                            state: {
+                                open: false,
+                                title: 'List 1',
+                                items: [
+                                    { text: 'Item 1', checked: false },
+                                    { text: 'Item 2', checked: false },
+                                    { text: 'Item 3', checked: false },
+                                    { text: 'Item 4', checked: false },
+                                    { text: 'Item 5', checked: false }
+                                ],
+                                dropdownText: ''
+                            }
+                        },
+                        {
+                            type: 'checklist',
+                            state: {
+                                open: false,
+                                title: 'List 2',
+                                items: [
+                                    { text: 'Item 1', checked: false },
+                                    { text: 'Item 2', checked: false },
+                                    { text: 'Item 3', checked: false },
+                                    { text: 'Item 4', checked: false },
+                                    { text: 'Item 5', checked: false }
+                                ],
+                                dropdownText: ''
+                            }
+                        }
+                    ],
+                    [
+                        {
+                            type: 'divider',
+                            state: {
+                                title: 'COMBAT CHALLENGES'
+                            }
+                        },
+                        {
+                            type: 'tier',
+                            state: {
+                                open: true,
+                                current: 0,
+                                total: 250,
+                                tiers: [
+                                    { name: 'Bronze', amount: '50' },
+                                    { name: 'Silver', amount: '100' },
+                                    { name: 'Gold', amount: '100' }
+                                ],
+                                title: 'Enemy Types Defeated',
+                                dropdownText: '',
+                                autofillEnabled: false,
+                                autofillCollect: '',
+                                autofillObjects: '',
+                                autofillObjectsSingular: ''
+                            }
+                        },
+                        {
+                            type: 'tier',
+                            state: {
+                                open: false,
+                                current: 0,
+                                total: 500,
+                                tiers: [
+                                    { name: 'Bronze', amount: '100' },
+                                    { name: 'Silver', amount: '200' },
+                                    { name: 'Gold', amount: '200' }
+                                ],
+                                title: 'Boss Battles Won',
+                                dropdownText: '',
+                                autofillEnabled: false,
+                                autofillCollect: '',
+                                autofillObjects: '',
+                                autofillObjectsSingular: ''
+                            }
+                        },
+                        {
+                            type: 'divider',
+                            state: {
+                                title: 'EXPLORATION CHALLENGES'
+                            }
+                        },
+                        {
+                            type: 'tier',
+                            state: {
+                                open: false,
+                                current: 0,
+                                total: 150,
+                                tiers: [
+                                    { name: 'Bronze', amount: '30' },
+                                    { name: 'Silver', amount: '60' },
+                                    { name: 'Gold', amount: '60' }
+                                ],
+                                title: 'Locations Discovered',
+                                dropdownText: '',
+                                autofillEnabled: false,
+                                autofillCollect: '',
+                                autofillObjects: '',
+                                autofillObjectsSingular: ''
+                            }
+                        },
+                        {
+                            type: 'tier',
+                            state: {
+                                open: false,
+                                current: 0,
+                                total: 1000,
+                                tiers: [
+                                    { name: 'Bronze', amount: '200' },
+                                    { name: 'Silver', amount: '300' },
+                                    { name: 'Gold', amount: '500' }
+                                ],
+                                title: 'Distance Traveled',
+                                dropdownText: '',
+                                autofillEnabled: false,
+                                autofillCollect: '',
+                                autofillObjects: '',
+                                autofillObjectsSingular: ''
+                            }
+                        }
+                    ]
+                ]
             };
         }
     });

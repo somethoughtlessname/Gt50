@@ -207,8 +207,7 @@ createEntry: function(state, nextId, currentComponents) {
             const summaryColor = this.colors[state.currentColorIndex].value;
             
             // Determine active tab
-            const currentTab = state.tabs.tabs[state.tabs.activeViewTab];
-            const activeTab = currentTab && currentTab.name === 'Settings' ? 'settings' : 'templates';
+            const activeTab = state.tabs.activeViewTab === 0 ? 'settings' : 'templates';
             
             // Check if we should animate color selection
             const shouldAnimateColor = state._animateColorIndex !== undefined;
