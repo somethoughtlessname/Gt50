@@ -278,21 +278,16 @@
             opacity: 0.5;
         }
         
-/* ========================================= */
-/* FOCUS INDICATORS */
-/* ========================================= */
-input:focus,
-textarea:focus,
-button:focus,
-select:focus {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-}
-
-/* Disable mobile tap highlight */
-* {
-    -webkit-tap-highlight-color: transparent;
-}
+        /* ========================================= */
+        /* FOCUS INDICATORS */
+        /* ========================================= */
+        input:focus,
+        textarea:focus,
+        button:focus,
+        select:focus {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
         
         /* ========================================= */
         /* SMOOTH SCROLLING */
@@ -312,6 +307,23 @@ select:focus {
         ::-moz-selection {
             background: var(--primary);
             color: var(--color-10);
+        }
+        
+        /* ========================================= */
+        /* DISABLE CONTEXT MENU FOR PWA FEEL */
+        /* ========================================= */
+        * {
+            -webkit-touch-callout: none; /* iOS Safari */
+            -webkit-user-select: none;   /* Safari */
+            user-select: none;           /* Standard */
+            -webkit-tap-highlight-color: transparent; /* Remove tap highlight */
+        }
+        
+        /* Re-enable text selection for inputs */
+        input,
+        textarea {
+            -webkit-user-select: text;
+            user-select: text;
         }
     `;
     
