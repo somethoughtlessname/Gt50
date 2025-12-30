@@ -755,7 +755,7 @@ createEntry: function(state, nextId, currentComponents) {
             
             // Render appropriate tab content
             const contentContainer = container.querySelector('#create-new-content');
-            contentContainer.innerHTML = activeTab === 'settings' ? settingsTabHTML : templatesTabHTML;
+            contentContainer.innerHTML = activeTab === 'templates' ? templatesTabHTML : settingsTabHTML;
             
             // ===== EVENT LISTENERS =====
             
