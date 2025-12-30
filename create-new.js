@@ -63,8 +63,8 @@
         cycleMode: false,
                 tabs: {
                     tabs: [
-                        { name: 'Settings', label: 'Settings', color: 'var(--color-5-2)' },
-                        { name: 'Templates', label: 'Templates', color: 'var(--color-5-2)' }
+                        { name: 'Templates', label: 'Templates', color: 'var(--color-5-2)' },
+                        { name: 'Settings', label: 'Settings', color: 'var(--color-5-2)' }
                     ],
                     activeViewTab: 0,
                     selectedBuildTab: 0
@@ -164,12 +164,12 @@ createEntry: function(state, nextId, currentComponents) {
             
             console.log('CreateNew: Rendering with currentColorIndex =', state.currentColorIndex, '(' + this.colors[state.currentColorIndex].name + ')');
             
-            // Ensure tabs structure exists and reset to Settings tab when opening
+            // Ensure tabs structure exists and reset to Templates tab when opening
             if (!state.tabs) {
                 state.tabs = {
                     tabs: [
-                        { name: 'Settings', label: 'Settings', color: 'var(--color-5-2)' },
-                        { name: 'Templates', label: 'Templates', color: 'var(--color-5-2)' }
+                        { name: 'Templates', label: 'Templates', color: 'var(--color-5-2)' },
+                        { name: 'Settings', label: 'Settings', color: 'var(--color-5-2)' }
                     ],
                     activeViewTab: 0,
                     selectedBuildTab: 0
@@ -207,7 +207,7 @@ createEntry: function(state, nextId, currentComponents) {
             const summaryColor = this.colors[state.currentColorIndex].value;
             
             // Determine active tab
-            const activeTab = state.tabs.activeViewTab === 0 ? 'settings' : 'templates';
+            const activeTab = state.tabs.activeViewTab === 0 ? 'templates' : 'settings';
             
             // Check if we should animate color selection
             const shouldAnimateColor = state._animateColorIndex !== undefined;
@@ -763,7 +763,7 @@ createEntry: function(state, nextId, currentComponents) {
             const closeBtn = container.querySelector('[data-action="close"]');
             if (closeBtn) {
                 closeBtn.onclick = () => {
-                    // Reset tab to Settings when closing
+                    // Reset tab to Templates when closing
                     state.tabs.activeViewTab = 0;
                     onClose();
                 };
@@ -901,7 +901,7 @@ if (createBtn) {
     createBtn.onclick = () => {
         // Only proceed if there's a valid name
         if (state.name && state.name.trim() !== '') {
-            // Reset tab to Settings before creating
+            // Reset tab to Templates before creating
             state.tabs.activeViewTab = 0;
             onCreate();
         }
