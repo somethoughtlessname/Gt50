@@ -6,13 +6,19 @@
     window.GT50Lib.Nest = {
         // ===== STATE FACTORY =====
         defaultState: function() {
-            return { 
-                name: '', 
-                components: [],
-                color: 'GRAY',  // Default color
+            return {
+                name: '',
+                color: 'GRAY',
+                tabs: {
+                    tabs: [{ name: 'Main', label: 'Main', color: '' }],
+                    activeViewTab: 0,
+                    selectedBuildTab: 0
+                },
+                tabComponents: [[]],
+                showSummary: true,
                 editWindow: {
                     isOpen: false
-                }
+                },
             };
         },
         
@@ -66,6 +72,7 @@
                         display: flex;
                         align-items: center;
                         overflow: hidden;
+                        border-right: var(--border-width) solid var(--border-color);
                     ">
                         <input 
                             data-field="name"
@@ -84,50 +91,77 @@
                                 font-family: inherit;
                             ">
                     </div>
-                    <div style="
-                        display: flex;
+                    <button data-action="move-up" style="
+                        width: var(--square-section);
                         height: 100%;
-                        border-left: var(--border-width) solid var(--border-color);
+                        background: transparent;
+                        border: none;
+                        border-right: var(--border-width) solid var(--border-color);
+                        color: var(--color-10);
+                        cursor: pointer;
+                        font-family: inherit;
+                        position: relative;
+                        font-size: var(--up-sub-size);
+                        font-weight: var(--up-sub-weight);
                     ">
-                        <button data-action="move-up" style="
-                            width: var(--square-section);
+                        <div style="
+                            position: absolute;
+                            top: 0;
+                            left: 0;
+                            width: 100%;
                             height: 100%;
-                            background: ${bgColor};
-                            border: none;
-                            border-right: var(--border-width) solid var(--border-color);
-                            color: var(--font-color-3);
-                            cursor: pointer;
-                            font-family: inherit;
-                            font-size: var(--up-sub-size);
-                            font-weight: var(--up-sub-weight);
-                            transition: filter 0.2s;
-                        ">▲</button>
-                        <button data-action="move-down" style="
-                            width: var(--square-section);
+                            background: var(--bg-4);
+                            filter: brightness(0.75);
+                            z-index: -1;
+                        "></div>▲
+                    </button>
+                    <button data-action="move-down" style="
+                        width: var(--square-section);
+                        height: 100%;
+                        background: transparent;
+                        border: none;
+                        border-right: var(--border-width) solid var(--border-color);
+                        color: var(--color-10);
+                        cursor: pointer;
+                        font-family: inherit;
+                        position: relative;
+                        font-size: var(--down-sub-size);
+                        font-weight: var(--down-sub-weight);
+                    ">
+                        <div style="
+                            position: absolute;
+                            top: 0;
+                            left: 0;
+                            width: 100%;
                             height: 100%;
-                            background: ${bgColor};
-                            border: none;
-                            border-right: var(--border-width) solid var(--border-color);
-                            color: var(--font-color-3);
-                            cursor: pointer;
-                            font-family: inherit;
-                            font-size: var(--down-sub-size);
-                            font-weight: var(--down-sub-weight);
-                            transition: filter 0.2s;
-                        ">▼</button>
-                        <button data-action="delete" style="
-                            width: var(--square-section);
+                            background: var(--bg-4);
+                            filter: brightness(0.75);
+                            z-index: -1;
+                        "></div>▼
+                    </button>
+                    <button data-action="delete" style="
+                        width: var(--square-section);
+                        height: 100%;
+                        background: ${isDeletePending ? 'var(--color-1)' : 'transparent'};
+                        border: none;
+                        color: ${isDeletePending ? 'var(--color-10)' : 'var(--color-10)'};
+                        cursor: pointer;
+                        font-family: inherit;
+                        position: relative;
+                        font-size: var(--delete-sub-size);
+                        font-weight: var(--delete-sub-weight);
+                    ">
+                        <div style="
+                            position: absolute;
+                            top: 0;
+                            left: 0;
+                            width: 100%;
                             height: 100%;
-                            background: ${isDeletePending ? 'var(--color-10)' : bgColor};
-                            border: none;
-                            color: ${isDeletePending ? 'var(--color-1)' : 'var(--font-color-3)'};
-                            cursor: pointer;
-                            font-family: inherit;
-                            font-size: var(--delete-sub-size);
-                            font-weight: var(--delete-sub-weight);
-                            transition: filter 0.2s;
-                        ">×</button>
-                    </div>
+                            background: ${isDeletePending ? 'var(--color-1)' : 'var(--bg-4)'};
+                            filter: brightness(0.75);
+                            z-index: -1;
+                        "></div>×
+                    </button>
                 </div>
             `;
             
@@ -140,30 +174,30 @@
             }
             
             const openBtn = container.querySelector('[data-action="open"]');
-if (openBtn) {
-    openBtn.onclick = () => {
-        // Initialize editWindow if it doesn't exist (for old nests)
-        if (!state.editWindow) {
-            state.editWindow = { isOpen: false };
-        }
-        if (!state.color) {
-            state.color = 'GRAY';
-        }
-        
-        // Only open edit window at root level (depth === 0)
-        // Inside nested structures, navigate directly
-        if (depth === 0) {
-            // Root level - open edit window
-            state.editWindow.isOpen = true;
-            if (onChange) onChange();
-        } else {
-            // Inside a nest - navigate directly
-            if (onNavigate) onNavigate();
-        }
-    };
-    openBtn.onmouseover = () => openBtn.style.filter = 'brightness(1.2)';
-    openBtn.onmouseout = () => openBtn.style.filter = 'brightness(1)';
-}
+            if (openBtn) {
+                openBtn.onclick = () => {
+                    // Initialize editWindow if it doesn't exist (for old nests)
+                    if (!state.editWindow) {
+                        state.editWindow = { isOpen: false };
+                    }
+                    if (!state.color) {
+                        state.color = 'GRAY';
+                    }
+                    
+                    // Only open edit window at root level (depth === 0)
+                    // Inside nested structures, navigate directly
+                    if (depth === 0) {
+                        // Root level - open edit window
+                        state.editWindow.isOpen = true;
+                        if (onChange) onChange();
+                    } else {
+                        // Inside a nest - navigate directly
+                        if (onNavigate) onNavigate();
+                    }
+                };
+                openBtn.onmouseover = () => openBtn.style.filter = 'brightness(1.2)';
+                openBtn.onmouseout = () => openBtn.style.filter = 'brightness(1)';
+            }
             
             const moveUpBtn = container.querySelector('[data-action="move-up"]');
             if (moveUpBtn && onMove) {
@@ -219,7 +253,7 @@ if (openBtn) {
             
             container.innerHTML = `
                 <div class="nest-view-card" style="
-                    background: var(--bg-2);
+                    background: ${nestColor};
                     border: var(--border-width) solid var(--border-color);
                     border-radius: 8px;
                     height: var(--card-height);
@@ -238,82 +272,97 @@ if (openBtn) {
                         height: 100%;
                         display: ${isOpen ? 'flex' : 'none'};
                         z-index: 2;
+                        background: var(--color-10);
                     ">
-                        <!-- Edit Section -->
-                        <div data-action="edit" style="
-                            width: var(--square-section);
-                            height: 100%;
-                            background: var(--color-10);
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            border-right: var(--border-width) solid var(--border-color);
-                            cursor: pointer;
-                        ">
-                            <div style="display: flex; flex-direction: column; gap: 3px;">
-                                <div style="width: 16px; height: 2px; background: var(--color-4);"></div>
-                                <div style="width: 16px; height: 2px; background: var(--color-4);"></div>
-                                <div style="width: 16px; height: 2px; background: var(--color-4);"></div>
-                            </div>
-                        </div>
-                        
                         <!-- Move Up Section -->
                         <div data-action="move-up" style="
-                            width: var(--square-section);
+                            flex: 1;
                             height: 100%;
-                            background: var(--color-10);
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            justify-content: center;
+                            border-right: var(--border-width) solid var(--border-color);
+                            cursor: pointer;
+                            font-size: 12px;
+                            font-weight: 700;
+                            text-transform: uppercase;
+                            color: var(--color-5);
+                            line-height: 1.2;
+                        ">
+                            <div>Move</div>
+                            <div>Up</div>
+                        </div>
+                        
+                        <!-- Edit Section -->
+                        <div data-action="edit" style="
+                            flex: 1;
+                            height: 100%;
                             display: flex;
                             align-items: center;
                             justify-content: center;
                             border-right: var(--border-width) solid var(--border-color);
                             cursor: pointer;
-                            font-size: 16px;
+                            font-size: 12px;
                             font-weight: 700;
+                            text-transform: uppercase;
                             color: var(--color-4);
-                        ">▲</div>
+                        ">Edit</div>
                         
-                        <!-- Card Body (closes actions) -->
+                        <!-- Cancel Section -->
                         <div data-action="close" style="
                             flex: 1;
                             height: 100%;
-                            cursor: pointer;
-                        "></div>
-                        
-                        <!-- Move Down Section -->
-                        <div data-action="move-down" style="
-                            width: var(--square-section);
-                            height: 100%;
-                            background: var(--color-10);
                             display: flex;
                             align-items: center;
                             justify-content: center;
-                            border-left: var(--border-width) solid var(--border-color);
+                            border-right: var(--border-width) solid var(--border-color);
                             cursor: pointer;
-                            font-size: 16px;
+                            font-size: 12px;
                             font-weight: 700;
-                            color: var(--color-4);
-                        ">▼</div>
+                            text-transform: uppercase;
+                            color: var(--color-9);
+                        ">Cancel</div>
                         
                         <!-- Delete Section -->
                         <div data-action="delete" style="
-                            width: var(--square-section);
+                            flex: 1;
                             height: 100%;
                             background: ${isDeletePending ? 'var(--color-1)' : 'var(--color-10)'};
                             display: flex;
                             align-items: center;
                             justify-content: center;
-                            border-left: var(--border-width) solid var(--border-color);
+                            border-right: var(--border-width) solid var(--border-color);
                             cursor: pointer;
-                            font-size: 20px;
+                            font-size: 12px;
                             font-weight: 700;
+                            text-transform: uppercase;
                             color: ${isDeletePending ? 'var(--color-10)' : 'var(--color-1)'};
-                        ">×</div>
+                        ">Delete</div>
+                        
+                        <!-- Move Down Section -->
+                        <div data-action="move-down" style="
+                            flex: 1;
+                            height: 100%;
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            justify-content: center;
+                            cursor: pointer;
+                            font-size: 12px;
+                            font-weight: 700;
+                            text-transform: uppercase;
+                            color: var(--color-5);
+                            line-height: 1.2;
+                        ">
+                            <div>Move</div>
+                            <div>Down</div>
+                        </div>
                     </div>
                     
                     <!-- Main Content -->
                     <div data-action="navigate" style="
                         flex: 1;
-                        background: ${nestColor};
                         height: 100%;
                         display: flex;
                         align-items: center;
@@ -321,7 +370,7 @@ if (openBtn) {
                         cursor: pointer;
                         font-size: 16px;
                         font-weight: 600;
-                        color: var(--font-color-3);
+                        color: var(--color-10);
                         transition: opacity 0.2s, filter 0.2s;
                         position: relative;
                         z-index: 1;
@@ -332,6 +381,7 @@ if (openBtn) {
             
             // ===== EVENT LISTENERS =====
             const card = container.querySelector('.nest-view-card');
+            const actionOverlay = container.querySelector('.action-sections');
             const navigateBtn = container.querySelector('[data-action="navigate"]');
             const editBtn = container.querySelector('[data-action="edit"]');
             const moveUpBtn = container.querySelector('[data-action="move-up"]');
@@ -340,6 +390,27 @@ if (openBtn) {
             const closeBtn = container.querySelector('[data-action="close"]');
             
             let longPressTimer = null;
+            
+            // Auto-close after 5 seconds - store in state to persist across renders
+            const startAutoClose = () => {
+                if (state.actionState._autoCloseTimer) {
+                    clearTimeout(state.actionState._autoCloseTimer);
+                }
+                state.actionState._autoCloseTimer = setTimeout(() => {
+                    if (state.actionState.isOpen) {
+                        state.actionState.isOpen = false;
+                        state.actionState.deletePending = false;
+                        if (render) render();
+                    }
+                }, 5000);
+            };
+            
+            const cancelAutoClose = () => {
+                if (state.actionState._autoCloseTimer) {
+                    clearTimeout(state.actionState._autoCloseTimer);
+                    state.actionState._autoCloseTimer = null;
+                }
+            };
             
             // Long press detection
             const startPress = (e) => {
@@ -367,43 +438,90 @@ if (openBtn) {
             card.addEventListener('touchend', endPress);
             card.addEventListener('touchcancel', endPress);
             
-            // Navigate action
+            // Click on overlay background (outside action buttons) closes overlay
+            if (actionOverlay && isOpen) {
+                // Start auto-close timer when overlay is open
+                startAutoClose();
+                
+                // Remove any existing listener first
+                if (state.actionState._outsideClickListener) {
+                    document.removeEventListener('click', state.actionState._outsideClickListener);
+                }
+                
+                // Create and store the listener
+                const closeOnClickOutside = (e) => {
+                    const currentCard = container.querySelector('.nest-view-card');
+                    if (currentCard && !currentCard.contains(e.target)) {
+                        state.actionState.isOpen = false;
+                        state.actionState.deletePending = false;
+                        cancelAutoClose();
+                        document.removeEventListener('click', closeOnClickOutside);
+                        state.actionState._outsideClickListener = null;
+                        if (render) render();
+                    }
+                };
+                
+                state.actionState._outsideClickListener = closeOnClickOutside;
+                
+                // Use setTimeout to avoid immediate trigger from the long press
+                setTimeout(() => {
+                    document.addEventListener('click', closeOnClickOutside);
+                }, 100);
+            } else if (state.actionState._outsideClickListener) {
+                // Clean up listener if overlay is closed
+                document.removeEventListener('click', state.actionState._outsideClickListener);
+                state.actionState._outsideClickListener = null;
+            }
+            
+            // Navigate action - also closes overlay if open when clicking dimmed area
             if (navigateBtn && onNavigate) {
                 navigateBtn.onclick = (e) => {
                     e.stopPropagation();
-                    if (!state.actionState.isOpen) {
+                    if (state.actionState.isOpen) {
+                        // If overlay is open, clicking the dimmed card name closes it
+                        state.actionState.isOpen = false;
+                        state.actionState.deletePending = false;
+                        cancelAutoClose();
+                        if (render) render();
+                    } else {
+                        // If overlay is closed, navigate normally
                         onNavigate();
                     }
                 };
             }
             
             // Edit action
-if (editBtn) {
-    editBtn.onclick = (e) => {
-        e.stopPropagation();
-        state.actionState.isOpen = false;
-        state.actionState.deletePending = false;
-        // Open edit window
-        if (!state.editWindow) {
-            state.editWindow = { isOpen: false };
-        }
-        state.editWindow.isOpen = true;
-        if (render) render();
-    };
-}
+            if (editBtn) {
+                editBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    cancelAutoClose();
+                    state.actionState.isOpen = false;
+                    state.actionState.deletePending = false;
+                    // Open edit window
+                    if (!state.editWindow) {
+                        state.editWindow = { isOpen: false };
+                    }
+                    state.editWindow.isOpen = true;
+                    if (render) render();
+                };
+            }
             
             // Move actions
             if (moveUpBtn && onMove) {
                 moveUpBtn.onclick = (e) => {
                     e.stopPropagation();
+                    cancelAutoClose();
                     onMove(-1);
+                    startAutoClose(); // Restart timer after action
                 };
             }
             
             if (moveDownBtn && onMove) {
                 moveDownBtn.onclick = (e) => {
                     e.stopPropagation();
+                    cancelAutoClose();
                     onMove(1);
+                    startAutoClose(); // Restart timer after action
                 };
             }
             
@@ -411,19 +529,24 @@ if (editBtn) {
             if (deleteBtn && onDelete) {
                 deleteBtn.onclick = (e) => {
                     e.stopPropagation();
+                    cancelAutoClose();
                     if (!state.actionState.deletePending) {
                         state.actionState.deletePending = true;
                         if (render) render();
+                        // Don't call startAutoClose here - render() will do it
                     } else {
+                        // Delete is pending and user tapped again - execute delete
+                        cancelAutoClose();
                         onDelete();
                     }
                 };
             }
             
-            // Close actions
+            // Close actions (Cancel button)
             if (closeBtn) {
                 closeBtn.onclick = (e) => {
                     e.stopPropagation();
+                    cancelAutoClose();
                     state.actionState.isOpen = false;
                     state.actionState.deletePending = false;
                     if (render) render();
@@ -447,6 +570,13 @@ if (editBtn) {
                 const colorIndex = GT50Lib.CreateNew.colors.findIndex(c => c.name === (state.color || 'GRAY'));
                 state.editWindow.tempColorIndex = colorIndex >= 0 ? colorIndex : 7; // Default to GRAY (index 7)
             }
+            if (state.editWindow.tempType === undefined) {
+                // Determine current type - default to 'nest'
+                state.editWindow.tempType = 'nest';
+            }
+            
+            // Track if we should animate the color selection
+            const shouldAnimateColor = state.editWindow._animateColorIndex !== undefined;
             
             container.style.display = 'block';
             container.style.cssText = `
@@ -467,15 +597,19 @@ if (editBtn) {
                 title: 'EDIT NEST'
             };
             
-            // Create header container
-            const headerHTML = '<div id="nest-edit-header"></div>';
+            // Create containers
+            container.innerHTML = `
+                <div id="nest-edit-header"></div>
+                <div id="nest-edit-content" style="
+                    flex: 1;
+                    overflow-y: auto;
+                    padding: var(--margin);
+                    padding-bottom: calc(var(--card-height) + var(--margin));
+                "></div>
+                <div id="nest-edit-footer"></div>
+            `;
             
-            // Create content container
-            const contentHTML = '<div id="nest-edit-content" style="flex: 1; overflow-y: auto;"></div>';
-            
-            container.innerHTML = headerHTML + contentHTML;
-            
-            // Render header using Comp-header.js
+            // Render header
             const headerContainer = container.querySelector('#nest-edit-header');
             GT50Lib.Header.renderBuild(
                 headerContainer,
@@ -483,28 +617,35 @@ if (editBtn) {
                 onChange,
                 onClose,  // onBack
                 onClose,  // onHome
-                null,     // onToggleMode (not used in nested contexts)
-                null,     // activeMode (not used)
+                null,     // onToggleMode
+                null,     // activeMode
                 null,     // onDataOpen
                 null,     // onSettingsOpen
                 null      // onNewOpen
             );
             
-            // Now render the edit content using CreateNew component
+            // Render content
             const contentContainer = container.querySelector('#nest-edit-content');
-            
-            // Render just the content part into contentContainer
-            contentContainer.style.cssText = `
-                padding: var(--margin);
-                padding-bottom: calc(var(--card-height) + var(--margin));
-            `;
-            
-            // Get available templates
-            const templates = window.GT50.Templates.getAll();
-            
-            // ===== NAME SECTION =====
-            const nameHTML = `
-                <!-- Name Section -->
+            contentContainer.innerHTML = `
+                <style>
+                    /* ========================================
+                       COLOR SELECTION ANIMATION - DO NOT REMOVE
+                       This provides the pulse shrink-grow effect
+                       when selecting colors in the edit window
+                       ======================================== */
+                    @keyframes color-select-animation {
+                        0% { width: 16px; height: 16px; }
+                        25% { width: 10px; height: 10px; }
+                        35% { width: 4px; height: 4px; }
+                        100% { width: 200px; height: 200px; }
+                    }
+                    
+                    .color-circle-animated {
+                        animation: color-select-animation 0.5s ease-out forwards;
+                    }
+                </style>
+                
+                <!-- Entry Name Divider -->
                 <div class="divider" style="
                     height: var(--card-height);
                     background: transparent;
@@ -536,41 +677,30 @@ if (editBtn) {
                         letter-spacing: 0.5px;
                         position: relative;
                         z-index: 2;
-                    ">NAME</div>
+                    ">ENTRY NAME</div>
                 </div>
                 
-                <div style="
-                    background: var(--bg-3);
-                    border: var(--border-width) solid var(--border-color);
-                    border-radius: 8px;
-                    height: var(--card-height);
-                    display: flex;
-                    align-items: center;
-                    overflow: hidden;
-                    margin-bottom: var(--margin);
-                ">
-                    <input type="text" 
-                        data-field="name"
-                        value="${state.editWindow.tempName}"
-                        placeholder="Enter nest name..." 
-                        style="
-                            flex: 1;
-                            background: transparent;
-                            border: none;
-                            color: var(--font-color-3);
-                            padding: 0 16px;
-                            font-size: 14px;
-                            font-weight: 600;
-                            height: 100%;
-                            outline: none;
-                            font-family: inherit;
-                        ">
-                </div>
-            `;
-            
-            // ===== COLOR SECTION =====
-            const colorHTML = `
-                <!-- Color Section -->
+                <input 
+                    data-field="name"
+                    type="text" 
+                    value="${state.editWindow.tempName}" 
+                    placeholder="Nest Name"
+                    style="
+                        width: 100%;
+                        background: var(--bg-4);
+                        border: var(--border-width) solid var(--border-color);
+                        border-radius: 8px;
+                        height: var(--card-height);
+                        padding: 0 var(--text-padding-left);
+                        font-size: 16px;
+                        font-weight: 600;
+                        color: var(--font-color-3);
+                        outline: none;
+                        font-family: inherit;
+                        margin-bottom: var(--margin);
+                    ">
+                
+                <!-- Color Divider -->
                 <div class="divider" style="
                     height: var(--card-height);
                     background: transparent;
@@ -605,8 +735,9 @@ if (editBtn) {
                     ">COLOR</div>
                 </div>
                 
-                <div data-action="cycle-color" style="
-                    background: ${GT50Lib.CreateNew.colors[state.editWindow.tempColorIndex].value};
+                <!-- Color Selector -->
+                <div style="
+                    background: var(--color-10);
                     border: var(--border-width) solid var(--border-color);
                     border-radius: 8px;
                     height: var(--card-height);
@@ -614,47 +745,340 @@ if (editBtn) {
                     align-items: center;
                     overflow: hidden;
                     margin-bottom: var(--margin);
-                    cursor: pointer;
-                    transition: background 0.2s;
+                ">
+                    ${GT50Lib.CreateNew.colors.map((color, index) => `
+                        <div data-action="select-color" data-color-index="${index}" style="
+                            flex: 1;
+                            height: 100%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            cursor: pointer;
+                            position: relative;
+                            overflow: hidden;
+                            ${index < GT50Lib.CreateNew.colors.length - 1 ? 'border-right: var(--border-width) solid var(--border-color);' : ''}
+                        ">
+                            <div class="${shouldAnimateColor && state.editWindow._animateColorIndex === index ? 'color-circle-animated' : ''}" style="
+                                width: ${state.editWindow.tempColorIndex === index ? '200px' : '16px'};
+                                height: ${state.editWindow.tempColorIndex === index ? '200px' : '16px'};
+                                background: ${color.value};
+                                border-radius: 50%;
+                                position: absolute;
+                            "></div>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                <!-- Summary Divider -->
+                <div class="divider" style="
+                    height: var(--card-height);
+                    background: transparent;
+                    border: var(--border-width) solid rgba(0, 0, 0, 0.0);
+                    border-radius: 8px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin-bottom: var(--margin);
+                    position: relative;
                 ">
                     <div style="
-                        width: var(--card-height);
-                        min-width: var(--card-height);
+                        position: absolute;
+                        top: 50%;
+                        left: calc(var(--border-width) * -1);
+                        right: calc(var(--border-width) * -1);
+                        height: var(--border-width);
+                        background: var(--border-color);
+                        transform: translateY(-50%);
+                        z-index: 1;
+                    "></div>
+                    <div style="
+                        background: var(--bg-2);
+                        padding: 0 12px;
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: var(--font-color-3);
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                        position: relative;
+                        z-index: 2;
+                    ">SUMMARY</div>
+                </div>
+                
+                <div id="summary-controls"></div>
+                
+                <!-- Change Card Type Divider -->
+                <div class="divider" style="
+                    height: var(--card-height);
+                    background: transparent;
+                    border: var(--border-width) solid rgba(0, 0, 0, 0.0);
+                    border-radius: 8px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin-bottom: var(--margin);
+                    position: relative;
+                ">
+                    <div style="
+                        position: absolute;
+                        top: 50%;
+                        left: calc(var(--border-width) * -1);
+                        right: calc(var(--border-width) * -1);
+                        height: var(--border-width);
+                        background: var(--border-color);
+                        transform: translateY(-50%);
+                        z-index: 1;
+                    "></div>
+                    <div style="
+                        background: var(--bg-2);
+                        padding: 0 12px;
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: var(--font-color-3);
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                        position: relative;
+                        z-index: 2;
+                    ">CHANGE CARD TYPE</div>
+                </div>
+                
+                <!-- Card Type Toggle -->
+                <div style="
+                    background: var(--color-10);
+                    border: var(--border-width) solid var(--border-color);
+                    border-radius: 8px;
+                    height: var(--card-height);
+                    display: flex;
+                    align-items: center;
+                    overflow: hidden;
+                    margin-bottom: var(--margin);
+                ">
+                    <div data-action="set-nest" style="
+                        flex: 1;
                         height: 100%;
-                        background: var(--blur);
-                        border-right: var(--border-width) solid var(--border-color);
+                        background: ${state.editWindow.tempType === 'nest' ? 'var(--color-5)' : 'var(--color-10)'};
                         display: flex;
                         align-items: center;
                         justify-content: center;
-                    ">
-                        <div style="
-                            width: 20px;
-                            height: 20px;
-                            background: ${GT50Lib.CreateNew.colors[state.editWindow.tempColorIndex].value};
-                            border: 2px solid var(--color-10);
-                            border-radius: 50%;
-                        "></div>
-                    </div>
-                    <div style="
-                        flex: 1;
-                        padding: 0 16px;
                         font-size: 14px;
                         font-weight: 700;
-                        color: var(--color-10);
-                    ">${GT50Lib.CreateNew.colors[state.editWindow.tempColorIndex].name}</div>
+                        color: ${state.editWindow.tempType === 'nest' ? 'var(--color-10)' : 'var(--color-5)'};
+                        cursor: pointer;
+                        text-transform: uppercase;
+                        border-right: var(--border-width) solid var(--border-color);
+                        transition: filter 0.2s;
+                    ">Nest</div>
+                    <div data-action="set-cycle" style="
+                        flex: 1;
+                        height: 100%;
+                        background: ${state.editWindow.tempType === 'cycle' ? 'var(--color-5-2)' : 'var(--color-10)'};
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 14px;
+                        font-weight: 700;
+                        color: ${state.editWindow.tempType === 'cycle' ? 'var(--color-10)' : 'var(--color-5-2)'};
+                        cursor: pointer;
+                        text-transform: uppercase;
+                        transition: filter 0.2s;
+                    ">Cycle</div>
                 </div>
             `;
             
-            contentContainer.innerHTML = nameHTML + colorHTML;
+            // Name input handler
+            const nameInput = contentContainer.querySelector('[data-field="name"]');
+            if (nameInput) {
+                nameInput.oninput = (e) => {
+                    state.editWindow.tempName = e.target.value;
+                };
+            }
             
-            // ===== FOOTER =====
-            const footerContainer = document.createElement('div');
-            footerContainer.id = 'nest-edit-footer';
-            container.appendChild(footerContainer);
+            // Color selection handlers
+            const colorButtons = contentContainer.querySelectorAll('[data-action="select-color"]');
+            colorButtons.forEach(btn => {
+                const colorIndex = parseInt(btn.dataset.colorIndex);
+                btn.onclick = () => {
+                    // Only animate if changing to a different color
+                    if (state.editWindow.tempColorIndex !== colorIndex) {
+                        state.editWindow._animateColorIndex = colorIndex;
+                        state.editWindow.tempColorIndex = colorIndex;
+                        onChange();
+                        
+                        // Clear animation flag after animation completes
+                        setTimeout(() => {
+                            delete state.editWindow._animateColorIndex;
+                        }, 500);
+                    }
+                };
+                btn.onmouseover = () => btn.style.filter = 'brightness(1.1)';
+                btn.onmouseout = () => btn.style.filter = 'brightness(1)';
+            });
             
+            // Render summary controls
+            const summaryContainer = contentContainer.querySelector('#summary-controls');
+            if (summaryContainer) {
+                const summaryColor = 'var(--color-6)';
+                
+                // Initialize display mode if not set - default to null (none selected)
+                if (state.summaryDisplayMode === undefined) {
+                    state.summaryDisplayMode = null;
+                }
+                
+                summaryContainer.innerHTML = `
+                    <!-- Summary Activation Card -->
+                    <div data-action="toggle-summary" style="
+                        background: ${state.showSummary ? summaryColor : 'var(--color-10)'};
+                        border: var(--border-width) solid var(--border-color);
+                        border-radius: 8px;
+                        height: var(--card-height);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        margin-bottom: var(--margin);
+                        cursor: pointer;
+                        font-size: 14px;
+                        font-weight: 700;
+                        color: ${state.showSummary ? 'var(--color-10)' : summaryColor};
+                        text-transform: uppercase;
+                        transition: filter 0.2s;
+                    ">Activate Summary Card</div>
+                    
+                    ${state.showSummary ? `
+                        <!-- Summary Options Card (only visible when summary is active) -->
+                        <div style="
+                            background: var(--color-10);
+                            border: var(--border-width) solid var(--border-color);
+                            border-radius: 8px;
+                            height: var(--card-height);
+                            display: flex;
+                            align-items: center;
+                            overflow: hidden;
+                            margin-bottom: var(--margin);
+                        ">
+                            <!-- Track Child Nest Cards -->
+                            <div data-action="toggle-children" style="
+                                flex: 1;
+                                height: 100%;
+                                background: ${state.summaryIncludeChildren ? summaryColor : 'var(--color-10)'};
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-size: 11px;
+                                font-weight: 700;
+                                color: ${state.summaryIncludeChildren ? 'var(--color-10)' : summaryColor};
+                                text-transform: uppercase;
+                                cursor: pointer;
+                                border-right: var(--border-width) solid var(--border-color);
+                                transition: filter 0.2s;
+                            ">Track Child Nest Cards</div>
+                            
+                            <!-- XX/YY Display -->
+                            <div data-action="set-value-display" style="
+                                flex: 1;
+                                height: 100%;
+                                background: ${state.summaryDisplayMode === 'value' ? summaryColor : 'var(--color-10)'};
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-size: 11px;
+                                font-weight: 700;
+                                color: ${state.summaryDisplayMode === 'value' ? 'var(--color-10)' : summaryColor};
+                                text-transform: uppercase;
+                                border-right: var(--border-width) solid var(--border-color);
+                                cursor: pointer;
+                                transition: filter 0.2s;
+                            ">XX/YY</div>
+                            
+                            <!-- Percentage Display -->
+                            <div data-action="set-percentage-display" style="
+                                flex: 1;
+                                height: 100%;
+                                background: ${state.summaryDisplayMode === 'percentage' ? summaryColor : 'var(--color-10)'};
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-size: 11px;
+                                font-weight: 700;
+                                color: ${state.summaryDisplayMode === 'percentage' ? 'var(--color-10)' : summaryColor};
+                                text-transform: uppercase;
+                                cursor: pointer;
+                                transition: filter 0.2s;
+                            ">Percentage</div>
+                        </div>
+                    ` : ''}
+                `;
+                
+                // Summary activation handler
+                const summaryBtn = summaryContainer.querySelector('[data-action="toggle-summary"]');
+                if (summaryBtn) {
+                    summaryBtn.onclick = () => {
+                        state.showSummary = !state.showSummary;
+                        onChange();
+                    };
+                    summaryBtn.onmouseover = () => summaryBtn.style.filter = 'brightness(1.1)';
+                    summaryBtn.onmouseout = () => summaryBtn.style.filter = 'brightness(1)';
+                }
+                
+                // Child tracking handler
+                const childrenBtn = summaryContainer.querySelector('[data-action="toggle-children"]');
+                if (childrenBtn) {
+                    childrenBtn.onclick = () => {
+                        state.summaryIncludeChildren = !state.summaryIncludeChildren;
+                        onChange();
+                    };
+                    childrenBtn.onmouseover = () => childrenBtn.style.filter = 'brightness(1.1)';
+                    childrenBtn.onmouseout = () => childrenBtn.style.filter = 'brightness(1)';
+                }
+                
+                // XX/YY display mode handler
+                const valueBtn = summaryContainer.querySelector('[data-action="set-value-display"]');
+                if (valueBtn) {
+                    valueBtn.onclick = () => {
+                        // Toggle: if already selected, deselect; otherwise select
+                        state.summaryDisplayMode = state.summaryDisplayMode === 'value' ? null : 'value';
+                        onChange();
+                    };
+                    valueBtn.onmouseover = () => valueBtn.style.filter = 'brightness(1.1)';
+                    valueBtn.onmouseout = () => valueBtn.style.filter = 'brightness(1)';
+                }
+                
+                // Percentage display mode handler
+                const percentageBtn = summaryContainer.querySelector('[data-action="set-percentage-display"]');
+                if (percentageBtn) {
+                    percentageBtn.onclick = () => {
+                        // Toggle: if already selected, deselect; otherwise select
+                        state.summaryDisplayMode = state.summaryDisplayMode === 'percentage' ? null : 'percentage';
+                        onChange();
+                    };
+                    percentageBtn.onmouseover = () => percentageBtn.style.filter = 'brightness(1.1)';
+                    percentageBtn.onmouseout = () => percentageBtn.style.filter = 'brightness(1)';
+                }
+            }
+            
+            // Card type toggle handlers
+            const nestBtn = contentContainer.querySelector('[data-action="set-nest"]');
+            if (nestBtn) {
+                nestBtn.onclick = () => {
+                    state.editWindow.tempType = 'nest';
+                    onChange();
+                };
+                nestBtn.onmouseover = () => nestBtn.style.filter = 'brightness(1.2)';
+                nestBtn.onmouseout = () => nestBtn.style.filter = 'brightness(1)';
+            }
+            
+            const cycleBtn = contentContainer.querySelector('[data-action="set-cycle"]');
+            if (cycleBtn) {
+                cycleBtn.onclick = () => {
+                    state.editWindow.tempType = 'cycle';
+                    onChange();
+                };
+                cycleBtn.onmouseover = () => cycleBtn.style.filter = 'brightness(1.2)';
+                cycleBtn.onmouseout = () => cycleBtn.style.filter = 'brightness(1)';
+            }
+            
+            // Render footer
+            const footerContainer = container.querySelector('#nest-edit-footer');
             const canSave = state.editWindow.tempName && state.editWindow.tempName.trim() !== '';
             
-            // Custom footer with two buttons
             footerContainer.style.cssText = `
                 position: fixed;
                 bottom: 0;
@@ -669,10 +1093,28 @@ if (editBtn) {
             `;
             
             footerContainer.innerHTML = `
+                <button data-action="cancel" style="
+                    flex: 1;
+                    height: 100%;
+                    background: var(--color-1);
+                    border: none;
+                    border-right: var(--border-width) solid var(--border-color);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 14px;
+                    font-weight: 700;
+                    color: var(--color-10);
+                    cursor: pointer;
+                    transition: filter 0.2s;
+                    font-family: inherit;
+                ">CANCEL</button>
                 <button data-action="save-close" ${!canSave ? 'disabled' : ''} style="
                     flex: 1;
                     height: 100%;
                     background: ${canSave ? 'var(--color-6)' : 'var(--bg-4)'};
+                    border: none;
+                    border-right: var(--border-width) solid var(--border-color);
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -681,18 +1123,13 @@ if (editBtn) {
                     color: ${canSave ? 'var(--color-10)' : 'var(--color-9)'};
                     cursor: ${canSave ? 'pointer' : 'not-allowed'};
                     transition: filter 0.2s;
-                    border: none;
                     font-family: inherit;
                 ">SAVE & CLOSE</button>
-                <div style="
-                    width: var(--border-width);
-                    height: 100%;
-                    background: var(--border-color);
-                "></div>
                 <button data-action="save-open" ${!canSave ? 'disabled' : ''} style="
                     flex: 1;
                     height: 100%;
-                    background: ${canSave ? 'var(--accent)' : 'var(--bg-4)'};
+                    background: ${canSave ? 'var(--color-4)' : 'var(--bg-4)'};
+                    border: none;
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -701,21 +1138,36 @@ if (editBtn) {
                     color: ${canSave ? 'var(--color-10)' : 'var(--color-9)'};
                     cursor: ${canSave ? 'pointer' : 'not-allowed'};
                     transition: filter 0.2s;
-                    border: none;
                     font-family: inherit;
                 ">SAVE & OPEN</button>
             `;
             
+            const cancelBtn = footerContainer.querySelector('[data-action="cancel"]');
+            if (cancelBtn) {
+                cancelBtn.onclick = () => {
+                    // Close without saving - just reset the window
+                    state.editWindow.isOpen = false;
+                    delete state.editWindow.tempName;
+                    delete state.editWindow.tempColorIndex;
+                    delete state.editWindow.tempType;
+                    onChange();
+                };
+                cancelBtn.onmouseover = () => cancelBtn.style.filter = 'brightness(1.2)';
+                cancelBtn.onmouseout = () => cancelBtn.style.filter = 'brightness(1)';
+            }
+            
             const saveCloseBtn = footerContainer.querySelector('[data-action="save-close"]');
             if (saveCloseBtn && canSave) {
                 saveCloseBtn.onclick = () => {
-                    // Save and close without navigating
                     state.name = state.editWindow.tempName.trim();
                     state.color = GT50Lib.CreateNew.colors[state.editWindow.tempColorIndex].name;
+                    // Note: tempType conversion would need to be handled by parent component
+                    // Store it in state for now
+                    state._pendingTypeChange = state.editWindow.tempType;
                     state.editWindow.isOpen = false;
-                    // Clear temp values
                     delete state.editWindow.tempName;
                     delete state.editWindow.tempColorIndex;
+                    delete state.editWindow.tempType;
                     onChange();
                 };
                 saveCloseBtn.onmouseover = () => saveCloseBtn.style.filter = 'brightness(1.2)';
@@ -725,36 +1177,18 @@ if (editBtn) {
             const saveOpenBtn = footerContainer.querySelector('[data-action="save-open"]');
             if (saveOpenBtn && canSave) {
                 saveOpenBtn.onclick = () => {
-                    // Save and navigate into nest
                     state.name = state.editWindow.tempName.trim();
                     state.color = GT50Lib.CreateNew.colors[state.editWindow.tempColorIndex].name;
-                    // Clear temp values
+                    // Note: tempType conversion would need to be handled by parent component
+                    // Store it in state for now
+                    state._pendingTypeChange = state.editWindow.tempType;
                     delete state.editWindow.tempName;
                     delete state.editWindow.tempColorIndex;
+                    delete state.editWindow.tempType;
                     onSave();
                 };
                 saveOpenBtn.onmouseover = () => saveOpenBtn.style.filter = 'brightness(1.2)';
                 saveOpenBtn.onmouseout = () => saveOpenBtn.style.filter = 'brightness(1)';
-            }
-            
-            // ===== EVENT LISTENERS =====
-            const nameInput = contentContainer.querySelector('[data-field="name"]');
-            if (nameInput) {
-                nameInput.oninput = (e) => {
-                    state.editWindow.tempName = e.target.value;
-                    // DON'T call onChange() here - it causes re-render and closes keyboard
-                    // Just update the temp value silently
-                };
-            }
-            
-            const colorBtn = contentContainer.querySelector('[data-action="cycle-color"]');
-            if (colorBtn) {
-                colorBtn.onclick = () => {
-                    state.editWindow.tempColorIndex = (state.editWindow.tempColorIndex + 1) % GT50Lib.CreateNew.colors.length;
-                    onChange();
-                };
-                colorBtn.onmouseover = () => colorBtn.style.filter = 'brightness(1.1)';
-                colorBtn.onmouseout = () => colorBtn.style.filter = 'brightness(1)';
             }
         }
     };

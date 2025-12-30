@@ -65,6 +65,9 @@
     
     // ===== LEGACY HEADER COMPONENT (for nested headers) =====
     window.GT50Lib.Header = {
+        // Add property to track edit button visibility
+        editSectionVisible: false,
+        
         // ===== STATE FACTORY =====
         defaultState: function() {
             return { title: '', isMain: true };
@@ -143,11 +146,11 @@
                 `;
                 
                 // ===== EVENT LISTENERS =====
-                const createNewBtn = container.querySelector('[data-action="open-create-new"]');
-                if (createNewBtn && onNewOpen) {
-                    createNewBtn.onclick = onNewOpen;
-                    createNewBtn.onmouseover = () => createNewBtn.style.filter = 'brightness(1.2)';
-                    createNewBtn.onmouseout = () => createNewBtn.style.filter = 'brightness(1)';
+                const newBtn = container.querySelector('[data-action="open-create-new"]');
+                if (newBtn && onNewOpen) {
+                    newBtn.onclick = onNewOpen;
+                    newBtn.onmouseover = () => newBtn.style.filter = 'brightness(1.2)';
+                    newBtn.onmouseout = () => newBtn.style.filter = 'brightness(1)';
                 }
                 
                 const toggleBtn = container.querySelector('[data-action="toggle-mode"]');
@@ -199,7 +202,8 @@
                             height: 100%;
                             display: flex;
                             align-items: center;
-                            padding-left: var(--margin);
+                            justify-content: center;
+                            padding: 0 var(--margin);
                             background: var(--bg-3);
                         ">
                             <input 
@@ -208,11 +212,11 @@
                                 value="${state.title || ''}"
                                 placeholder="Enter title..."
                                 style="
-                                    flex: 1;
+                                    width: 100%;
                                     background: none;
                                     border: none;
                                     color: var(--color-10);
-                                    font-size: var(--text-size);
+                                    font-size: 14px;
                                     font-weight: 600;
                                     font-family: inherit;
                                     outline: none;
@@ -255,15 +259,11 @@
                 const backBtn = container.querySelector('[data-action="back"]');
                 if (backBtn && onBack) {
                     backBtn.onclick = () => onBack();
-                    backBtn.onmouseover = () => backBtn.style.filter = 'brightness(1.2)';
-                    backBtn.onmouseout = () => backBtn.style.filter = 'brightness(1)';
                 }
                 
                 const homeBtn = container.querySelector('[data-action="home"]');
                 if (homeBtn && onHome) {
                     homeBtn.onclick = () => onHome();
-                    homeBtn.onmouseover = () => homeBtn.style.filter = 'brightness(1.2)';
-                    homeBtn.onmouseout = () => homeBtn.style.filter = 'brightness(1)';
                 }
                 
                 const titleInput = container.querySelector('[data-field="title"]');
@@ -308,7 +308,7 @@
                             height: 100%;
                             background: var(--bg-4);
                             border-right: var(--border-width) solid var(--border-color);
-                            display: flex;
+                            display: ${GT50Lib.Header.editSectionVisible ? 'flex' : 'none'};
                             align-items: center;
                             justify-content: center;
                             font-size: 14px;
@@ -348,11 +348,58 @@
                 `;
                 
                 // ===== EVENT LISTENERS =====
-                const createNewBtn = container.querySelector('[data-action="open-create-new"]');
-                if (createNewBtn && onNewOpen) {
-                    createNewBtn.onclick = onNewOpen;
-                    createNewBtn.onmouseover = () => createNewBtn.style.filter = 'brightness(1.2)';
-                    createNewBtn.onmouseout = () => createNewBtn.style.filter = 'brightness(1)';
+                const newBtn = container.querySelector('[data-action="open-create-new"]');
+                if (newBtn && onNewOpen) {
+                    let pressTimer = null;
+                    let wasLongPress = false;
+                    
+                    // Mouse/touch start - begin timer
+                    const startPress = (e) => {
+                        wasLongPress = false;
+                        pressTimer = setTimeout(() => {
+                            // Long press detected - toggle edit button visibility
+                            wasLongPress = true;
+                            GT50Lib.Header.editSectionVisible = !GT50Lib.Header.editSectionVisible;
+                            pressTimer = null;
+                            if (onChange) onChange();
+                        }, 500); // 500ms long press threshold
+                    };
+                    
+                    // Mouse/touch end - cancel timer or execute normal click
+                    const endPress = (e) => {
+                        if (pressTimer) {
+                            // Timer still running - it was a short press
+                            clearTimeout(pressTimer);
+                            pressTimer = null;
+                            if (!wasLongPress) {
+                                onNewOpen();
+                            }
+                        }
+                        // If pressTimer is null, long press already fired, don't open window
+                    };
+                    
+                    // Cancel on move (prevents accidental triggers)
+                    const cancelPress = () => {
+                        if (pressTimer) {
+                            clearTimeout(pressTimer);
+                            pressTimer = null;
+                        }
+                        wasLongPress = false;
+                    };
+                    
+                    // Attach listeners for both mouse and touch
+                    newBtn.addEventListener('mousedown', startPress);
+                    newBtn.addEventListener('touchstart', startPress, { passive: true });
+                    
+                    newBtn.addEventListener('mouseup', endPress);
+                    newBtn.addEventListener('touchend', endPress);
+                    
+                    newBtn.addEventListener('mouseleave', cancelPress);
+                    newBtn.addEventListener('touchcancel', cancelPress);
+                    
+                    // Hover effects
+                    newBtn.onmouseover = () => newBtn.style.filter = 'brightness(1.2)';
+                    newBtn.onmouseout = () => newBtn.style.filter = 'brightness(1)';
                 }
                 
                 const toggleBtn = container.querySelector('[data-action="toggle-mode"]');
@@ -376,7 +423,7 @@
                     dataBtn.onmouseout = () => dataBtn.style.filter = 'brightness(1)';
                 }
             } else {
-                // ===== NESTED WINDOW HEADER (VIEW MODE) =====
+                // ===== NESTED WINDOW HEADER =====
                 container.innerHTML = `
                     <div style="
                         height: var(--card-height);
@@ -405,12 +452,27 @@
                             display: flex;
                             align-items: center;
                             justify-content: center;
+                            padding: 0 var(--margin);
                             background: var(--bg-3);
-                            font-size: var(--text-size);
-                            font-weight: 600;
-                            color: var(--color-10);
-                            text-align: center;
-                        ">${state.title || ''}</div>
+                        ">
+                            <input 
+                                type="text" 
+                                data-field="title"
+                                value="${state.title || ''}"
+                                placeholder="Enter title..."
+                                style="
+                                    width: 100%;
+                                    background: none;
+                                    border: none;
+                                    color: var(--color-10);
+                                    font-size: 14px;
+                                    font-weight: 600;
+                                    font-family: inherit;
+                                    outline: none;
+                                    text-align: center;
+                                "
+                            />
+                        </div>
                         <div data-action="home" style="
                             width: var(--square-section);
                             min-width: var(--square-section);
@@ -446,17 +508,51 @@
                 const backBtn = container.querySelector('[data-action="back"]');
                 if (backBtn && onBack) {
                     backBtn.onclick = () => onBack();
-                    backBtn.onmouseover = () => backBtn.style.filter = 'brightness(1.2)';
-                    backBtn.onmouseout = () => backBtn.style.filter = 'brightness(1)';
                 }
                 
                 const homeBtn = container.querySelector('[data-action="home"]');
                 if (homeBtn && onHome) {
                     homeBtn.onclick = () => onHome();
-                    homeBtn.onmouseover = () => homeBtn.style.filter = 'brightness(1.2)';
-                    homeBtn.onmouseout = () => homeBtn.style.filter = 'brightness(1)';
+                }
+                
+                const titleInput = container.querySelector('[data-field="title"]');
+                if (titleInput) {
+                    titleInput.oninput = (e) => {
+                        state.title = e.target.value;
+                    };
                 }
             }
         }
     };
+    
+    // =====================================================
+    // INJECT RIGHT SECTION (for plugin UI)
+    // =====================================================
+    setTimeout(() => {
+        const container = document.getElementById('cards-plugins');
+        if (container) {
+            const cards = container.children;
+            for (let card of cards) {
+                const filename = card.querySelector('div:last-child');
+                if (filename && filename.textContent === 'comp-header.js') {
+                    const rightSection = document.createElement('div');
+                    rightSection.style.cssText = `
+                        width: 60px;
+                        height: 100%;
+                        background: var(--primary);
+                        border-left: var(--border-width) solid var(--border-color);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: var(--color-10);
+                    `;
+                    rightSection.textContent = INJECTOR_ID;
+                    card.appendChild(rightSection);
+                    break;
+                }
+            }
+        }
+    }, 100);
 })();

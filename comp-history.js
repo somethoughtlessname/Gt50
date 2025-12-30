@@ -54,7 +54,7 @@
                 }
                 timeAgo += suffix;
             } else if (weeks >= 1) {
-                const remainingDays = days % 30;
+                const remainingDays = Math.floor(days - (months * 30.44));
                 if (months > 0) {
                     timeAgo = months + (months === 1 ? ' month' : ' months');
                     if (remainingDays > 0) {

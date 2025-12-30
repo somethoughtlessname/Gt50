@@ -110,7 +110,8 @@
 <script src="comp-text.js"></script>
 <script src="comp-import.js"></script>
 <script src="info.js"></script>
-<script src="comp-scale.js"></script>    
+<script src="comp-scale.js"></script>   
+<script src="comp-summary.js"></script>    
     
     <script>
         // State management
@@ -625,7 +626,7 @@
                     state.createNew.isOpen = false;
                     state.createNew.name = '';
                     state.createNew.selectedTemplate = 'custom';
-                    state.createNew.currentColorIndex = 4;
+                    state.createNew.currentColorIndex = 0;  // Changed from 4 to 0 (GRAY)
                     state.createNew.cycleMode = false;
                     activeMode = 'view';
                     render();
@@ -645,7 +646,7 @@
                         
                         state.createNew.name = '';
                         state.createNew.selectedTemplate = 'custom';
-                        state.createNew.currentColorIndex = 4;
+                        state.createNew.currentColorIndex = 0;  // Changed from 4 to 0 (GRAY)
                         state.createNew.cycleMode = false;
                         
                         activeMode = 'build';
@@ -660,7 +661,7 @@ function renderNestEditWindow() {
     const container = document.getElementById('nestEditWindow');
     if (!container) return;
     
-    // Find any nest component with an open edit window
+    // Find any nest or cycle component with an open edit window
     function findOpenEditNest(tabComponentsArray) {
         if (!Array.isArray(tabComponentsArray)) return null;
         
@@ -668,8 +669,8 @@ function renderNestEditWindow() {
             if (!Array.isArray(components)) continue;
             
             for (const comp of components) {
-                // Check if this is a nest with open edit window
-                if (comp.type === 'nest' && comp.state.editWindow && comp.state.editWindow.isOpen) {
+                // Check if this is a nest or cycle with open edit window
+                if ((comp.type === 'nest' || comp.type === 'cycle') && comp.state.editWindow && comp.state.editWindow.isOpen) {
                     return comp;
                 }
                 // Recursively check nested structures
@@ -685,23 +686,61 @@ function renderNestEditWindow() {
     const openEditNest = findOpenEditNest(state.tabComponents);
     
     if (openEditNest) {
-        GT50Lib.Nest.renderEditWindow(
-            container,
-            openEditNest.state,
-            render,  // onChange
-            () => {
-                // onClose - close without saving
-                openEditNest.state.editWindow.isOpen = false;
-                render();
-            },
-            () => {
-                // onSave - save changes and navigate into nest in BUILD mode
+        // Call the appropriate edit window renderer based on type
+        if (openEditNest.type === 'cycle') {
+            GT50Lib.Cycle.renderEditWindow(
+                container,
+                openEditNest.state,
+                render,  // onChange
+                () => {
+                    // onClose - close without saving
+                    openEditNest.state.editWindow.isOpen = false;
+                    render();
+                },
+                () => {
+                    // onSave - save changes and navigate into cycle in BUILD mode
+                    openEditNest.state.editWindow.isOpen = false;
+                    activeMode = 'build';  // Switch to build mode before navigating
+                    saveState();
+                    navigateInto(openEditNest.id);
+                }
+            );
+        } else {
+            GT50Lib.Nest.renderEditWindow(
+                container,
+                openEditNest.state,
+                render,  // onChange
+               () => {
+    // onClose - close without saving
     openEditNest.state.editWindow.isOpen = false;
-    activeMode = 'build';  // Switch to build mode before navigating
-    saveState();
-    navigateInto(openEditNest.id);
-}
-        );
+    
+    // Check if home button was pressed  
+    if (openEditNest.state.editWindow._navigateHomeAfterClose) {
+        delete openEditNest.state.editWindow._navigateHomeAfterClose;
+        
+        // FORCE COMPLETE NAVIGATION TO ROOT
+        navigationStack = [];
+        state.header.isMain = true;
+        state.header.title = 'GT50 TESTER';
+        activeMode = 'view';
+        selectedInsertionPoint = getCurrentComponents().length;
+        
+        render(true);
+        window.scrollTo(0, 0);
+        return; // Don't call render() again below
+    }
+    
+    render();
+},
+                () => {
+                    // onSave - save changes and navigate into nest in BUILD mode
+                    openEditNest.state.editWindow.isOpen = false;
+                    activeMode = 'build';  // Switch to build mode before navigating
+                    saveState();
+                    navigateInto(openEditNest.id);
+                }
+            );
+        }
     } else {
         container.innerHTML = '';
         container.style.display = 'none';
@@ -745,13 +784,13 @@ function renderNestEditWindow() {
             const depth = navigationStack.length;
             
             const currentNest = getCurrentNest();
-            if (currentNest && currentNest.type === 'cycle') {
-                GT50Lib.Cycle.renderBuildControlCard(container, currentNest.state, render);
-                GT50Lib.Cycle.renderCountdownCard(container, currentNest.state, render);
-            }
-            
-            const layoutWrapper = document.createElement('div');
-            layoutWrapper.style.cssText = 'display: flex; gap: var(--margin); align-items: flex-start; width: 100%;';
+if (currentNest && currentNest.type === 'cycle') {
+    GT50Lib.Cycle.renderBuildControlCard(container, currentNest.state, render);
+    GT50Lib.Cycle.renderCountdownCard(container, currentNest.state, render);
+}
+
+const layoutWrapper = document.createElement('div');  // ← This existing line stays
+layoutWrapper.style.cssText = 'display: flex; gap: var(--margin); align-items: flex-start; width: 100%;';
             
             const selectorContainer = document.createElement('div');
             const cardsContainer = document.createElement('div');
@@ -823,11 +862,16 @@ function renderNestEditWindow() {
             container.innerHTML = '';
             
             const currentNest = getCurrentNest();
-            if (currentNest && currentNest.type === 'cycle') {
-                GT50Lib.Cycle.renderViewCountdown(container, currentNest.state, render);
-            }
-            
-            const components = getCurrentComponents();
+if (currentNest && currentNest.type === 'cycle') {
+    GT50Lib.Cycle.renderViewCountdown(container, currentNest.state, render);
+}
+
+// Summary card (works for both nest and cycle)
+if (currentNest && GT50Lib.Summary) {
+    GT50Lib.Summary.renderSummaryCard(container, currentNest.state, render);
+}
+
+const components = getCurrentComponents();  // ← This existing line stays
 const depth = navigationStack.length;
 
 // Get current tab color once
@@ -1097,10 +1141,11 @@ if (GT50Lib.Search) {
     }
 }
         loadState();
+        GT50Lib.Header.editSectionVisible = false;  // ← ADD THIS LINE
         render();
         
         // ===== KEYBOARD HANDLING FOR MOBILE =====
-let focusedInput = null;
+        let focusedInput = null;
 let initialViewportHeight = window.innerHeight;
 
 // Scroll helper - positions input at consistent location (just above footer)
