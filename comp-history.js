@@ -364,8 +364,8 @@
                             cursor: pointer;
                             font-family: inherit;
                             position: relative;
-                            font-size: 18px;
-                            font-weight: 700;
+                            font-size: var(--delete-sub-size);
+                            font-weight: var(--delete-sub-weight);
                             display: flex;
                             align-items: center;
                             justify-content: center;
@@ -403,7 +403,7 @@
                     <div data-action="toggle" style="
                         width: var(--square-section);
                         height: var(--card-height);
-                        background: ${count > 0 ? 'var(--color-2-2)' : 'var(--bg-3)'};
+                        background: var(--color-10);
                         border-right: var(--border-width) solid var(--border-color);
                         display: flex;
                         align-items: center;
@@ -448,8 +448,8 @@
                             cursor: pointer;
                             font-family: inherit;
                             position: relative;
-                            font-size: 16px;
-                            font-weight: 700;
+                            font-size: var(--up-sub-size);
+                            font-weight: var(--up-sub-weight);
                             display: flex;
                             align-items: center;
                             justify-content: center;
@@ -465,7 +465,7 @@
                                 background: var(--color-2-2);
                                 filter: brightness(0.75);
                                 z-index: -1;
-                            "></div>↑
+                            "></div>▲
                         </button>
                         <button data-action="move-down-card" style="
                             width: var(--square-section);
@@ -477,8 +477,8 @@
                             cursor: pointer;
                             font-family: inherit;
                             position: relative;
-                            font-size: 16px;
-                            font-weight: 700;
+                            font-size: var(--down-sub-size);
+                            font-weight: var(--down-sub-weight);
                             display: flex;
                             align-items: center;
                             justify-content: center;
@@ -494,35 +494,26 @@
                                 background: var(--color-2-2);
                                 filter: brightness(0.75);
                                 z-index: -1;
-                            "></div>↓
+                            "></div>▼
                         </button>
                         <button data-action="delete-card" style="
                             width: var(--square-section);
                             height: 100%;
-                            background: transparent;
+                            background: ${isDeletePending ? 'var(--color-10)' : 'transparent'};
                             border: none;
-                            color: var(--color-10);
+                            color: ${isDeletePending ? 'var(--color-1)' : 'var(--color-10)'};
                             cursor: pointer;
                             font-family: inherit;
                             position: relative;
-                            font-size: 18px;
-                            font-weight: 700;
+                            font-size: var(--delete-sub-size);
+                            font-weight: var(--delete-sub-weight);
                             display: flex;
                             align-items: center;
                             justify-content: center;
                             padding: 0;
                             margin: 0;
                         ">
-                            <div style="
-                                position: absolute;
-                                top: 0;
-                                left: 0;
-                                width: 100%;
-                                height: 100%;
-                                background: ${isDeletePending ? 'var(--delete-pending-bg)' : 'var(--color-2-2)'};
-                                filter: brightness(0.75);
-                                z-index: -1;
-                            "></div>×
+                            ${isDeletePending ? '' : `<div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--color-2-2); filter: brightness(0.75); z-index: -1;"></div>`}×
                         </button>
                     </div>
                 </div>

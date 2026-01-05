@@ -30,40 +30,49 @@
                         }
                         
                     } else if (card.type === 'checklist') {
-                        totalCards += 1;
-                        // Checklist items contribute proportionally
+                        // FIXED: Count individual items instead of treating as one card
                         if (card.state.items && card.state.items.length > 0) {
                             const completedItems = card.state.items.filter(item => item.completed).length;
-                            const percent = completedItems / card.state.items.length;
-                            completedValue += percent;
+                            // Add the total number of items to totalCards
+                            totalCards += card.state.items.length;
+                            // Add the number of completed items to completedValue
+                            completedValue += completedItems;
                         }
                         
                     } else if (card.type === 'progress') {
-                        totalCards += 1;
-                        const percent = card.state.total > 0 ? card.state.current / card.state.total : 0;
-                        completedValue += percent;
+                        // FIXED: Count individual items instead of treating as one card
+                        const total = parseInt(card.state.total) || 0;
+                        const current = parseInt(card.state.current) || 0;
+                        
+                        // Add the total number of items to totalCards
+                        totalCards += total;
+                        // Add the current progress to completedValue
+                        completedValue += current;
                         
                     } else if (card.type === 'tier') {
-                        // Each tier counts as 1 card slot, filled sequentially
-                        let remainingCurrent = card.state.current;
+                        // Use the SAME logic as the tier card view mode
+                        let cumulativeAmount = 0;
+                        let tiersComplete = 0;
                         
-                        card.state.tiers.forEach(tier => {
+                        for (let i = 0; i < card.state.tiers.length; i++) {
+                            const tierAmount = parseInt(card.state.tiers[i].amount) || 0;
+                            
+                            // Skip invalid amounts
+                            if (tierAmount <= 0) continue;
+                            
+                            // Count this tier
                             totalCards += 1;
                             
-                            if (remainingCurrent <= 0) {
-                                // No progress in this tier
-                                completedValue += 0;
-                            } else if (remainingCurrent >= tier.amount) {
-                                // Tier is completely filled
-                                completedValue += 1;
-                                remainingCurrent -= tier.amount;
+                            // Check if this tier is fully complete
+                            if (card.state.current >= cumulativeAmount + tierAmount) {
+                                cumulativeAmount += tierAmount;
+                                tiersComplete += 1;
                             } else {
-                                // Tier is partially filled
-                                const percent = remainingCurrent / tier.amount;
-                                completedValue += percent;
-                                remainingCurrent = 0;
+                                break; // We're in this tier (not complete), stop checking
                             }
-                        });
+                        }
+                        
+                        completedValue += tiersComplete;
                         
                     } else if (card.type === 'radio') {
                         totalCards += 1;
@@ -112,24 +121,27 @@
             // Hide if no trackable cards at all
             if (summary.totalCards === 0) return;
             
-            // Determine color: gold at 100%, otherwise tab color (or green if empty)
+            // Determine color: gold ONLY when 100% complete
             const activeTab = nestState.tabs.activeViewTab;
             const tabColorRaw = nestState.tabs.tabs[activeTab]?.color;
             const tabColor = (tabColorRaw && tabColorRaw !== '') ? tabColorRaw : 'var(--color-4)';
-            const isComplete = summary.percentage >= 100;
+            
+            // Check if complete - must be within 0.001 of being exactly equal
+            const difference = Math.abs(summary.completedValue - summary.totalCards);
+            const isComplete = difference < 0.001;
+            
             const fillColor = isComplete ? '#d4af37' : tabColor;
             
             // Determine display text based on summaryDisplayMode
             let displayText = '';
             if (nestState.summaryDisplayMode === 'value') {
-                // XX/YY format - round completed value to nearest integer
-                const completed = Math.round(summary.completedValue);
+                // XX/YY format - FLOOR so partial never rounds up
+                const completed = Math.floor(summary.completedValue);
                 displayText = `${completed}/${summary.totalCards}`;
             } else if (nestState.summaryDisplayMode === 'percentage') {
                 // XX% format - round to nearest integer
                 displayText = `${Math.round(summary.percentage)}%`;
             }
-            // If summaryDisplayMode is null/undefined, displayText stays empty
             
             const summaryDiv = document.createElement('div');
             summaryDiv.style.cssText = `

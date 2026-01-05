@@ -360,17 +360,20 @@
                 "></div>
             `;
             
-            // Render main header
-            const headerContainer = container.querySelector('#impex-header');
-            GT50Lib.Header.renderBuild(
-                headerContainer, 
-                state.header, 
-                onChange,
-                onClose,
-                onClose,
-                null,
-                null
-            );
+           // Render main header - use renderView for non-editable header
+const headerContainer = container.querySelector('#impex-header');
+GT50Lib.Header.renderView(
+    headerContainer, 
+    state.header, 
+    onChange,
+    onClose,      // onBack
+    onClose,      // onHome
+    null,         // onToggleMode
+    null,         // activeMode
+    null,         // onDataOpen
+    null,         // onSettingsOpen
+    null          // onNewOpen
+);
             
             // Render tabs header
             const tabsContainer = container.querySelector('#impex-tabs');

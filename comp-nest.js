@@ -609,20 +609,20 @@
                 <div id="nest-edit-footer"></div>
             `;
             
-            // Render header
-            const headerContainer = container.querySelector('#nest-edit-header');
-            GT50Lib.Header.renderBuild(
-                headerContainer,
-                headerState,
-                onChange,
-                onClose,  // onBack
-                onClose,  // onHome
-                null,     // onToggleMode
-                null,     // activeMode
-                null,     // onDataOpen
-                null,     // onSettingsOpen
-                null      // onNewOpen
-            );
+           // Render header - use renderView for non-editable header in view mode
+const headerContainer = container.querySelector('#nest-edit-header');
+GT50Lib.Header.renderView(
+    headerContainer,
+    headerState,
+    onChange,
+    onClose,  // onBack
+    onClose,  // onHome
+    null,     // onToggleMode
+    null,     // activeMode
+    null,     // onDataOpen
+    null,     // onSettingsOpen
+    null      // onNewOpen
+);
             
             // Render content
             const contentContainer = container.querySelector('#nest-edit-content');

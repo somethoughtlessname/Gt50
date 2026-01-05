@@ -38,17 +38,16 @@ render: function(container, state, onChange, onClose, cardInfoState) {
     
     container.style.display = 'block';
     container.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: var(--bg-1);
-        z-index: 2000;
-        overflow-y: auto;
-        padding-top: calc(var(--card-height) + 4px);
-        padding-bottom: 4px;
-    `;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--bg-1);
+    z-index: 2000;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+`;
     
     container.innerHTML = `
         <div id="settings-header" style="
@@ -60,13 +59,25 @@ render: function(container, state, onChange, onClose, cardInfoState) {
             z-index: 2001;
         "></div>
         <div id="settings-content" style="
-            padding: var(--margin);
-        "></div>
+    padding-top: calc(var(--card-height) + 0px);
+    padding-bottom: 0px;
+"></div>
     `;
     
-    // Render header
-    const headerContainer = container.querySelector('#settings-header');
-    GT50Lib.Header.renderBuild(headerContainer, state.header, onChange, null, null, null, null, null, null);
+    // Render header - use renderView for non-editable header
+const headerContainer = container.querySelector('#settings-header');
+GT50Lib.Header.renderView(
+    headerContainer, 
+    state.header, 
+    onChange,
+    onClose,  // onBack
+    onClose,  // onHome
+    null,     // onToggleMode
+    null,     // activeMode
+    null,     // onDataOpen
+    null,     // onSettingsOpen
+    null      // onNewOpen
+);
     
     // Add close button functionality
     const backBtn = headerContainer.querySelector('[data-action="back"]');

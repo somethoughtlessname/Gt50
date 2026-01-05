@@ -280,52 +280,70 @@
                 label: 'FEATURES',
                 color: 'var(--color-7)',
                 variations: [
-                    { type: 'tabs', label: 'TABS', color: 'var(--color-7)' },
-                    { type: 'footer', label: 'FOOTER', color: 'var(--color-7-2)' },
-                    { type: 'impex', label: 'IMPORT/EXPORT', color: 'var(--color-7-3)' },
-                    { type: 'selector', label: 'SELECTOR', color: 'var(--color-7-4)' }
+                    { type: 'features', label: 'FEATURES', color: 'var(--color-7)' }
                 ],
                 info: {
-                    tabs: {
-                        purpose: 'Tabs let you organize cards into separate views within the same workspace. Think of them as pages in a notebook - each tab holds a different set of cards, but they all live in the same nest or dashboard. You can quickly switch between tabs to focus on different contexts without losing your place. In Build Mode, tabs appear at the top of your workspace where you can edit names, customize colors, add new tabs (up to 6 total), reorder them with arrows, or delete tabs you no longer need. Each tab maintains its own independent collection of cards. In View Mode, tabs become your navigation system - click any tab to instantly switch to that view and see its cards. The active tab is highlighted in its custom color, and all your cards stay exactly where you left them. It\'s seamless context switching.',
-                        useCases: `• <strong>Time-based organization</strong> - Separate tabs for Morning, Afternoon, Evening routines<br><br>
-• <strong>Project phases</strong> - Planning tab, Execution tab, Review tab for complex projects<br><br>
-• <strong>Life areas</strong> - Work tab, Personal tab, Health tab, Finance tab<br><br>
-• <strong>Priority levels</strong> - Urgent tab, Important tab, Someday tab for task management<br><br>
-• <strong>Client separation</strong> - One tab per client for freelancers or consultants<br><br>
-• <strong>Habit tracking</strong> - Daily tab, Weekly tab, Monthly tab for different habit frequencies<br><br>
-• <strong>Workout splits</strong> - Push tab, Pull tab, Legs tab for training organization<br><br>
-• <strong>Content creation</strong> - Ideas tab, In Progress tab, Published tab<br><br>
-• <strong>Sprint planning</strong> - Backlog tab, Current Sprint tab, Done tab`
-                    },
-                    footer: {
-                        purpose: 'The Footer is your card creation interface, living at the bottom of Build Mode and always accessible. It\'s a powerful selector that lets you add any type of card to your workspace with just a tap. The top row shows the six main card families: List, Count, Progress, Tier, Nest, and Divider. Tap any section to open a dropdown showing variations (if available). The bottom row displays the currently selected card type and acts as the "add" button - tap it to create that card type at your current insertion point. It\'s designed for speed - get in, add what you need, get out. The Footer doesn\'t appear in View Mode since View Mode is for execution and interaction with your cards, not for building new ones.',
-                        useCases: `• <strong>Quick card creation</strong> - Add new tracking cards without complex menus<br><br>
-• <strong>Card type discovery</strong> - Browse available card types and their variations<br><br>
-• <strong>Rapid dashboard building</strong> - Build entire workspaces efficiently<br><br>
-• <strong>Card variation selection</strong> - Choose between List, Checklist, Radio, Threshold variants<br><br>
-• <strong>Organized card families</strong> - Find related card types grouped together<br><br>
-• <strong>Template construction</strong> - Build reusable dashboard templates quickly`
-                    },
-                    impex: {
-                        purpose: 'Import/Export is your data portability system, accessible from the settings menu in Build Mode. Export creates a snapshot of your entire workspace that you can save, share, or backup - choose JSON for compatibility, GT50 format for readability, or compressed formats for smaller file sizes. Copy the output or download it as a file. Import loads those snapshots back in, whether from your own backups or templates shared by others. Just paste your data and click Import - the system auto-detects the format and validates before importing. It\'s how you move data between devices, share workflows with team members, and protect against data loss. Import/Export is a Build Mode feature, so you need to switch from View Mode to access these tools.',
-                        useCases: `• <strong>Backup creation</strong> - Save snapshots of your workspace before major changes<br><br>
-• <strong>Cross-device sync</strong> - Move your dashboard from phone to desktop<br><br>
-• <strong>Template sharing</strong> - Share your workflow setups with team members<br><br>
-• <strong>Version control</strong> - Keep multiple versions of your dashboard setup<br><br>
-• <strong>Data recovery</strong> - Restore previous versions if something goes wrong<br><br>
-• <strong>Workspace cloning</strong> - Duplicate successful setups for new projects<br><br>
-• <strong>Team onboarding</strong> - Give new team members pre-built dashboards<br><br>
-• <strong>Template libraries</strong> - Maintain a collection of reusable structures`
-                    },
-                    selector: {
-                        purpose: 'The Selector is your insertion point indicator in Build Mode - a vertical line that appears to the left of your cards showing exactly where new cards will be added when you create them. Think of it as a cursor for your dashboard, marking the position where the next card will appear. The Selector appears as a thin line to the left of each card in Build Mode. Click on any Selector line to set that as your insertion point - it turns green to visually confirm your selection. When you add a new card using the Footer, it appears at the current green-highlighted Selector position. The Selector always defaults to the bottom of your card list, but you can click any position to insert cards precisely where you want them. The Selector doesn\'t exist in View Mode since View Mode is for interacting with existing cards, not for positioning new ones.',
-                        useCases: `• <strong>Precise card placement</strong> - Add new cards exactly where you want them<br><br>
-• <strong>Dashboard reorganization</strong> - Insert cards between existing ones during restructuring<br><br>
-• <strong>Logical grouping</strong> - Place related cards together by selecting the right position<br><br>
-• <strong>Section building</strong> - Add cards to specific sections marked by Dividers<br><br>
-• <strong>Priority ordering</strong> - Insert urgent cards at the top of your list<br><br>
-• <strong>Template construction</strong> - Build dashboards with intentional card ordering`
+                    features: {
+                        purpose: 'GT50 includes powerful features that make building and using your workspace easy. These features work together to give you a flexible, organized, and automatic tracking system.',
+                        useCases: `<div style="margin-bottom: 20px; padding: 12px; background: var(--bg-3); border: var(--border-width) solid var(--border-color); border-radius: 8px;">
+<strong style="font-size: 14px;">TABS</strong><br>
+Organize cards into separate views like pages in a notebook. Each tab has its own color and card collection.<br><br>
+• Time blocks - Morning, Afternoon, Evening<br>
+• Life areas - Work, Personal, Health<br>
+• Priority levels - Urgent, Important, Someday<br>
+• Client separation - One tab per client<br><br>
+
+<strong style="font-size: 14px;">FOOTER</strong><br>
+The card creation tool at the bottom of Build Mode. Top row shows card families, bottom row creates the selected type.<br><br>
+• Quick card creation<br>
+• Browse available types<br>
+• Rapid workspace building<br><br>
+
+<strong style="font-size: 14px;">IMPORT/EXPORT</strong><br>
+Save and share your entire workspace. Export creates snapshots, Import loads them back. Access from settings.<br><br>
+• Backup before changes<br>
+• Move between devices<br>
+• Share with team<br>
+• Restore configurations<br><br>
+
+<strong style="font-size: 14px;">SELECTOR</strong><br>
+The vertical bar showing where new cards will appear. Click segments to set insertion point (turns green).<br><br>
+• Precise card placement<br>
+• Insert between existing cards<br>
+• Organize logically
+</div>
+
+<div style="padding: 12px; background: var(--bg-3); border: var(--border-width) solid var(--border-color); border-radius: 8px;">
+<strong style="font-size: 14px;">TWO-TAP DELETE</strong><br>
+Cards require two taps to delete. First tap highlights for 3 seconds, second tap confirms. Prevents accidents.<br><br>
+• Accident prevention<br>
+• Quick removal without modals<br>
+• Visual confirmation<br><br>
+
+<strong style="font-size: 14px;">NESTING</strong><br>
+Nest and Cycle cards create containers with internal workspaces. Navigate into them, then back to parent level.<br><br>
+• Project folders<br>
+• Life area separation<br>
+• Unlimited depth<br><br>
+
+<strong style="font-size: 14px;">BUILD/VIEW MODES</strong><br>
+Two modes for different purposes. Build Mode for creating, View Mode for executing tasks.<br><br>
+• Construction vs execution<br>
+• Planning vs doing<br>
+• Clean focus interface<br><br>
+
+<strong style="font-size: 14px;">STORAGE</strong><br>
+Everything saves automatically to your browser. No accounts needed. Data stays private on your device.<br><br>
+• Automatic saving<br>
+• Offline operation<br>
+• Privacy focused<br><br>
+
+<strong style="font-size: 14px;">TEMPLATES</strong><br>
+Pre-built workspace configurations. Access from Create New interface, choose and customize.<br><br>
+• Quick start<br>
+• Best practices<br>
+• Game tracking, habit systems
+</div>`
                     }
                 }
             }
