@@ -392,57 +392,58 @@
                 return;
             }
             
-            // Get current state or create default
-            const localStateStr = localStorage.getItem('gt50-tester-state');
-            let appState;
-            
-            if (localStateStr) {
-                appState = JSON.parse(localStateStr);
-            } else {
-                // Create minimal default state
-                appState = {
-                    header: { title: 'GT50 TESTER', isMain: true },
-                    tabs: { tabs: [], activeViewTab: 0, selectedBuildTab: 0 },
-                    tabComponents: [[]],
-                    nextId: Date.now(),
-                    impex: {},
-                    settings: {},
-                    footer: {},
-                    cardInfo: {},
-                    createNew: {}
-                };
+            // Access the LIVE app state (exactly like manual import does)
+            if (!window.state) {
+                alert('ERROR: Cannot access app state. Page may not be fully loaded.');
+                this.isSyncing = false;
+                return;
             }
             
-            // Import the data (exactly like import button does)
-            appState.tabs = importResult.data.tabs;
-            appState.tabComponents = importResult.data.tabComponents;
+            // Update the live state (exactly like import button does)
+            window.state.tabs = importResult.data.tabs;
+            window.state.tabComponents = importResult.data.tabComponents;
             
-            // Reset navigation (exactly like import button does)
-            appState.header = appState.header || {};
-            appState.header.isMain = true;
-            appState.header.title = 'GT50 TESTER';
+            // Update global state (exactly like import button does)
+            window.nextId = Date.now();
+            window.navigationStack = [];
+            window.scrollStack = [];
             
-            // Update timestamp
-            appState.timestamp = cloudData.timestamp;
+            // Reset header (exactly like import button does)
+            if (!window.state.header) {
+                window.state.header = GT50Lib.Header.defaultState();
+            }
+            window.state.header.isMain = true;
+            window.state.header.title = 'GT50 TESTER';
             
-            // Reset nextId
-            appState.nextId = Date.now();
+            // Close impex window
+            window.state.impex.isOpen = false;
             
-            // Close any open windows
-            if (appState.impex) appState.impex.isOpen = false;
-            if (appState.settings) appState.settings.isOpen = false;
-            if (appState.createNew) appState.createNew.isOpen = false;
+            // Update timestamp in localStorage
+            const savedState = JSON.parse(localStorage.getItem('gt50-tester-state') || '{}');
+            savedState.timestamp = cloudData.timestamp;
+            localStorage.setItem('gt50-tester-state', JSON.stringify(savedState));
             
-            // Save to localStorage
-            localStorage.setItem('gt50-tester-state', JSON.stringify(appState));
+            // Render and save (exactly like import button does)
+            if (window.render) {
+                window.render(true);
+            }
+            if (window.saveState) {
+                window.saveState();
+            }
             
-            // Show success message briefly before reload
-            alert('✓ Cloud data imported successfully!\n\nReloading page...');
+            // Show success
+            this.syncStatus = 'success';
+            this.syncMessage = 'Pulled from cloud';
+            this.isSyncing = false;
             
-            // Reload immediately
+            alert('✓ Cloud data imported successfully!');
+            
+            // Restart auto-sync after a brief delay
             setTimeout(() => {
-                window.location.reload();
-            }, 500);
+                if (this.autoSyncEnabled) {
+                    this.startAutoSync();
+                }
+            }, 2000);
         },
         
         // ===== CREATE NEW GIST =====
