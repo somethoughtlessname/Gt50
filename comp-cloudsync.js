@@ -339,40 +339,6 @@
             };
         },
         
-        // ===== MERGE CLOUD DATA INTO LOCAL STATE =====
-        mergeCloudData: function(cloudData) {
-            const localStateStr = localStorage.getItem('gt50-tester-state');
-            let localState;
-            
-            if (localStateStr) {
-                localState = JSON.parse(localStateStr);
-            } else {
-                // No local state - create default structure
-                localState = {
-                    header: { title: 'GT50 TESTER' },
-                    tabs: { tabs: [], activeViewTab: 0, selectedBuildTab: 0 },
-                    tabComponents: [[]],
-                    nextId: 1,
-                    impex: {},
-                    settings: {},
-                    footer: {},
-                    cardInfo: {},
-                    createNew: {}
-                };
-            }
-            
-            // Extract data from import format
-            const data = cloudData.data || cloudData;
-            
-            // Overwrite only the data parts, keep local UI state and nextId
-            localState.tabs = data.tabs;
-            localState.tabComponents = data.tabComponents;
-            localState.timestamp = cloudData.timestamp;
-            // Keep local nextId - don't sync it
-            
-            return localState;
-        },
-        
         // ===== PUSH TO CLOUD =====
         pushToCloud: async function(token, gistId, state) {
             // Extract only the data (no UI state)
@@ -402,16 +368,67 @@
         
         // ===== PULL FROM CLOUD =====
         pullFromCloud: async function(cloudData) {
-            console.log('📥 Pulling from cloud - merging data and reloading...');
+            console.log('📥 Pulling from cloud - importing data...');
             
             // Stop auto-sync
             this.stopAutoSync();
             
-            // Merge cloud data into local state (preserves local UI settings)
-            const mergedState = this.mergeCloudData(cloudData);
+            // Use ImpEx to validate the cloud data
+            const importResult = GT50Lib.ImpEx.importData(JSON.stringify(cloudData));
             
-            // Save merged state
-            localStorage.setItem('gt50-tester-state', JSON.stringify(mergedState));
+            if (!importResult.success) {
+                alert(`Pull failed: ${importResult.error}`);
+                this.isSyncing = false;
+                this.syncStatus = 'error';
+                this.syncMessage = importResult.error;
+                return;
+            }
+            
+            // Get current state or create default
+            const localStateStr = localStorage.getItem('gt50-tester-state');
+            let appState;
+            
+            if (localStateStr) {
+                appState = JSON.parse(localStateStr);
+            } else {
+                // Create minimal default state
+                appState = {
+                    header: { title: 'GT50 TESTER', isMain: true },
+                    tabs: { tabs: [], activeViewTab: 0, selectedBuildTab: 0 },
+                    tabComponents: [[]],
+                    nextId: Date.now(),
+                    impex: {},
+                    settings: {},
+                    footer: {},
+                    cardInfo: {},
+                    createNew: {}
+                };
+            }
+            
+            // Import the data (exactly like import button does)
+            appState.tabs = importResult.data.tabs;
+            appState.tabComponents = importResult.data.tabComponents;
+            
+            // Reset navigation (exactly like import button does)
+            appState.header = appState.header || {};
+            appState.header.isMain = true;
+            appState.header.title = 'GT50 TESTER';
+            
+            // Update timestamp
+            appState.timestamp = cloudData.timestamp;
+            
+            // Reset nextId
+            appState.nextId = Date.now();
+            
+            // Close any open windows
+            if (appState.impex) appState.impex.isOpen = false;
+            if (appState.settings) appState.settings.isOpen = false;
+            if (appState.createNew) appState.createNew.isOpen = false;
+            
+            // Save to localStorage
+            localStorage.setItem('gt50-tester-state', JSON.stringify(appState));
+            
+            console.log('✓ Cloud data imported successfully');
             
             // Reload immediately
             window.location.reload();
