@@ -98,11 +98,20 @@
                 
                 const localState = JSON.parse(localStateStr);
                 
+                // CRITICAL: Strip any token/gistId that might be in the state
+                // This handles legacy states that have this data
+                if (localState.impex && localState.impex.cloudSync) {
+                    delete localState.impex.cloudSync.token;
+                    delete localState.impex.cloudSync.gistId;
+                }
+                
                 // Add timestamp if missing
                 if (!localState.timestamp) {
                     localState.timestamp = new Date().toISOString();
-                    localStorage.setItem('gt50-tester-state', JSON.stringify(localState));
                 }
+                
+                // Save cleaned state back to localStorage
+                localStorage.setItem('gt50-tester-state', JSON.stringify(localState));
                 
                 const localTime = new Date(localState.timestamp);
                 
@@ -235,11 +244,36 @@
         cleanStateForCloud: function(state) {
             const cleaned = JSON.parse(JSON.stringify(state));
             
-            // Remove sensitive cloudSync data
-            if (cleaned.impex && cleaned.impex.cloudSync) {
-                delete cleaned.impex.cloudSync.token;
-                delete cleaned.impex.cloudSync.gistId;
+            // Remove sensitive cloudSync data (multiple paths for safety)
+            if (cleaned.impex) {
+                if (cleaned.impex.cloudSync) {
+                    delete cleaned.impex.cloudSync.token;
+                    delete cleaned.impex.cloudSync.gistId;
+                }
             }
+            
+            // Also check if somehow it's at root level
+            if (cleaned.cloudSync) {
+                delete cleaned.cloudSync.token;
+                delete cleaned.cloudSync.gistId;
+            }
+            
+            // Paranoid: recursively search for any 'token' or 'gistId' keys that look like credentials
+            function stripSensitive(obj) {
+                for (let key in obj) {
+                    if (key === 'token' && typeof obj[key] === 'string' && obj[key].startsWith('ghp_')) {
+                        console.warn('🔒 Found and removed token from state!');
+                        delete obj[key];
+                    } else if (key === 'gistId' && typeof obj[key] === 'string' && obj[key].length > 20) {
+                        console.warn('🔒 Found and removed gistId from state!');
+                        delete obj[key];
+                    } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+                        stripSensitive(obj[key]);
+                    }
+                }
+            }
+            
+            stripSensitive(cleaned);
             
             return cleaned;
         },
@@ -409,9 +443,22 @@
                     </div>
                     
                     <!-- Action Buttons -->
-                    <div style="display: flex; gap: var(--margin);">
+                    <div style="display: flex; flex-direction: column; gap: var(--margin);">
+                        <button id="cleanup-btn" style="
+                            width: 100%;
+                            height: var(--card-height);
+                            background: var(--color-2);
+                            border: var(--border-width) solid var(--border-color);
+                            border-radius: 8px;
+                            font-weight: 600;
+                            color: var(--color-10);
+                            font-size: 14px;
+                            cursor: pointer;
+                            transition: filter 0.2s;
+                        ">🧹 CLEAN OLD DATA FIRST</button>
+                        
                         <button id="setup-btn" style="
-                            flex: 1;
+                            width: 100%;
                             height: var(--card-height);
                             background: var(--accent);
                             border: var(--border-width) solid var(--border-color);
@@ -449,6 +496,7 @@
             
             const tokenInput = container.querySelector('#token-input');
             const gistInput = container.querySelector('#gist-input');
+            const cleanupBtn = container.querySelector('#cleanup-btn');
             const setupBtn = container.querySelector('#setup-btn');
             const statusDiv = container.querySelector('#setup-status');
             
@@ -459,6 +507,78 @@
             gistInput.oninput = () => {
                 state.gistId = gistInput.value.trim();
             };
+            
+            // Cleanup button - removes tokens from stored state
+            cleanupBtn.onclick = () => {
+                cleanupBtn.disabled = true;
+                cleanupBtn.textContent = 'CLEANING...';
+                
+                try {
+                    const stateStr = localStorage.getItem('gt50-tester-state');
+                    if (stateStr) {
+                        const state = JSON.parse(stateStr);
+                        let cleaned = false;
+                        
+                        if (state.impex && state.impex.cloudSync) {
+                            if (state.impex.cloudSync.token) {
+                                delete state.impex.cloudSync.token;
+                                cleaned = true;
+                            }
+                            if (state.impex.cloudSync.gistId) {
+                                delete state.impex.cloudSync.gistId;
+                                cleaned = true;
+                            }
+                        }
+                        
+                        if (cleaned) {
+                            localStorage.setItem('gt50-tester-state', JSON.stringify(state));
+                            statusDiv.innerHTML = `
+                                <div style="
+                                    background: var(--accent);
+                                    border: var(--border-width) solid var(--border-color);
+                                    border-radius: 8px;
+                                    padding: 12px;
+                                    color: var(--color-10);
+                                    font-size: 12px;
+                                ">✓ Cleaned! Token removed from stored data. Now you can set up fresh.</div>
+                            `;
+                        } else {
+                            statusDiv.innerHTML = `
+                                <div style="
+                                    background: var(--bg-4);
+                                    border: var(--border-width) solid var(--border-color);
+                                    border-radius: 8px;
+                                    padding: 12px;
+                                    color: var(--color-10);
+                                    font-size: 12px;
+                                ">✓ No cleanup needed. Data is already clean.</div>
+                            `;
+                        }
+                        
+                        cleanupBtn.textContent = '✓ CLEANED';
+                        setTimeout(() => {
+                            cleanupBtn.disabled = false;
+                            cleanupBtn.textContent = '🧹 CLEAN OLD DATA FIRST';
+                        }, 3000);
+                    }
+                } catch (error) {
+                    statusDiv.innerHTML = `
+                        <div style="
+                            background: var(--error-bg);
+                            border: var(--border-width) solid var(--error-border);
+                            border-radius: 8px;
+                            padding: 12px;
+                            color: var(--error-color);
+                            font-size: 12px;
+                        ">Error: ${error.message}</div>
+                    `;
+                    cleanupBtn.disabled = false;
+                    cleanupBtn.textContent = '🧹 CLEAN OLD DATA FIRST';
+                }
+            };
+            
+            cleanupBtn.onmouseover = () => cleanupBtn.style.filter = 'brightness(1.1)';
+            cleanupBtn.onmouseout = () => cleanupBtn.style.filter = 'brightness(1)';
             
             setupBtn.onclick = async () => {
                 const token = tokenInput.value.trim();
@@ -772,6 +892,35 @@
     
     // ===== AUTO-START SYNC IF ENABLED =====
     window.addEventListener('DOMContentLoaded', () => {
+        // CRITICAL: Clean any tokens from stored state (security fix)
+        const stateStr = localStorage.getItem('gt50-tester-state');
+        if (stateStr) {
+            try {
+                const state = JSON.parse(stateStr);
+                let needsSave = false;
+                
+                // Remove token/gistId if present (legacy cleanup)
+                if (state.impex && state.impex.cloudSync) {
+                    if (state.impex.cloudSync.token) {
+                        delete state.impex.cloudSync.token;
+                        needsSave = true;
+                        console.log('🔒 Removed token from stored state (security fix)');
+                    }
+                    if (state.impex.cloudSync.gistId) {
+                        delete state.impex.cloudSync.gistId;
+                        needsSave = true;
+                        console.log('🔒 Removed gistId from stored state (security fix)');
+                    }
+                }
+                
+                if (needsSave) {
+                    localStorage.setItem('gt50-tester-state', JSON.stringify(state));
+                }
+            } catch (error) {
+                console.error('Error cleaning state:', error);
+            }
+        }
+        
         const enabled = localStorage.getItem(GT50Lib.CloudSync.STORAGE_KEY_ENABLED) === 'true';
         const token = localStorage.getItem(GT50Lib.CloudSync.STORAGE_KEY_TOKEN);
         const gistId = localStorage.getItem(GT50Lib.CloudSync.STORAGE_KEY_GIST_ID);
