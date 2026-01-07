@@ -195,14 +195,27 @@
                     return;
                 }
                 
-                // PULL-ONLY MODE - never push, always pull
+                // PULL-ONLY MODE - never push, only pull if different
                 if (!canPush) {
+                    // Check if local already matches cloud (avoid infinite reload loop)
+                    const localStr = JSON.stringify(localState);
+                    const cloudStr = JSON.stringify(cloudState);
+                    
+                    if (localStr === cloudStr) {
+                        console.log('✓ Pull-only mode: Already in sync');
+                        this.syncStatus = 'success';
+                        this.syncMessage = 'In sync';
+                        this.lastSyncedState = cloudStr;
+                        this.isSyncing = false;
+                        return;
+                    }
+                    
                     console.log('📥 Pull-only mode: Pulling from cloud...');
                     await this.pullFromCloud(cloudState);
                     this.syncStatus = 'success';
                     this.syncMessage = 'Pulled from cloud';
                     localStorage.setItem(this.STORAGE_KEY_LAST_SYNC, new Date().toISOString());
-                    this.lastSyncedState = JSON.stringify(cloudState);
+                    this.lastSyncedState = cloudStr;
                     this.isSyncing = false;
                     return;
                 }
