@@ -372,60 +372,69 @@
             // Stop auto-sync
             this.stopAutoSync();
             
-            // Validate cloud data format
-            const cloudDataStr = JSON.stringify(cloudData);
-            const importResult = GT50Lib.ImpEx.importData(cloudDataStr);
+            // Convert to text like import button expects
+            const text = JSON.stringify(cloudData);
             
-            if (!importResult.success) {
-                alert(`Pull failed: ${importResult.error}`);
-                this.isSyncing = false;
-                return;
-            }
+            // Use EXACT import button code
+            const result = GT50Lib.ImpEx.importData(text);
             
-            // Check if we have app state reference
-            if (!this.appState) {
-                alert('ERROR: No app state reference. This should not happen.');
-                this.isSyncing = false;
-                return;
-            }
-            
-            // Update app state directly (exactly like manual import)
-            this.appState.tabs = importResult.data.tabs;
-            this.appState.tabComponents = importResult.data.tabComponents;
-            
-            // Update global state
-            window.nextId = Date.now();
-            window.navigationStack = [];
-            window.scrollStack = [];
-            
-            // Reset header
-            if (!this.appState.header) {
-                this.appState.header = GT50Lib.Header.defaultState();
-            }
-            this.appState.header.isMain = true;
-            this.appState.header.title = 'GT50 TESTER';
-            
-            // Close impex window
-            this.appState.impex.isOpen = false;
-            
-            // Render and save
-            if (window.render) {
-                window.render(true);
-            }
-            if (window.saveState) {
-                window.saveState();
-            }
-            
-            this.syncStatus = 'success';
-            this.syncMessage = 'Pulled from cloud';
-            this.isSyncing = false;
-            
-            // Restart auto-sync
-            setTimeout(() => {
-                if (this.autoSyncEnabled) {
-                    this.startAutoSync();
+            if (result.success) {
+                if (!this.appState) {
+                    alert('ERROR: Cannot access app state');
+                    this.isSyncing = false;
+                    return;
                 }
-            }, 2000);
+                
+                // EXACT COPY from import button - lines 691-717
+                // Update app state
+                this.appState.tabs = result.data.tabs;
+                this.appState.tabComponents = result.data.tabComponents;
+                
+                // Update global state
+                if (typeof window !== 'undefined') {
+                    window.nextId = Date.now();
+                    window.navigationStack = [];
+                    window.scrollStack = [];
+                }
+                
+                // Reset header
+                if (!this.appState.header) {
+                    this.appState.header = GT50Lib.Header.defaultState();
+                }
+                this.appState.header.isMain = true;
+                this.appState.header.title = 'GT50 TESTER';
+                
+                // Set timestamp to match cloud (CRITICAL for next sync)
+                this.appState.timestamp = cloudData.timestamp;
+                
+                // Close window
+                this.appState.impex.isOpen = false;
+                
+                // Render and save
+                if (typeof window !== 'undefined' && window.render) {
+                    window.render(true);
+                }
+                if (typeof window !== 'undefined' && window.saveState) {
+                    window.saveState();
+                }
+                
+                this.syncStatus = 'success';
+                this.syncMessage = 'Pulled from cloud';
+                this.isSyncing = false;
+                
+                // Restart auto-sync
+                setTimeout(() => {
+                    if (this.autoSyncEnabled) {
+                        this.startAutoSync();
+                    }
+                }, 2000);
+                
+            } else {
+                alert(`Pull failed: ${result.error}`);
+                this.syncStatus = 'error';
+                this.syncMessage = result.error;
+                this.isSyncing = false;
+            }
         },
         
         // ===== CREATE NEW GIST =====
