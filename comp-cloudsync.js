@@ -368,16 +368,24 @@
         
         // ===== PULL FROM CLOUD =====
         pullFromCloud: async function(cloudData) {
-            console.log('📥 Pulling from cloud - importing data...');
-            
             // Stop auto-sync
             this.stopAutoSync();
             
+            // Check if ImpEx is available
+            if (!GT50Lib.ImpEx) {
+                alert('ERROR: Import system not loaded. Check file loading order.');
+                this.isSyncing = false;
+                return;
+            }
+            
+            // Convert cloud data to JSON string for import
+            const cloudDataStr = JSON.stringify(cloudData);
+            
             // Use ImpEx to validate the cloud data
-            const importResult = GT50Lib.ImpEx.importData(JSON.stringify(cloudData));
+            const importResult = GT50Lib.ImpEx.importData(cloudDataStr);
             
             if (!importResult.success) {
-                alert(`Pull failed: ${importResult.error}`);
+                alert(`Pull failed during import validation:\n\n${importResult.error}\n\nCloud data format may be incorrect.`);
                 this.isSyncing = false;
                 this.syncStatus = 'error';
                 this.syncMessage = importResult.error;
@@ -428,10 +436,13 @@
             // Save to localStorage
             localStorage.setItem('gt50-tester-state', JSON.stringify(appState));
             
-            console.log('✓ Cloud data imported successfully');
+            // Show success message briefly before reload
+            alert('✓ Cloud data imported successfully!\n\nReloading page...');
             
             // Reload immediately
-            window.location.reload();
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
         },
         
         // ===== CREATE NEW GIST =====
