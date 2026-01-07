@@ -11,7 +11,9 @@
         STORAGE_KEY_GIST_ID: 'gt50-gist-id',
         STORAGE_KEY_LAST_SYNC: 'gt50-last-sync-time',
         STORAGE_KEY_ENABLED: 'gt50-sync-enabled',
-        STORAGE_KEY_CAN_PUSH: 'gt50-can-push', // NEW: Permission to push
+        STORAGE_KEY_CAN_PUSH: 'gt50-can-push',
+        STORAGE_KEY_LAST_PULL: 'gt50-last-pull-time',
+        STORAGE_KEY_LAST_PULL: 'gt50-last-pull-time', // NEW: Last pull timestamp
         
         // ===== SYNC STATE =====
         syncInterval: null,
@@ -20,6 +22,7 @@
         syncStatus: 'idle', // idle, syncing, success, error
         syncMessage: '',
         autoSyncEnabled: false,
+        lastPullTime: 0, // Track when we last pulled to prevent immediate re-pulls
         
         // ===== STATE FACTORY =====
         // NOTE: token and gistId are NOT stored in state, only in localStorage
@@ -112,6 +115,9 @@
                 }
                 
                 console.log('📥 Manual pull from cloud...');
+                const pullTime = Date.now();
+                this.lastPullTime = pullTime; // Set cooldown
+                localStorage.setItem(this.STORAGE_KEY_LAST_PULL, pullTime.toString());
                 await this.pullFromCloud(cloudState);
                 
             } catch (error) {
@@ -125,6 +131,16 @@
         // ===== SMART SYNC (TIMESTAMP-BASED) =====
         smartSync: async function() {
             if (this.isSyncing) return; // Prevent concurrent syncs
+            
+            // Check cooldown - don't sync within 10 seconds of last pull
+            const lastPullStr = localStorage.getItem(this.STORAGE_KEY_LAST_PULL);
+            const lastPullTime = lastPullStr ? parseInt(lastPullStr) : 0;
+            const timeSinceLastPull = Date.now() - lastPullTime;
+            
+            if (timeSinceLastPull < 10000) {
+                console.log(`⏳ Cooldown active (${Math.floor(timeSinceLastPull/1000)}s since last pull)`);
+                return;
+            }
             
             const token = localStorage.getItem(this.STORAGE_KEY_TOKEN);
             const gistId = localStorage.getItem(this.STORAGE_KEY_GIST_ID);
@@ -149,15 +165,6 @@
                 
                 const localState = JSON.parse(localStateStr);
                 
-                // CRITICAL: Strip any token/gistId that might be in the state
-                if (localState.impex && localState.impex.cloudSync) {
-                    delete localState.impex.cloudSync.token;
-                    delete localState.impex.cloudSync.gistId;
-                }
-                
-                // Save cleaned state back to localStorage
-                localStorage.setItem('gt50-tester-state', JSON.stringify(localState));
-                
                 // Get cloud state
                 const cloudState = await this.getCloudState(token, gistId);
                 
@@ -176,16 +183,17 @@
                 // No cloud state yet
                 if (!cloudState) {
                     if (canPush) {
-                        if (!localState.timestamp) {
-                            localState.timestamp = new Date().toISOString();
+                        // Create cleaned copy for pushing (don't modify original)
+                        const stateToPush = JSON.parse(JSON.stringify(localState));
+                        if (!stateToPush.timestamp) {
+                            stateToPush.timestamp = new Date().toISOString();
                         }
-                        localStorage.setItem('gt50-tester-state', JSON.stringify(localState));
                         console.log('📤 No cloud state found, pushing local...');
-                        await this.pushToCloud(token, gistId, localState);
+                        await this.pushToCloud(token, gistId, stateToPush);
                         this.syncStatus = 'success';
                         this.syncMessage = 'Initial push complete';
                         localStorage.setItem(this.STORAGE_KEY_LAST_SYNC, new Date().toISOString());
-                        this.lastSyncedState = JSON.stringify(localState);
+                        this.lastSyncedState = JSON.stringify(stateToPush);
                     } else {
                         console.log('⚠️ No cloud state, but pushing disabled');
                         this.syncStatus = 'idle';
@@ -197,25 +205,25 @@
                 
                 // PULL-ONLY MODE - never push, only pull if different
                 if (!canPush) {
-                    // Check if local already matches cloud (avoid infinite reload loop)
-                    const localStr = JSON.stringify(localState);
-                    const cloudStr = JSON.stringify(cloudState);
+                    // Compare timestamps (more reliable than full JSON comparison)
+                    const localTime = new Date(localState.timestamp || 0);
+                    const cloudTime = new Date(cloudState.timestamp || 0);
                     
-                    if (localStr === cloudStr) {
+                    if (Math.abs(localTime - cloudTime) < 1000) {
                         console.log('✓ Pull-only mode: Already in sync');
                         this.syncStatus = 'success';
                         this.syncMessage = 'In sync';
-                        this.lastSyncedState = cloudStr;
                         this.isSyncing = false;
                         return;
                     }
                     
                     console.log('📥 Pull-only mode: Pulling from cloud...');
+                    const pullTime = Date.now();
+                    localStorage.setItem(this.STORAGE_KEY_LAST_PULL, pullTime.toString());
                     await this.pullFromCloud(cloudState);
                     this.syncStatus = 'success';
                     this.syncMessage = 'Pulled from cloud';
                     localStorage.setItem(this.STORAGE_KEY_LAST_SYNC, new Date().toISOString());
-                    this.lastSyncedState = cloudStr;
                     this.isSyncing = false;
                     return;
                 }
@@ -236,7 +244,7 @@
                     this.syncMessage = 'In sync';
                     this.lastSyncedState = localStateStr;
                 } else if (localTime > cloudTime) {
-                    // Local is newer - push
+                    // Local is newer - push (cleanStateForCloud handles token removal)
                     console.log('📤 Pushing to cloud (local newer)...');
                     await this.pushToCloud(token, gistId, localState);
                     this.syncStatus = 'success';
@@ -246,6 +254,9 @@
                 } else {
                     // Cloud is newer - pull
                     console.log('📥 Pulling from cloud (cloud newer)...');
+                    const pullTime = Date.now();
+                    this.lastPullTime = pullTime;
+                    localStorage.setItem(this.STORAGE_KEY_LAST_PULL, pullTime.toString());
                     await this.pullFromCloud(cloudState);
                     this.syncStatus = 'success';
                     this.syncMessage = 'Pulled from cloud';
