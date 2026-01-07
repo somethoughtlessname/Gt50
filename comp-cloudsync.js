@@ -21,10 +21,10 @@
         autoSyncEnabled: false,
         
         // ===== STATE FACTORY =====
+        // NOTE: token and gistId are NOT stored in state, only in localStorage
+        // This prevents them from being synced to cloud where GitHub would detect and revoke them
         defaultState: function() {
             return {
-                token: localStorage.getItem(this.STORAGE_KEY_TOKEN) || '',
-                gistId: localStorage.getItem(this.STORAGE_KEY_GIST_ID) || '',
                 enabled: localStorage.getItem(this.STORAGE_KEY_ENABLED) === 'true',
                 lastSync: localStorage.getItem(this.STORAGE_KEY_LAST_SYNC) || null
             };
@@ -109,6 +109,19 @@
                 // Get cloud state
                 const cloudState = await this.getCloudState(token, gistId);
                 
+                // Handle errors from getCloudState
+                if (cloudState && cloudState.error) {
+                    this.syncStatus = 'error';
+                    if (cloudState.error === 404) {
+                        this.syncMessage = 'Gist not found. Disable sync and create new gist.';
+                    } else {
+                        this.syncMessage = `Error ${cloudState.error}: ${cloudState.message}`;
+                    }
+                    this.isSyncing = false;
+                    console.error('Cloud state error:', cloudState);
+                    return;
+                }
+                
                 if (!cloudState) {
                     // No cloud state yet - push local
                     console.log('📤 No cloud state found, pushing local...');
@@ -162,42 +175,82 @@
             }
         },
         
+        // ===== TEST TOKEN =====
+        testToken: async function(token) {
+            try {
+                const response = await fetch('https://api.github.com/user', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/vnd.github+json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    return { success: false, error: `Token invalid (${response.status})` };
+                }
+                
+                const user = await response.json();
+                return { success: true, username: user.login };
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        },
+        
         // ===== GET CLOUD STATE =====
         getCloudState: async function(token, gistId) {
-            const response = await fetch(`https://api.github.com/gists/${gistId}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/vnd.github+json',
-                    'X-GitHub-Api-Version': '2022-11-28'
-                }
-            });
-            
-            if (!response.ok) {
-                const errorBody = await response.text();
-                console.error('GitHub API Error Response:', errorBody);
+            try {
+                const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/vnd.github+json',
+                        'X-GitHub-Api-Version': '2022-11-28'
+                    }
+                });
                 
-                // Special handling for 401/404 - likely token doesn't own this gist
-                if (response.status === 401 || response.status === 404) {
-                    throw new Error(`Cannot access gist. This token may not own this gist. Try creating a new gist by leaving Gist ID empty.`);
+                if (response.status === 404) {
+                    return { error: 404, message: 'Gist not found. Create a new one by leaving Gist ID empty.' };
                 }
                 
-                throw new Error(`GitHub API error: ${response.status} - ${errorBody}`);
+                if (!response.ok) {
+                    const errorBody = await response.text();
+                    return { error: response.status, message: errorBody };
+                }
+                
+                const gist = await response.json();
+                
+                if (!gist.files['gt50-state.json']) {
+                    return null; // No state file yet
+                }
+                
+                const content = gist.files['gt50-state.json'].content;
+                return JSON.parse(content);
+            } catch (error) {
+                return { error: 'network', message: error.message };
+            }
+        },
+        
+        // ===== CLEAN STATE FOR CLOUD (REMOVE SENSITIVE DATA) =====
+        // CRITICAL: GitHub auto-scans gists for tokens and revokes them.
+        // We must NEVER include token or gistId in the uploaded state.
+        cleanStateForCloud: function(state) {
+            const cleaned = JSON.parse(JSON.stringify(state));
+            
+            // Remove sensitive cloudSync data
+            if (cleaned.impex && cleaned.impex.cloudSync) {
+                delete cleaned.impex.cloudSync.token;
+                delete cleaned.impex.cloudSync.gistId;
             }
             
-            const gist = await response.json();
-            
-            if (!gist.files['gt50-state.json']) {
-                return null; // No state file yet
-            }
-            
-            const content = gist.files['gt50-state.json'].content;
-            return JSON.parse(content);
+            return cleaned;
         },
         
         // ===== PUSH TO CLOUD =====
         pushToCloud: async function(token, gistId, state) {
+            // CRITICAL: Clean sensitive data before uploading
+            const cleanedState = this.cleanStateForCloud(state);
+            
             // Update timestamp
-            state.timestamp = new Date().toISOString();
+            cleanedState.timestamp = new Date().toISOString();
             
             const response = await fetch(`https://api.github.com/gists/${gistId}`, {
                 method: 'PATCH',
@@ -210,7 +263,7 @@
                 body: JSON.stringify({
                     files: {
                         'gt50-state.json': {
-                            content: JSON.stringify(state, null, 2)
+                            content: JSON.stringify(cleanedState, null, 2)
                         }
                     }
                 })
@@ -222,7 +275,8 @@
                 throw new Error(`Push failed: ${response.status} - ${errorBody}`);
             }
             
-            // Update local storage with new timestamp
+            // Update original state's timestamp and save to localStorage
+            state.timestamp = cleanedState.timestamp;
             localStorage.setItem('gt50-tester-state', JSON.stringify(state));
         },
         
@@ -407,7 +461,10 @@
             };
             
             setupBtn.onclick = async () => {
-                if (!state.token) {
+                const token = tokenInput.value.trim();
+                const gistId = gistInput.value.trim();
+                
+                if (!token) {
                     statusDiv.innerHTML = `
                         <div style="
                             background: var(--error-bg);
@@ -422,13 +479,46 @@
                 }
                 
                 setupBtn.disabled = true;
-                setupBtn.textContent = 'SETTING UP...';
+                setupBtn.textContent = 'TESTING TOKEN...';
                 
                 try {
-                    let gistId = state.gistId;
+                    // Step 1: Test the token
+                    statusDiv.innerHTML = `
+                        <div style="
+                            background: var(--bg-4);
+                            border: var(--border-width) solid var(--border-color);
+                            border-radius: 8px;
+                            padding: 12px;
+                            color: var(--color-10);
+                            font-size: 12px;
+                        ">Testing token...</div>
+                    `;
+                    
+                    const tokenTest = await this.testToken(token);
+                    
+                    if (!tokenTest.success) {
+                        throw new Error(`Token test failed: ${tokenTest.error}`);
+                    }
+                    
+                    statusDiv.innerHTML = `
+                        <div style="
+                            background: var(--accent);
+                            border: var(--border-width) solid var(--border-color);
+                            border-radius: 8px;
+                            padding: 12px;
+                            color: var(--color-10);
+                            font-size: 12px;
+                        ">✓ Token valid (${tokenTest.username})</div>
+                    `;
+                    
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    // Step 2: Handle gist
+                    setupBtn.textContent = 'SETTING UP GIST...';
+                    let finalGistId = gistId;
                     
                     // If no Gist ID provided, create a new one
-                    if (!gistId) {
+                    if (!finalGistId) {
                         statusDiv.innerHTML = `
                             <div style="
                                 background: var(--bg-4);
@@ -440,14 +530,33 @@
                             ">Creating new Gist...</div>
                         `;
                         
-                        gistId = await this.createGist(state.token);
-                        state.gistId = gistId;
+                        finalGistId = await this.createGist(token);
+                    } else {
+                        // Verify existing gist
+                        statusDiv.innerHTML = `
+                            <div style="
+                                background: var(--bg-4);
+                                border: var(--border-width) solid var(--border-color);
+                                border-radius: 8px;
+                                padding: 12px;
+                                color: var(--color-10);
+                                font-size: 12px;
+                            ">Verifying Gist...</div>
+                        `;
+                        
+                        const cloudState = await this.getCloudState(token, finalGistId);
+                        
+                        if (cloudState && cloudState.error) {
+                            if (cloudState.error === 404) {
+                                throw new Error('Gist not found. Leave Gist ID empty to create a new one.');
+                            } else {
+                                throw new Error(`Gist error ${cloudState.error}: ${cloudState.message}`);
+                            }
+                        }
                     }
                     
-                    // Save credentials
-                    this.saveCredentials(state.token, gistId);
-                    
-                    // Enable auto-sync
+                    // Step 3: Save and enable
+                    this.saveCredentials(token, finalGistId);
                     state.enabled = true;
                     this.setEnabled(true);
                     
@@ -459,7 +568,7 @@
                             padding: 12px;
                             color: var(--color-10);
                             font-size: 12px;
-                        ">✓ Cloud sync enabled! Auto-syncing every 60 seconds.</div>
+                        ">✓ Cloud sync enabled! Gist ID: ${finalGistId}<br/>Auto-syncing every 60 seconds.</div>
                     `;
                     
                     setupBtn.textContent = '✓ ENABLED';
@@ -479,7 +588,7 @@
                             padding: 12px;
                             color: var(--error-color);
                             font-size: 12px;
-                        ">Error: ${error.message}</div>
+                        ">❌ ${error.message}</div>
                     `;
                     
                     setupBtn.disabled = false;
