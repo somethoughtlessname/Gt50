@@ -371,79 +371,30 @@
             // Stop auto-sync
             this.stopAutoSync();
             
-            // Check if ImpEx is available
-            if (!GT50Lib.ImpEx) {
-                alert('ERROR: Import system not loaded. Check file loading order.');
-                this.isSyncing = false;
-                return;
-            }
-            
-            // Convert cloud data to JSON string for import
+            // Validate cloud data format
             const cloudDataStr = JSON.stringify(cloudData);
-            
-            // Use ImpEx to validate the cloud data
             const importResult = GT50Lib.ImpEx.importData(cloudDataStr);
             
             if (!importResult.success) {
-                alert(`Pull failed during import validation:\n\n${importResult.error}\n\nCloud data format may be incorrect.`);
-                this.isSyncing = false;
-                this.syncStatus = 'error';
-                this.syncMessage = importResult.error;
-                return;
-            }
-            
-            // Access the LIVE app state (exactly like manual import does)
-            if (!window.state) {
-                alert('ERROR: Cannot access app state. Page may not be fully loaded.');
+                alert(`Pull failed: ${importResult.error}`);
                 this.isSyncing = false;
                 return;
             }
             
-            // Update the live state (exactly like import button does)
-            window.state.tabs = importResult.data.tabs;
-            window.state.tabComponents = importResult.data.tabComponents;
+            // Get current localStorage state
+            const currentState = JSON.parse(localStorage.getItem('gt50-tester-state') || '{}');
             
-            // Update global state (exactly like import button does)
-            window.nextId = Date.now();
-            window.navigationStack = [];
-            window.scrollStack = [];
+            // Replace data completely
+            currentState.tabs = importResult.data.tabs;
+            currentState.tabComponents = importResult.data.tabComponents;
+            currentState.timestamp = cloudData.timestamp;
+            currentState.nextId = Date.now();
             
-            // Reset header (exactly like import button does)
-            if (!window.state.header) {
-                window.state.header = GT50Lib.Header.defaultState();
-            }
-            window.state.header.isMain = true;
-            window.state.header.title = 'GT50 TESTER';
+            // Save it
+            localStorage.setItem('gt50-tester-state', JSON.stringify(currentState));
             
-            // Close impex window
-            window.state.impex.isOpen = false;
-            
-            // Update timestamp in localStorage
-            const savedState = JSON.parse(localStorage.getItem('gt50-tester-state') || '{}');
-            savedState.timestamp = cloudData.timestamp;
-            localStorage.setItem('gt50-tester-state', JSON.stringify(savedState));
-            
-            // Render and save (exactly like import button does)
-            if (window.render) {
-                window.render(true);
-            }
-            if (window.saveState) {
-                window.saveState();
-            }
-            
-            // Show success
-            this.syncStatus = 'success';
-            this.syncMessage = 'Pulled from cloud';
-            this.isSyncing = false;
-            
-            alert('✓ Cloud data imported successfully!');
-            
-            // Restart auto-sync after a brief delay
-            setTimeout(() => {
-                if (this.autoSyncEnabled) {
-                    this.startAutoSync();
-                }
-            }, 2000);
+            // Reload the fucking page
+            window.location.reload();
         },
         
         // ===== CREATE NEW GIST =====
