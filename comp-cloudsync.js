@@ -1,4 +1,3 @@
-
 (function() {
     // Static injector ID
     const INJECTOR_ID = '0020';
@@ -167,13 +166,22 @@
         getCloudState: async function(token, gistId) {
             const response = await fetch(`https://api.github.com/gists/${gistId}`, {
                 headers: {
-                    'Authorization': `token ${token}`,
-                    'Accept': 'application/vnd.github.v3+json'
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/vnd.github+json',
+                    'X-GitHub-Api-Version': '2022-11-28'
                 }
             });
             
             if (!response.ok) {
-                throw new Error(`GitHub API error: ${response.status}`);
+                const errorBody = await response.text();
+                console.error('GitHub API Error Response:', errorBody);
+                
+                // Special handling for 401/404 - likely token doesn't own this gist
+                if (response.status === 401 || response.status === 404) {
+                    throw new Error(`Cannot access gist. This token may not own this gist. Try creating a new gist by leaving Gist ID empty.`);
+                }
+                
+                throw new Error(`GitHub API error: ${response.status} - ${errorBody}`);
             }
             
             const gist = await response.json();
@@ -194,9 +202,10 @@
             const response = await fetch(`https://api.github.com/gists/${gistId}`, {
                 method: 'PATCH',
                 headers: {
-                    'Authorization': `token ${token}`,
+                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
-                    'Accept': 'application/vnd.github.v3+json'
+                    'Accept': 'application/vnd.github+json',
+                    'X-GitHub-Api-Version': '2022-11-28'
                 },
                 body: JSON.stringify({
                     files: {
@@ -208,7 +217,9 @@
             });
             
             if (!response.ok) {
-                throw new Error(`Push failed: ${response.status}`);
+                const errorBody = await response.text();
+                console.error('Push Error Response:', errorBody);
+                throw new Error(`Push failed: ${response.status} - ${errorBody}`);
             }
             
             // Update local storage with new timestamp
@@ -233,9 +244,10 @@
             const response = await fetch('https://api.github.com/gists', {
                 method: 'POST',
                 headers: {
-                    'Authorization': `token ${token}`,
+                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
-                    'Accept': 'application/vnd.github.v3+json'
+                    'Accept': 'application/vnd.github+json',
+                    'X-GitHub-Api-Version': '2022-11-28'
                 },
                 body: JSON.stringify({
                     description: 'GT50 Cloud Sync Data',
@@ -249,7 +261,9 @@
             });
             
             if (!response.ok) {
-                throw new Error(`Gist creation failed: ${response.status}`);
+                const errorBody = await response.text();
+                console.error('Create Gist Error:', errorBody);
+                throw new Error(`Gist creation failed: ${response.status} - ${errorBody}`);
             }
             
             const gist = await response.json();
@@ -272,6 +286,10 @@
         
         // ===== RENDER SETUP SCREEN =====
         renderSetup: function(container, state, onChange) {
+            // Always load from localStorage, not state (in case state got cleared)
+            const savedToken = localStorage.getItem(this.STORAGE_KEY_TOKEN) || '';
+            const savedGistId = localStorage.getItem(this.STORAGE_KEY_GIST_ID) || '';
+            
             container.innerHTML = `
                 <div style="padding: var(--margin); display: flex; flex-direction: column; gap: var(--margin);">
                     
@@ -299,7 +317,7 @@
                             type="password" 
                             id="token-input"
                             placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-                            value="${state.token}"
+                            value="${savedToken}"
                             style="
                                 height: var(--card-height);
                                 background: var(--bg-3);
@@ -322,7 +340,7 @@
                             type="text" 
                             id="gist-input"
                             placeholder="Leave empty to create new gist"
-                            value="${state.gistId}"
+                            value="${savedGistId}"
                             style="
                                 height: var(--card-height);
                                 background: var(--bg-3);
@@ -365,7 +383,9 @@
                             2. Click "Generate new token (classic)"<br/>
                             3. Check the "gist" permission<br/>
                             4. Generate and copy the token<br/>
-                            5. Paste it above and click Enable Sync
+                            5. Paste it above and click Enable Sync<br/><br/>
+                            <strong>⚠️ New token? Leave Gist ID empty!</strong><br/>
+                            Tokens can only access gists they created.
                         </div>
                     </div>
                     
@@ -475,6 +495,7 @@
         renderActive: function(container, state, onChange) {
             const lastSync = localStorage.getItem(this.STORAGE_KEY_LAST_SYNC);
             const timeAgoStr = this.timeAgo(lastSync);
+            const savedGistId = localStorage.getItem(this.STORAGE_KEY_GIST_ID) || 'Unknown';
             
             let statusColor = 'var(--color-9)';
             let statusIcon = '●';
@@ -533,7 +554,7 @@
                             color: var(--color-10); 
                             font-family: 'Courier New', monospace;
                             word-break: break-all;
-                        ">${state.gistId}</div>
+                        ">${savedGistId}</div>
                     </div>
                     
                     <!-- Manual Actions -->
@@ -627,7 +648,12 @@
         
         // ===== MAIN RENDER =====
         render: function(container, state, onChange) {
-            if (state.enabled && state.token && state.gistId) {
+            // Always check localStorage, not state (in case state got cleared on reload)
+            const enabled = localStorage.getItem(this.STORAGE_KEY_ENABLED) === 'true';
+            const token = localStorage.getItem(this.STORAGE_KEY_TOKEN);
+            const gistId = localStorage.getItem(this.STORAGE_KEY_GIST_ID);
+            
+            if (enabled && token && gistId) {
                 this.renderActive(container, state, onChange);
             } else {
                 this.renderSetup(container, state, onChange);
@@ -650,4 +676,3 @@
     
     console.log('✓ CloudSync component loaded');
 })();
-
