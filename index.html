@@ -84,16 +84,16 @@
     <div id="createNewWindow"></div>
     <div id="nestEditWindow"></div>
 
-<script src="Search.js"></script>    
-<script src="Styles.js"></script>
+<script src="search.js"></script>    
+<script src="styles.js"></script>
     
      
     
-<script src="Comp-header.js"></script>
-<script src="Comp-insert.js"></script>
-<script src="Comp-cloudsync.js"></script>
-<script src="Comp-impex.js"></script>
-<script src="Comp-settings.js"></script>
+<script src="comp-header.js"></script>
+<script src="comp-insert.js"></script>
+<script src="comp-cloudsync.js"></script>
+<script src="comp-impex.js"></script>
+<script src="comp-settings.js"></script>
 <script src="create-new.js"></script>    
 <script src="comp-utility.js"></script>    
 <script src="template.js"></script>       
@@ -324,8 +324,7 @@
                 footer: state.footer,
                 cardInfo: state.cardInfo,
                 createNew: state.createNew,
-                tabComponents: state.tabComponents,
-                timestamp: new Date().toISOString()  // Update timestamp on every save
+                tabComponents: state.tabComponents
             };
             localStorage.setItem('gt50-tester-state', JSON.stringify(toSave));
         }
