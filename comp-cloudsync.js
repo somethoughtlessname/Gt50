@@ -202,9 +202,9 @@
                     // Extract data from both for comparison
                     const localData = this.extractDataOnly(localState);
                     
-                    // Compare data directly
-                    const localDataStr = JSON.stringify(localData);
-                    const cloudDataStr = JSON.stringify(cloudState);
+                    // Compare the data sections (ignore timestamp for comparison)
+                    const localDataStr = JSON.stringify(localData.data);
+                    const cloudDataStr = JSON.stringify(cloudState.data);
                     
                     console.log(`📊 Pull-only mode: Comparing data...`);
                     
@@ -227,8 +227,9 @@
                 const localData = this.extractDataOnly(localState);
                 const cloudData = cloudState;
                 
-                const localDataStr = JSON.stringify(localData);
-                const cloudDataStr = JSON.stringify(cloudData);
+                // Compare the data sections (ignore timestamp)
+                const localDataStr = JSON.stringify(localData.data);
+                const cloudDataStr = JSON.stringify(cloudData.data);
                 
                 console.log(`⏰ Local timestamp: ${localData.timestamp}`);
                 console.log(`⏰ Cloud timestamp: ${cloudData.timestamp}`);
@@ -326,10 +327,14 @@
         
         // ===== EXTRACT DATA ONLY (NO UI STATE) =====
         extractDataOnly: function(state) {
+            // Use import-compatible format
             return {
-                tabs: state.tabs,
-                tabComponents: state.tabComponents,
-                nextId: state.nextId,
+                version: "1.0",
+                data: {
+                    tabs: state.tabs,
+                    tabComponents: state.tabComponents,
+                    nextId: state.nextId
+                },
                 timestamp: state.timestamp || new Date().toISOString()
             };
         },
@@ -355,10 +360,13 @@
                 };
             }
             
+            // Extract data from import format
+            const data = cloudData.data || cloudData;
+            
             // Overwrite only the data parts, keep local UI state
-            localState.tabs = cloudData.tabs;
-            localState.tabComponents = cloudData.tabComponents;
-            localState.nextId = cloudData.nextId;
+            localState.tabs = data.tabs;
+            localState.tabComponents = data.tabComponents;
+            localState.nextId = data.nextId;
             localState.timestamp = cloudData.timestamp;
             
             return localState;
