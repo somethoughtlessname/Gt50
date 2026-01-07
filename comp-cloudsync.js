@@ -22,6 +22,7 @@
         syncStatus: 'idle', // idle, syncing, success, error
         syncMessage: '',
         autoSyncEnabled: false,
+        appState: null, // Store reference to app state
         lastPullTime: 0, // Track when we last pulled to prevent immediate re-pulls
         
         // ===== STATE FACTORY =====
@@ -381,20 +382,50 @@
                 return;
             }
             
-            // Get current localStorage state
-            const currentState = JSON.parse(localStorage.getItem('gt50-tester-state') || '{}');
+            // Check if we have app state reference
+            if (!this.appState) {
+                alert('ERROR: No app state reference. This should not happen.');
+                this.isSyncing = false;
+                return;
+            }
             
-            // Replace data completely
-            currentState.tabs = importResult.data.tabs;
-            currentState.tabComponents = importResult.data.tabComponents;
-            currentState.timestamp = cloudData.timestamp;
-            currentState.nextId = Date.now();
+            // Update app state directly (exactly like manual import)
+            this.appState.tabs = importResult.data.tabs;
+            this.appState.tabComponents = importResult.data.tabComponents;
             
-            // Save it
-            localStorage.setItem('gt50-tester-state', JSON.stringify(currentState));
+            // Update global state
+            window.nextId = Date.now();
+            window.navigationStack = [];
+            window.scrollStack = [];
             
-            // Reload the fucking page
-            window.location.reload();
+            // Reset header
+            if (!this.appState.header) {
+                this.appState.header = GT50Lib.Header.defaultState();
+            }
+            this.appState.header.isMain = true;
+            this.appState.header.title = 'GT50 TESTER';
+            
+            // Close impex window
+            this.appState.impex.isOpen = false;
+            
+            // Render and save
+            if (window.render) {
+                window.render(true);
+            }
+            if (window.saveState) {
+                window.saveState();
+            }
+            
+            this.syncStatus = 'success';
+            this.syncMessage = 'Pulled from cloud';
+            this.isSyncing = false;
+            
+            // Restart auto-sync
+            setTimeout(() => {
+                if (this.autoSyncEnabled) {
+                    this.startAutoSync();
+                }
+            }, 2000);
         },
         
         // ===== CREATE NEW GIST =====
@@ -797,7 +828,10 @@
         },
         
         // ===== MAIN RENDER =====
-        render: function(container, state, onChange) {
+        render: function(container, state, onChange, appState) {
+            // Store app state reference
+            this.appState = appState;
+            
             const enabled = localStorage.getItem(this.STORAGE_KEY_ENABLED) === 'true';
             const token = localStorage.getItem(this.STORAGE_KEY_TOKEN);
             const gistId = localStorage.getItem(this.STORAGE_KEY_GIST_ID);

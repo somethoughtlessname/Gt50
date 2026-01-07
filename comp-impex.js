@@ -387,7 +387,7 @@
                 if (!state.cloudSync) {
                     state.cloudSync = GT50Lib.CloudSync.defaultState();
                 }
-                GT50Lib.CloudSync.render(contentContainer, state.cloudSync, onChange);
+                GT50Lib.CloudSync.render(contentContainer, state.cloudSync, onChange, appState);
             }
         },
         
