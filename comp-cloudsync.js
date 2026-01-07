@@ -327,15 +327,15 @@
         
         // ===== EXTRACT DATA ONLY (NO UI STATE) =====
         extractDataOnly: function(state) {
-            // Use import-compatible format
+            // Use exact import-compatible format
             return {
                 version: "1.0",
+                timestamp: state.timestamp || new Date().toISOString(),
+                app: "GT50 Tester",
                 data: {
                     tabs: state.tabs,
-                    tabComponents: state.tabComponents,
-                    nextId: state.nextId
-                },
-                timestamp: state.timestamp || new Date().toISOString()
+                    tabComponents: state.tabComponents
+                }
             };
         },
         
@@ -352,6 +352,7 @@
                     header: { title: 'GT50 TESTER' },
                     tabs: { tabs: [], activeViewTab: 0, selectedBuildTab: 0 },
                     tabComponents: [[]],
+                    nextId: 1,
                     impex: {},
                     settings: {},
                     footer: {},
@@ -363,11 +364,11 @@
             // Extract data from import format
             const data = cloudData.data || cloudData;
             
-            // Overwrite only the data parts, keep local UI state
+            // Overwrite only the data parts, keep local UI state and nextId
             localState.tabs = data.tabs;
             localState.tabComponents = data.tabComponents;
-            localState.nextId = data.nextId;
             localState.timestamp = cloudData.timestamp;
+            // Keep local nextId - don't sync it
             
             return localState;
         },
