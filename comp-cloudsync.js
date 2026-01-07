@@ -183,17 +183,11 @@
                 // No cloud state yet
                 if (!cloudState) {
                     if (canPush) {
-                        // Create cleaned copy for pushing (don't modify original)
-                        const stateToPush = JSON.parse(JSON.stringify(localState));
-                        if (!stateToPush.timestamp) {
-                            stateToPush.timestamp = new Date().toISOString();
-                        }
                         console.log('📤 No cloud state found, pushing local...');
-                        await this.pushToCloud(token, gistId, stateToPush);
+                        await this.pushToCloud(token, gistId, localState);
                         this.syncStatus = 'success';
                         this.syncMessage = 'Initial push complete';
                         localStorage.setItem(this.STORAGE_KEY_LAST_SYNC, new Date().toISOString());
-                        this.lastSyncedState = JSON.stringify(stateToPush);
                     } else {
                         console.log('⚠️ No cloud state, but pushing disabled');
                         this.syncStatus = 'idle';
@@ -205,63 +199,65 @@
                 
                 // PULL-ONLY MODE - never push, only pull if different
                 if (!canPush) {
-                    // Compare timestamps (more reliable than full JSON comparison)
-                    const localTime = new Date(localState.timestamp || 0);
-                    const cloudTime = new Date(cloudState.timestamp || 0);
+                    // Extract data from both for comparison
+                    const localData = this.extractDataOnly(localState);
                     
-                    if (Math.abs(localTime - cloudTime) < 1000) {
-                        console.log('✓ Pull-only mode: Already in sync');
+                    // Compare data directly
+                    const localDataStr = JSON.stringify(localData);
+                    const cloudDataStr = JSON.stringify(cloudState);
+                    
+                    console.log(`📊 Pull-only mode: Comparing data...`);
+                    
+                    if (localDataStr === cloudDataStr) {
+                        console.log('✓ Pull-only mode: Data matches cloud');
                         this.syncStatus = 'success';
                         this.syncMessage = 'In sync';
                         this.isSyncing = false;
                         return;
                     }
                     
-                    console.log('📥 Pull-only mode: Pulling from cloud...');
+                    console.log('📥 Pull-only mode: Data differs - pulling from cloud...');
                     const pullTime = Date.now();
                     localStorage.setItem(this.STORAGE_KEY_LAST_PULL, pullTime.toString());
                     await this.pullFromCloud(cloudState);
-                    this.syncStatus = 'success';
-                    this.syncMessage = 'Pulled from cloud';
-                    localStorage.setItem(this.STORAGE_KEY_LAST_SYNC, new Date().toISOString());
-                    this.isSyncing = false;
                     return;
                 }
                 
-                // NORMAL SYNC MODE - compare timestamps
-                const localTime = new Date(localState.timestamp || 0);
-                const cloudTime = new Date(cloudState.timestamp || 0);
-                const timeDiff = Math.abs(localTime - cloudTime);
+                // NORMAL SYNC MODE - compare data
+                const localData = this.extractDataOnly(localState);
+                const cloudData = cloudState;
                 
-                console.log(`⏰ Local: ${localTime.toISOString()}`);
-                console.log(`⏰ Cloud: ${cloudTime.toISOString()}`);
-                console.log(`⏰ Diff: ${timeDiff}ms`);
+                const localDataStr = JSON.stringify(localData);
+                const cloudDataStr = JSON.stringify(cloudData);
                 
-                if (timeDiff < 1000) {
-                    // Already in sync (within 1 second)
+                console.log(`⏰ Local timestamp: ${localData.timestamp}`);
+                console.log(`⏰ Cloud timestamp: ${cloudData.timestamp}`);
+                
+                if (localDataStr === cloudDataStr) {
+                    // Data is identical
                     console.log('✓ Already in sync');
                     this.syncStatus = 'success';
                     this.syncMessage = 'In sync';
-                    this.lastSyncedState = localStateStr;
-                } else if (localTime > cloudTime) {
-                    // Local is newer - push (cleanStateForCloud handles token removal)
-                    console.log('📤 Pushing to cloud (local newer)...');
-                    await this.pushToCloud(token, gistId, localState);
-                    this.syncStatus = 'success';
-                    this.syncMessage = 'Pushed to cloud';
-                    localStorage.setItem(this.STORAGE_KEY_LAST_SYNC, new Date().toISOString());
-                    this.lastSyncedState = localStateStr;
                 } else {
-                    // Cloud is newer - pull
-                    console.log('📥 Pulling from cloud (cloud newer)...');
-                    const pullTime = Date.now();
-                    this.lastPullTime = pullTime;
-                    localStorage.setItem(this.STORAGE_KEY_LAST_PULL, pullTime.toString());
-                    await this.pullFromCloud(cloudState);
-                    this.syncStatus = 'success';
-                    this.syncMessage = 'Pulled from cloud';
-                    localStorage.setItem(this.STORAGE_KEY_LAST_SYNC, new Date().toISOString());
-                    this.lastSyncedState = JSON.stringify(cloudState);
+                    // Data differs - use timestamp to decide direction
+                    const localTime = new Date(localData.timestamp || 0);
+                    const cloudTime = new Date(cloudData.timestamp || 0);
+                    
+                    if (localTime > cloudTime) {
+                        // Local is newer - push
+                        console.log('📤 Pushing to cloud (local newer)...');
+                        await this.pushToCloud(token, gistId, localState);
+                        this.syncStatus = 'success';
+                        this.syncMessage = 'Pushed to cloud';
+                        localStorage.setItem(this.STORAGE_KEY_LAST_SYNC, new Date().toISOString());
+                    } else {
+                        // Cloud is newer - pull
+                        console.log('📥 Pulling from cloud (cloud newer)...');
+                        const pullTime = Date.now();
+                        localStorage.setItem(this.STORAGE_KEY_LAST_PULL, pullTime.toString());
+                        await this.pullFromCloud(cloudData);
+                        return;
+                    }
                 }
                 
                 this.isSyncing = false;
@@ -328,45 +324,50 @@
             }
         },
         
-        // ===== CLEAN STATE FOR CLOUD (REMOVE SENSITIVE DATA) =====
-        cleanStateForCloud: function(state) {
-            const cleaned = JSON.parse(JSON.stringify(state));
+        // ===== EXTRACT DATA ONLY (NO UI STATE) =====
+        extractDataOnly: function(state) {
+            return {
+                tabs: state.tabs,
+                tabComponents: state.tabComponents,
+                nextId: state.nextId,
+                timestamp: state.timestamp || new Date().toISOString()
+            };
+        },
+        
+        // ===== MERGE CLOUD DATA INTO LOCAL STATE =====
+        mergeCloudData: function(cloudData) {
+            const localStateStr = localStorage.getItem('gt50-tester-state');
+            let localState;
             
-            // Remove sensitive cloudSync data
-            if (cleaned.impex && cleaned.impex.cloudSync) {
-                delete cleaned.impex.cloudSync.token;
-                delete cleaned.impex.cloudSync.gistId;
+            if (localStateStr) {
+                localState = JSON.parse(localStateStr);
+            } else {
+                // No local state - create default structure
+                localState = {
+                    header: { title: 'GT50 TESTER' },
+                    tabs: { tabs: [], activeViewTab: 0, selectedBuildTab: 0 },
+                    tabComponents: [[]],
+                    impex: {},
+                    settings: {},
+                    footer: {},
+                    cardInfo: {},
+                    createNew: {}
+                };
             }
             
-            if (cleaned.cloudSync) {
-                delete cleaned.cloudSync.token;
-                delete cleaned.cloudSync.gistId;
-            }
+            // Overwrite only the data parts, keep local UI state
+            localState.tabs = cloudData.tabs;
+            localState.tabComponents = cloudData.tabComponents;
+            localState.nextId = cloudData.nextId;
+            localState.timestamp = cloudData.timestamp;
             
-            // Recursively search for any token/gistId keys
-            function stripSensitive(obj) {
-                for (let key in obj) {
-                    if (key === 'token' && typeof obj[key] === 'string' && obj[key].startsWith('ghp_')) {
-                        console.warn('🔒 Found and removed token from state!');
-                        delete obj[key];
-                    } else if (key === 'gistId' && typeof obj[key] === 'string' && obj[key].length > 20) {
-                        console.warn('🔒 Found and removed gistId from state!');
-                        delete obj[key];
-                    } else if (typeof obj[key] === 'object' && obj[key] !== null) {
-                        stripSensitive(obj[key]);
-                    }
-                }
-            }
-            
-            stripSensitive(cleaned);
-            
-            return cleaned;
+            return localState;
         },
         
         // ===== PUSH TO CLOUD =====
         pushToCloud: async function(token, gistId, state) {
-            const cleanedState = this.cleanStateForCloud(state);
-            cleanedState.timestamp = cleanedState.timestamp || new Date().toISOString();
+            // Extract only the data (no UI state)
+            const dataOnly = this.extractDataOnly(state);
             
             const response = await fetch(`https://api.github.com/gists/${gistId}`, {
                 method: 'PATCH',
@@ -379,7 +380,7 @@
                 body: JSON.stringify({
                     files: {
                         'gt50-state.json': {
-                            content: JSON.stringify(cleanedState, null, 2)
+                            content: JSON.stringify(dataOnly, null, 2)
                         }
                     }
                 })
@@ -391,14 +392,17 @@
         },
         
         // ===== PULL FROM CLOUD =====
-        pullFromCloud: async function(cloudState) {
-            console.log('📥 Pulling from cloud - stopping auto-sync and reloading...');
+        pullFromCloud: async function(cloudData) {
+            console.log('📥 Pulling from cloud - merging data and reloading...');
             
             // Stop auto-sync
             this.stopAutoSync();
             
-            // Save cloud state to localStorage
-            localStorage.setItem('gt50-tester-state', JSON.stringify(cloudState));
+            // Merge cloud data into local state (preserves local UI settings)
+            const mergedState = this.mergeCloudData(cloudData);
+            
+            // Save merged state
+            localStorage.setItem('gt50-tester-state', JSON.stringify(mergedState));
             
             // Reload immediately
             window.location.reload();
@@ -819,34 +823,6 @@
     
     // ===== AUTO-START SYNC IF ENABLED =====
     window.addEventListener('DOMContentLoaded', () => {
-        // CRITICAL: Clean any tokens from stored state (security fix)
-        const stateStr = localStorage.getItem('gt50-tester-state');
-        if (stateStr) {
-            try {
-                const state = JSON.parse(stateStr);
-                let needsSave = false;
-                
-                if (state.impex && state.impex.cloudSync) {
-                    if (state.impex.cloudSync.token) {
-                        delete state.impex.cloudSync.token;
-                        needsSave = true;
-                        console.log('🔒 Removed token from stored state');
-                    }
-                    if (state.impex.cloudSync.gistId) {
-                        delete state.impex.cloudSync.gistId;
-                        needsSave = true;
-                        console.log('🔒 Removed gistId from stored state');
-                    }
-                }
-                
-                if (needsSave) {
-                    localStorage.setItem('gt50-tester-state', JSON.stringify(state));
-                }
-            } catch (error) {
-                console.error('Error cleaning state:', error);
-            }
-        }
-        
         const enabled = localStorage.getItem(GT50Lib.CloudSync.STORAGE_KEY_ENABLED) === 'true';
         const token = localStorage.getItem(GT50Lib.CloudSync.STORAGE_KEY_TOKEN);
         const gistId = localStorage.getItem(GT50Lib.CloudSync.STORAGE_KEY_GIST_ID);
