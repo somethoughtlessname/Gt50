@@ -73,7 +73,8 @@
                 header: {
                     isMain: false,
                     title: 'DATA MANAGEMENT'
-                }
+                },
+                cloudSync: GT50Lib.CloudSync ? GT50Lib.CloudSync.defaultState() : {}
             };
         },
         
@@ -360,20 +361,17 @@
                 "></div>
             `;
             
-           // Render main header - use renderView for non-editable header
-const headerContainer = container.querySelector('#impex-header');
-GT50Lib.Header.renderView(
-    headerContainer, 
-    state.header, 
-    onChange,
-    onClose,      // onBack
-    onClose,      // onHome
-    null,         // onToggleMode
-    null,         // activeMode
-    null,         // onDataOpen
-    null,         // onSettingsOpen
-    null          // onNewOpen
-);
+            // Render main header
+            const headerContainer = container.querySelector('#impex-header');
+            GT50Lib.Header.renderBuild(
+                headerContainer, 
+                state.header, 
+                onChange,
+                onClose,
+                onClose,
+                null,
+                null
+            );
             
             // Render tabs header
             const tabsContainer = container.querySelector('#impex-tabs');
@@ -383,8 +381,13 @@ GT50Lib.Header.renderView(
             const contentContainer = container.querySelector('#impex-content');
             if (state.activeTab === 'export') {
                 this.renderExportTab(contentContainer, appState, state, onChange);
-            } else {
+            } else if (state.activeTab === 'import') {
                 this.renderImportTab(contentContainer, onClose, appState, state, onChange);
+            } else if (state.activeTab === 'cloud') {
+                if (!state.cloudSync) {
+                    state.cloudSync = GT50Lib.CloudSync.defaultState();
+                }
+                GT50Lib.CloudSync.render(contentContainer, state.cloudSync, onChange);
             }
         },
         
@@ -416,6 +419,7 @@ GT50Lib.Header.renderView(
                         flex: 1;
                         height: 100%;
                         background: ${state.activeTab === 'import' ? 'var(--accent)' : 'var(--bg-4)'};
+                        border-right: var(--border-width) solid var(--border-color);
                         display: flex;
                         align-items: center;
                         justify-content: center;
@@ -425,11 +429,25 @@ GT50Lib.Header.renderView(
                         cursor: pointer;
                         transition: filter 0.2s;
                     ">IMPORT</div>
+                    <div data-tab="cloud" style="
+                        flex: 1;
+                        height: 100%;
+                        background: ${state.activeTab === 'cloud' ? 'var(--accent)' : 'var(--bg-4)'};
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 14px;
+                        font-weight: 600;
+                        color: var(--font-color-3);
+                        cursor: pointer;
+                        transition: filter 0.2s;
+                    ">CLOUD</div>
                 </div>
             `;
             
             const exportTab = container.querySelector('[data-tab="export"]');
             const importTab = container.querySelector('[data-tab="import"]');
+            const cloudTab = container.querySelector('[data-tab="cloud"]');
             
             exportTab.onclick = () => {
                 state.activeTab = 'export';
@@ -444,6 +462,13 @@ GT50Lib.Header.renderView(
             };
             importTab.onmouseover = () => importTab.style.filter = 'brightness(1.1)';
             importTab.onmouseout = () => importTab.style.filter = 'brightness(1)';
+            
+            cloudTab.onclick = () => {
+                state.activeTab = 'cloud';
+                onChange();
+            };
+            cloudTab.onmouseover = () => cloudTab.style.filter = 'brightness(1.1)';
+            cloudTab.onmouseout = () => cloudTab.style.filter = 'brightness(1)';
         },
         
         // ===== RENDER EXPORT TAB =====
