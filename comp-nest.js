@@ -591,15 +591,23 @@
                 flex-direction: column;
             `;
             
-            // Create header state
-            const headerState = {
-                isMain: false,
-                title: 'EDIT NEST'
-            };
-            
             // Create containers
             container.innerHTML = `
-                <div id="nest-edit-header"></div>
+                <div id="nest-edit-header" style="
+                    height: var(--card-height);
+                    background: var(--bg-3);
+                    border-bottom: var(--border-width) solid var(--border-color);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                ">
+                    <div style="
+                        font-size: 14px;
+                        font-weight: 700;
+                        color: var(--color-10);
+                        text-transform: uppercase;
+                    ">EDIT NEST</div>
+                </div>
                 <div id="nest-edit-content" style="
                     flex: 1;
                     overflow-y: auto;
@@ -608,21 +616,6 @@
                 "></div>
                 <div id="nest-edit-footer"></div>
             `;
-            
-           // Render header - use renderView for non-editable header in view mode
-const headerContainer = container.querySelector('#nest-edit-header');
-GT50Lib.Header.renderView(
-    headerContainer,
-    headerState,
-    onChange,
-    onClose,  // onBack
-    onClose,  // onHome
-    null,     // onToggleMode
-    null,     // activeMode
-    null,     // onDataOpen
-    null,     // onSettingsOpen
-    null      // onNewOpen
-);
             
             // Render content
             const contentContainer = container.querySelector('#nest-edit-content');

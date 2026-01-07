@@ -22,6 +22,12 @@
     // NEST:         Uses --- NEST X START/END --- with internal tabs or direct components
     // CYCLE:        Uses --- CYCLE X START/END --- with scheduling info
     //
+    // NEST/CYCLE METADATA:
+    // summary|true/false              - Show summary card
+    // sum-child|true/false            - Include children in summary
+    // sum-mode|value/percentage/none  - Display mode (value, percentage, or none for both)
+    // color|COLOR_NAME                - Card color
+    //
     // ALL COMPONENTS: Can have optional dropdownText field
     // 
     // SUB-ITEMS:
@@ -282,6 +288,11 @@
                 // Summary properties (both nest and cycle)
                 if (state.showSummary !== undefined) output.push(`summary|${state.showSummary ? 'true' : 'false'}`);
                 if (state.summaryIncludeChildren !== undefined) output.push(`sum-child|${state.summaryIncludeChildren ? 'true' : 'false'}`);
+                // Always output sum-mode: 'value', 'percentage', or 'none' (when null)
+                if (state.summaryDisplayMode !== undefined) {
+                    const modeValue = state.summaryDisplayMode === null ? 'none' : state.summaryDisplayMode;
+                    output.push(`sum-mode|${modeValue}`);
+                }
                 
                 // Cycle-specific metadata
                 if (type === 'cycle') {
@@ -516,6 +527,12 @@
                 }
                 if (type === 'sum-child' && currentContainer) {
                     currentContainer.card.state.summaryIncludeChildren = parts[1] === 'true';
+                    continue;
+                }
+                if (type === 'sum-mode' && currentContainer) {
+                    // summaryDisplayMode can be 'value', 'percentage', or 'none' (converted to null)
+                    const modeValue = parts[1];
+                    currentContainer.card.state.summaryDisplayMode = modeValue === 'none' ? null : modeValue;
                     continue;
                 }
                 

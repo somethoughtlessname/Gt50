@@ -108,6 +108,16 @@ createEntry: function(state, nextId, currentComponents) {
         newEntry.state.summaryDisplayMode = state.summaryState.summaryDisplayMode || null;
     }
     
+    // For custom template, ensure NO tabs are auto-created
+    if (state.selectedTemplate === 'custom') {
+        newEntry.state.tabs = {
+            tabs: [],
+            activeViewTab: 0,
+            selectedBuildTab: 0
+        };
+        newEntry.state.tabComponents = [[]];
+    }
+    
     // Apply template if not custom
     if (state.selectedTemplate !== 'custom') {
         const template = window.GT50.Templates.get(state.selectedTemplate);
@@ -679,32 +689,13 @@ createEntry: function(state, nextId, currentComponents) {
                     border-bottom: var(--border-width) solid var(--border-color);
                     display: flex;
                     align-items: center;
+                    justify-content: center;
                 ">
-                    <div data-action="close" style="
-                        width: var(--square-section);
-                        min-width: var(--square-section);
-                        height: 100%;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        background: var(--bg-4);
-                        padding: 0;
-                        font-size: 18px;
-                        border-right: var(--border-width) solid var(--border-color);
-                        cursor: pointer;
-                        color: var(--color-10);
-                    ">◀</div>
                     <div style="
-                        flex: 1;
-                        height: 100%;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
                         font-size: 14px;
                         font-weight: 700;
                         color: var(--color-10);
                         text-transform: uppercase;
-                        background: var(--bg-3);
                     ">${isEditMode ? 'EDIT NEST' : 'NEW ENTRY'}</div>
                 </div>
                 
@@ -731,6 +722,22 @@ createEntry: function(state, nextId, currentComponents) {
                     align-items: center;
                     z-index: 1000;
                 ">
+                    <button data-action="cancel" style="
+                        flex: 1;
+                        height: 100%;
+                        background: var(--bg-4);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 14px;
+                        font-weight: 700;
+                        color: var(--font-color-3);
+                        cursor: pointer;
+                        transition: filter 0.2s;
+                        border: none;
+                        border-right: var(--border-width) solid var(--border-color);
+                        font-family: inherit;
+                    ">CANCEL</button>
                     <button data-action="create" ${!(state.name && state.name.trim() !== '') ? 'disabled' : ''} style="
                         flex: 1;
                         height: 100%;
@@ -758,18 +765,6 @@ createEntry: function(state, nextId, currentComponents) {
             contentContainer.innerHTML = activeTab === 'templates' ? templatesTabHTML : settingsTabHTML;
             
             // ===== EVENT LISTENERS =====
-            
-            // Header close button
-            const closeBtn = container.querySelector('[data-action="close"]');
-            if (closeBtn) {
-                closeBtn.onclick = () => {
-                    // Reset tab to Templates when closing
-                    state.tabs.activeViewTab = 0;
-                    onClose();
-                };
-                closeBtn.onmouseover = () => closeBtn.style.filter = 'brightness(1.2)';
-                closeBtn.onmouseout = () => closeBtn.style.filter = 'brightness(1)';
-            }
             
             // Name input (always present in both tabs)
             const nameInput = contentContainer.querySelector('[data-field="name"]');
@@ -895,7 +890,21 @@ createEntry: function(state, nextId, currentComponents) {
                 });
             }
             
+            // Footer cancel button - closes window and returns to view
+            // If editingEntryId is set (navigated back from Build mode), the entry will be deleted (handled in onClose)
+            const cancelBtn = container.querySelector('[data-action="cancel"]');
+            if (cancelBtn) {
+                cancelBtn.onclick = () => {
+                    // Reset tab to Templates before closing
+                    state.tabs.activeViewTab = 0;
+                    onClose(); // This triggers deletion if editingEntryId is set
+                };
+                cancelBtn.onmouseover = () => cancelBtn.style.filter = 'brightness(1.2)';
+                cancelBtn.onmouseout = () => cancelBtn.style.filter = 'brightness(1)';
+            }
+            
             // Footer create button - ALWAYS attach handlers, not just when name exists
+            // editingEntryId is cleared in onCreate callback (Index.html) after successful creation
 const createBtn = container.querySelector('[data-action="create"]');
 if (createBtn) {
     createBtn.onclick = () => {

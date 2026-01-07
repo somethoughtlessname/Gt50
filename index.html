@@ -155,9 +155,19 @@
                             component.state.tabs.selectedBuildTab = 0;
                         }
                         
+                        // Close any open edit windows
+                        if (component.state.editWindow) {
+                            component.state.editWindow.isOpen = false;
+                        }
+                        
                         if (component.state.tabComponents) {
                             resetAllTabsToFirst(component.state.tabComponents);
                         }
+                    }
+                    
+                    // Close any open import windows
+                    if (component.type === 'import' && component.state.importWindow) {
+                        component.state.importWindow.isOpen = false;
                     }
                 });
             });
@@ -288,6 +298,13 @@
             state.impex.isOpen = false;
             state.settings.isOpen = false;
             state.createNew.isOpen = false;
+            state.cardInfo.isOpen = false; // Close card info window on startup
+            delete state.createNew.editingEntryId; // Clear any stale editing ID
+            
+            // ALWAYS start in view mode at main window, regardless of where user was when app closed
+            activeMode = 'view';
+            navigationStack = [];
+            scrollStack = [];
             
             if (state.tabs && state.tabs.tabs && state.tabs.tabs.length > 0) {
                 state.tabs.activeViewTab = 0;
@@ -508,6 +525,7 @@
 
         function openNewWindow() {
             state.createNew.isOpen = true;
+            delete state.createNew.editingEntryId; // Clear any editing ID for fresh new entry
             render();
         }
 
@@ -515,12 +533,48 @@
             GT50Lib.CardInfo.close(state.cardInfo, render);
         }
 
+        function navigateBackBuildMode() {
+            // In Build mode, back button returns to create entry window
+            // This re-opens the create window for the current entry
+            const currentNest = getCurrentNest();
+            if (currentNest) {
+                // Re-open create window with current entry's data
+                state.createNew.isOpen = true;
+                state.createNew.editingEntryId = currentNest.id; // Store ID for potential deletion
+                state.createNew.name = currentNest.state.name || '';
+                state.createNew.selectedTemplate = 'custom';
+                // Find color index from color name
+                const colorIndex = GT50Lib.CreateNew.colors.findIndex(c => c.name === currentNest.state.color);
+                state.createNew.currentColorIndex = colorIndex >= 0 ? colorIndex : 0;
+                state.createNew.cycleMode = currentNest.type === 'cycle';
+                state.createNew.summaryState = {
+                    showSummary: currentNest.state.showSummary || false,
+                    summaryIncludeChildren: currentNest.state.summaryIncludeChildren || false,
+                    summaryDisplayMode: currentNest.state.summaryDisplayMode || null
+                };
+                
+                // Navigate back first, then switch to view mode
+                navigateBack();
+                activeMode = 'view';
+                render();
+            }
+        }
+
+        function navigateHomeBuildMode() {
+            // In Build mode, home button saves and returns to previous view mode
+            saveState();
+            navigateBack();
+            activeMode = 'view';
+            render(true);
+        }
+
         function renderHeader() {
             const headerContainer = document.getElementById('frozenHeader');
             if (!headerContainer) return;
             
             if (activeMode === 'build') {
-                GT50Lib.Header.renderBuild(headerContainer, state.header, render, navigateBack, navigateHome, switchMode, activeMode, openDataWindow, openSettingsWindow, openNewWindow);
+                // In build mode, use special navigation functions for back/home
+                GT50Lib.Header.renderBuild(headerContainer, state.header, render, navigateBackBuildMode, navigateHomeBuildMode, switchMode, activeMode, openDataWindow, openSettingsWindow, openNewWindow);
             } else {
                 GT50Lib.Header.renderView(headerContainer, state.header, render, navigateBack, navigateHome, switchMode, activeMode, openDataWindow, openSettingsWindow, openNewWindow);
             }
@@ -631,6 +685,17 @@
                 state.createNew,
                 render,
                 () => {
+                    // onClose callback
+                    // If we were editing an entry and cancel, delete it
+                    if (state.createNew.editingEntryId !== undefined) {
+                        const currentComponents = getCurrentComponents();
+                        const entryIndex = currentComponents.findIndex(c => c.id === state.createNew.editingEntryId);
+                        if (entryIndex !== -1) {
+                            currentComponents.splice(entryIndex, 1);
+                        }
+                        delete state.createNew.editingEntryId;
+                    }
+                    
                     state.createNew.isOpen = false;
                     state.createNew.name = '';
                     state.createNew.selectedTemplate = 'custom';
@@ -640,6 +705,7 @@
                     render();
                 },
                 () => {
+                    // onCreate callback
                     const currentComponents = getCurrentComponents();
                     const newEntry = GT50Lib.CreateNew.createEntry(
                         state.createNew,
@@ -656,6 +722,7 @@
                         state.createNew.selectedTemplate = 'custom';
                         state.createNew.currentColorIndex = 4;
                         state.createNew.cycleMode = false;
+                        delete state.createNew.editingEntryId; // Clear editing ID
                         
                         activeMode = 'build';
                         saveState();
@@ -1162,6 +1229,8 @@ if (GT50Lib.Search) {
     const index = components.findIndex(c => c.id === id);
     
     if (index === -1) return;
+    
+    console.log('Delete tap:', id, 'pending:', pendingDeleteId, 'match:', pendingDeleteId === id);
     
     if (pendingDeleteId === id) {
         // Second tap - delete immediately without modal

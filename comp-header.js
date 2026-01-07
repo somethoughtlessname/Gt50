@@ -174,7 +174,7 @@
                     dataBtn.onmouseout = () => dataBtn.style.filter = 'brightness(1)';
                 }
             } else {
-                // ===== NESTED WINDOW HEADER =====
+                // ===== NESTED WINDOW HEADER (BUILD MODE) =====
                 container.innerHTML = `
                     <div style="
                         height: var(--card-height);
@@ -190,12 +190,13 @@
                             display: flex;
                             align-items: center;
                             justify-content: center;
-                            background: var(--bg-4);
+                            background: var(--color-1);
                             padding: 0;
                             font-size: 18px;
                             border-right: var(--border-width) solid var(--border-color);
                             cursor: pointer;
                             color: var(--color-10);
+                            transition: filter 0.2s;
                         ">◀</div>
                         <div style="
                             flex: 1;
@@ -231,27 +232,13 @@
                             display: flex;
                             align-items: center;
                             justify-content: center;
-                            background: var(--bg-4);
+                            background: var(--color-4);
                             border-left: var(--border-width) solid var(--border-color);
                             cursor: pointer;
-                            position: relative;
-                        ">
-                            <div style="
-                                width: 20px;
-                                height: 20px;
-                                border: 3px solid var(--color-10);
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                            ">
-                                <div style="
-                                    width: 6px;
-                                    height: 6px;
-                                    background: var(--color-10);
-                                    border-radius: 50%;
-                                "></div>
-                            </div>
-                        </div>
+                            font-size: 18px;
+                            color: var(--color-10);
+                            transition: filter 0.2s;
+                        ">▶</div>
                     </div>
                 `;
                 
@@ -259,11 +246,15 @@
                 const backBtn = container.querySelector('[data-action="back"]');
                 if (backBtn && onBack) {
                     backBtn.onclick = () => onBack();
+                    backBtn.onmouseover = () => backBtn.style.filter = 'brightness(1.2)';
+                    backBtn.onmouseout = () => backBtn.style.filter = 'brightness(1)';
                 }
                 
                 const homeBtn = container.querySelector('[data-action="home"]');
                 if (homeBtn && onHome) {
                     homeBtn.onclick = () => onHome();
+                    homeBtn.onmouseover = () => homeBtn.style.filter = 'brightness(1.2)';
+                    homeBtn.onmouseout = () => homeBtn.style.filter = 'brightness(1)';
                 }
                 
                 const titleInput = container.querySelector('[data-field="title"]');
@@ -423,52 +414,56 @@
                     dataBtn.onmouseout = () => dataBtn.style.filter = 'brightness(1)';
                 }
             } else {
-    // ===== NESTED WINDOW HEADER =====
-    container.innerHTML = `
-        <div style="
-            height: var(--card-height);
-            background: var(--bg-3);
-            border-bottom: var(--border-width) solid var(--border-color);
-            display: flex;
-            align-items: center;
-        ">
-            <div data-action="back" style="
-                width: var(--square-section);
-                min-width: var(--square-section);
-                height: 100%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                background: var(--bg-4);
-                padding: 0;
-                font-size: 18px;
-                border-right: var(--border-width) solid var(--border-color);
-                cursor: pointer;
-                color: var(--color-10);
-            ">◀</div>
-            <div style="
-                flex: 1;
-                height: 100%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                padding: 0 var(--margin);
-                background: var(--bg-3);
-                user-select: none;
-                -webkit-user-select: none;
-                -moz-user-select: none;
-                -ms-user-select: none;
-            ">
-                <div style="
-                    width: 100%;
-                    color: var(--color-10);
-                    font-size: 14px;
-                    font-weight: 600;
-                    font-family: inherit;
-                    text-align: center;
-                    pointer-events: none;
-                ">${state.title || ''}</div>
-            </div>
+                // ===== NESTED WINDOW HEADER =====
+                container.innerHTML = `
+                    <div style="
+                        height: var(--card-height);
+                        background: var(--bg-3);
+                        border-bottom: var(--border-width) solid var(--border-color);
+                        display: flex;
+                        align-items: center;
+                    ">
+                        <div data-action="back" style="
+                            width: var(--square-section);
+                            min-width: var(--square-section);
+                            height: 100%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            background: var(--bg-4);
+                            padding: 0;
+                            font-size: 18px;
+                            border-right: var(--border-width) solid var(--border-color);
+                            cursor: pointer;
+                            color: var(--color-10);
+                        ">◀</div>
+                        <div style="
+                            flex: 1;
+                            height: 100%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            padding: 0 var(--margin);
+                            background: var(--bg-3);
+                        ">
+                            <input 
+                                type="text" 
+                                data-field="title"
+                                value="${state.title || ''}"
+                                placeholder="Enter title..."
+                                style="
+                                    width: 100%;
+                                    background: none;
+                                    border: none;
+                                    color: var(--color-10);
+                                    font-size: 14px;
+                                    font-weight: 600;
+                                    font-family: inherit;
+                                    outline: none;
+                                    text-align: center;
+                                "
+                            />
+                        </div>
                         <div data-action="home" style="
                             width: var(--square-section);
                             min-width: var(--square-section);
