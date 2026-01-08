@@ -91,7 +91,6 @@
     
 <script src="comp-header.js"></script>
 <script src="comp-insert.js"></script>
-<script src="comp-cloudsync.js"></script>
 <script src="comp-impex.js"></script>
 <script src="comp-settings.js"></script>
 <script src="create-new.js"></script>    
@@ -245,13 +244,6 @@
                     
                     state.impex.isOpen = false;
                     state.settings.isOpen = false;
-                    
-                    // Initialize lastModified for cloud sync if it doesn't exist
-                    if (GT50Lib.CloudSync && !localStorage.getItem(GT50Lib.CloudSync.STORAGE_KEY_LAST_MODIFIED)) {
-                        // Use state timestamp if available, otherwise use current time
-                        const initTime = parsed.timestamp || new Date().toISOString();
-                        localStorage.setItem(GT50Lib.CloudSync.STORAGE_KEY_LAST_MODIFIED, initTime);
-                    }
                     
                     const footerSlots = state.footer.slots;
                     for (let i = 0; i < footerSlots.length; i++) {
@@ -878,8 +870,6 @@ function renderNestEditWindow() {
     }
 }
     
-        let isInitialLoad = true; // Track if this is the first render
-        
         function render(skipScrollRestore = false) {
             const currentScroll = window.scrollY;
             
@@ -901,18 +891,6 @@ function renderNestEditWindow() {
             }
             
             saveState();
-            
-            // Mark as modified for cloud sync if:
-            // 1. Not the initial page load
-            // 2. Not currently syncing (pulling/pushing)
-            if (!isInitialLoad && GT50Lib.CloudSync && !GT50Lib.CloudSync.isSyncing) {
-                GT50Lib.CloudSync.markAsModified();
-            }
-            
-            // Clear initial load flag after first render
-            if (isInitialLoad) {
-                isInitialLoad = false;
-            }
             
             if (!skipScrollRestore) {
                 setTimeout(() => {

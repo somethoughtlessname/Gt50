@@ -207,23 +207,14 @@
                             padding: 0 var(--margin);
                             background: var(--bg-3);
                         ">
-                            <input 
-                                type="text" 
-                                data-field="title"
-                                value="${state.title || ''}"
-                                placeholder="Enter title..."
-                                style="
-                                    width: 100%;
-                                    background: none;
-                                    border: none;
-                                    color: var(--color-10);
-                                    font-size: 14px;
-                                    font-weight: 600;
-                                    font-family: inherit;
-                                    outline: none;
-                                    text-align: center;
-                                "
-                            />
+                            <div style="
+                                width: 100%;
+                                color: var(--color-10);
+                                font-size: 14px;
+                                font-weight: 600;
+                                font-family: inherit;
+                                text-align: center;
+                            ">${state.title || 'Untitled'}</div>
                         </div>
                         <div data-action="home" style="
                             width: var(--square-section);
@@ -255,13 +246,6 @@
                     homeBtn.onclick = () => onHome();
                     homeBtn.onmouseover = () => homeBtn.style.filter = 'brightness(1.2)';
                     homeBtn.onmouseout = () => homeBtn.style.filter = 'brightness(1)';
-                }
-                
-                const titleInput = container.querySelector('[data-field="title"]');
-                if (titleInput) {
-                    titleInput.oninput = (e) => {
-                        state.title = e.target.value;
-                    };
                 }
             }
         },
@@ -446,23 +430,14 @@
                             padding: 0 var(--margin);
                             background: var(--bg-3);
                         ">
-                            <input 
-                                type="text" 
-                                data-field="title"
-                                value="${state.title || ''}"
-                                placeholder="Enter title..."
-                                style="
-                                    width: 100%;
-                                    background: none;
-                                    border: none;
-                                    color: var(--color-10);
-                                    font-size: 14px;
-                                    font-weight: 600;
-                                    font-family: inherit;
-                                    outline: none;
-                                    text-align: center;
-                                "
-                            />
+                            <div style="
+                                width: 100%;
+                                color: var(--color-10);
+                                font-size: 14px;
+                                font-weight: 600;
+                                font-family: inherit;
+                                text-align: center;
+                            ">${state.title || 'Untitled'}</div>
                         </div>
                         <div data-action="home" style="
                             width: var(--square-section);
@@ -504,13 +479,6 @@
                 const homeBtn = container.querySelector('[data-action="home"]');
                 if (homeBtn && onHome) {
                     homeBtn.onclick = () => onHome();
-                }
-                
-                const titleInput = container.querySelector('[data-field="title"]');
-                if (titleInput) {
-                    titleInput.oninput = (e) => {
-                        state.title = e.target.value;
-                    };
                 }
             }
         }
