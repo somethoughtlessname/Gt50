@@ -23,7 +23,6 @@
         syncStatus: 'idle', // idle, syncing, success, error
         syncMessage: '',
         autoSyncEnabled: false,
-        appState: null, // Store reference to app state
         lastPullTime: 0, // Track when we last pulled to prevent immediate re-pulls
         
         // ===== STATE FACTORY =====
@@ -456,16 +455,20 @@
             const result = GT50Lib.ImpEx.importData(text);
             
             if (result.success) {
-                if (!this.appState) {
-                    alert('ERROR: Cannot access app state');
+                // Get current app state from localStorage
+                const stateStr = localStorage.getItem('gt50-tester-state');
+                if (!stateStr) {
+                    console.error('ERROR: Cannot access app state from localStorage');
                     this.isSyncing = false;
                     return;
                 }
                 
+                const appState = JSON.parse(stateStr);
+                
                 // EXACT COPY from import button - lines 691-717
                 // Update app state
-                this.appState.tabs = result.data.tabs;
-                this.appState.tabComponents = result.data.tabComponents;
+                appState.tabs = result.data.tabs;
+                appState.tabComponents = result.data.tabComponents;
                 
                 // Update global state
                 if (typeof window !== 'undefined') {
@@ -475,35 +478,37 @@
                 }
                 
                 // Reset header
-                if (!this.appState.header) {
-                    this.appState.header = GT50Lib.Header.defaultState();
+                if (!appState.header) {
+                    appState.header = GT50Lib.Header.defaultState();
                 }
-                this.appState.header.isMain = true;
-                this.appState.header.title = 'GT50 TESTER';
+                appState.header.isMain = true;
+                appState.header.title = 'GT50 TESTER';
                 
                 // Set timestamp to match cloud (CRITICAL for next sync)
-                this.appState.timestamp = cloudData.timestamp;
+                appState.timestamp = cloudData.timestamp;
                 
                 // Set last modified to cloud timestamp (we just got fresh data)
                 localStorage.setItem(this.STORAGE_KEY_LAST_MODIFIED, cloudData.timestamp);
                 
                 // Close window
-                this.appState.impex.isOpen = false;
+                appState.impex.isOpen = false;
                 
-                // Render and save
+                // Save the updated state
+                localStorage.setItem('gt50-tester-state', JSON.stringify(appState));
+                
+                // Render if available
                 if (typeof window !== 'undefined' && window.render) {
                     window.render(true);
                 }
-                if (typeof window !== 'undefined' && window.saveState) {
-                    window.saveState();
-                }
                 
                 // Mark as synced with pulled state
-                this.markAsSynced(this.appState);
+                this.markAsSynced(appState);
                 
                 this.syncStatus = 'success';
                 this.syncMessage = 'Pulled from cloud';
                 this.isSyncing = false;
+                
+                console.log('✅ Pull complete - UI updated');
                 
                 // Restart auto-sync
                 setTimeout(() => {
@@ -513,7 +518,7 @@
                 }, 2000);
                 
             } else {
-                alert(`Pull failed: ${result.error}`);
+                console.error(`Pull failed: ${result.error}`);
                 this.syncStatus = 'error';
                 this.syncMessage = result.error;
                 this.isSyncing = false;
@@ -1073,9 +1078,6 @@
         
         // ===== MAIN RENDER =====
         render: function(container, state, onChange, appState) {
-            // Store app state reference
-            this.appState = appState;
-            
             const enabled = localStorage.getItem(this.STORAGE_KEY_ENABLED) === 'true';
             const token = localStorage.getItem(this.STORAGE_KEY_TOKEN);
             const gistId = localStorage.getItem(this.STORAGE_KEY_GIST_ID);
