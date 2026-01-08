@@ -13,7 +13,6 @@
         STORAGE_KEY_ENABLED: 'gt50-sync-enabled',
         STORAGE_KEY_CAN_PUSH: 'gt50-can-push',
         STORAGE_KEY_LAST_PULL: 'gt50-last-pull-time',
-        STORAGE_KEY_LOCAL_TIMESTAMP: 'gt50-local-timestamp',
         STORAGE_KEY_LAST_SYNCED_HASH: 'gt50-last-synced-hash',
         
         // ===== SYNC STATE =====
@@ -49,7 +48,7 @@
             for (let i = 0; i < str.length; i++) {
                 const char = str.charCodeAt(i);
                 hash = ((hash << 5) - hash) + char;
-                hash = hash & hash; // Convert to 32-bit integer
+                hash = hash & hash;
             }
             return hash.toString();
         },
@@ -65,7 +64,6 @@
         markAsSynced: function(state) {
             const hash = this.simpleHash(JSON.stringify(state));
             localStorage.setItem(this.STORAGE_KEY_LAST_SYNCED_HASH, hash);
-            localStorage.setItem(this.STORAGE_KEY_LOCAL_TIMESTAMP, Date.now().toString());
         },
         
         // ===== ENABLE/DISABLE PUSH =====
@@ -225,16 +223,13 @@
                     return;
                 }
                 
-                // Extract timestamps
-                const localData = this.extractDataOnly(localState);
-                const localTime = new Date(localData.timestamp || 0).getTime();
-                const cloudTime = new Date(cloudState.timestamp || 0).getTime();
-                
-                console.log(`⏰ Local: ${new Date(localTime).toLocaleString()}`);
-                console.log(`⏰ Cloud: ${new Date(cloudTime).toLocaleString()}`);
-                
                 // PULL-ONLY MODE
                 if (!canPush) {
+                    // Extract timestamps
+                    const localData = this.extractDataOnly(localState);
+                    const localTime = new Date(localData.timestamp || 0).getTime();
+                    const cloudTime = new Date(cloudState.timestamp || 0).getTime();
+                    
                     if (cloudTime > localTime) {
                         console.log('📥 Pull-only: Cloud is newer - pulling...');
                         const pullTime = Date.now();
@@ -250,7 +245,14 @@
                     }
                 }
                 
-                // NORMAL SYNC MODE - Compare timestamps
+                // NORMAL SYNC MODE - Compare timestamps only
+                const localData = this.extractDataOnly(localState);
+                const localTime = new Date(localData.timestamp || 0).getTime();
+                const cloudTime = new Date(cloudState.timestamp || 0).getTime();
+                
+                console.log(`⏰ Local: ${new Date(localTime).toLocaleString()}`);
+                console.log(`⏰ Cloud: ${new Date(cloudTime).toLocaleString()}`);
+                
                 if (cloudTime > localTime) {
                     // Cloud is newer - pull and overwrite
                     console.log('📥 Cloud is newer - pulling and overwriting local...');
@@ -437,7 +439,7 @@
                     window.saveState();
                 }
                 
-                // Mark as synced with new pulled state
+                // Mark as synced with pulled state
                 this.markAsSynced(this.appState);
                 
                 this.syncStatus = 'success';
