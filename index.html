@@ -322,18 +322,17 @@
         }
         
         function saveState() {
-            // Preserve existing timestamp if it exists, otherwise create new one
-            const existingState = localStorage.getItem('gt50-tester-state');
+            // Get existing timestamp to preserve it
             let timestamp = new Date().toISOString();
-            
-            if (existingState) {
+            const existingStr = localStorage.getItem('gt50-tester-state');
+            if (existingStr) {
                 try {
-                    const parsed = JSON.parse(existingState);
-                    if (parsed.timestamp) {
-                        timestamp = parsed.timestamp;
+                    const existing = JSON.parse(existingStr);
+                    if (existing.timestamp) {
+                        timestamp = existing.timestamp;
                     }
                 } catch (e) {
-                    // If parse fails, use new timestamp
+                    // Use new timestamp if parse fails
                 }
             }
             
@@ -917,21 +916,13 @@ function renderNestEditWindow() {
             
             saveState();
             
-            // Mark as modified for cloud sync if:
-            // 1. Not the initial page load
-            // 2. Not currently syncing (pulling/pushing)
-            // 3. Not within 3 seconds of last sync (cooldown to prevent marking during sync operations)
+            // Mark as modified if:
+            // 1. Not initial load
+            // 2. Not currently syncing
             if (!isInitialLoad && GT50Lib.CloudSync && !GT50Lib.CloudSync.isSyncing) {
-                const lastSyncStr = localStorage.getItem(GT50Lib.CloudSync.STORAGE_KEY_LAST_SYNC);
-                const lastSyncTime = lastSyncStr ? new Date(lastSyncStr).getTime() : 0;
-                const timeSinceSync = Date.now() - lastSyncTime;
-                
-                if (timeSinceSync > 3000) {
-                    GT50Lib.CloudSync.markAsModified();
-                }
+                GT50Lib.CloudSync.markAsModified();
             }
             
-            // Clear initial load flag after first render
             if (isInitialLoad) {
                 isInitialLoad = false;
             }

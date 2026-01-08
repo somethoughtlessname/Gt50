@@ -66,9 +66,19 @@
         // ===== MARK DATA AS MODIFIED =====
         // Call this when user makes actual changes (not just on render)
         markAsModified: function() {
+            // Don't mark as modified if we just synced (within 2 seconds)
+            const lastSyncStr = localStorage.getItem(this.STORAGE_KEY_LAST_SYNC);
+            if (lastSyncStr) {
+                const lastSyncTime = new Date(lastSyncStr).getTime();
+                const timeSinceSync = Date.now() - lastSyncTime;
+                if (timeSinceSync < 2000) {
+                    // Too soon after sync, skip
+                    return;
+                }
+            }
+            
             const now = new Date().toISOString();
             localStorage.setItem(this.STORAGE_KEY_LAST_MODIFIED, now);
-            console.log(`✏️ Data modified at: ${now}`);
         },
         
         // ===== GET LAST MODIFICATION TIME =====
@@ -153,59 +163,37 @@
             const gistId = localStorage.getItem(this.STORAGE_KEY_GIST_ID);
             
             if (!token || !gistId) {
-                alert('No credentials configured');
+                alert('No credentials');
                 return;
             }
             
-            try {
-                this.isSyncing = true;
-                this.syncStatus = 'syncing';
-                
-                const cloudState = await this.getCloudState(token, gistId);
-                
-                if (cloudState && cloudState.error) {
-                    alert(`Error: ${cloudState.message}`);
-                    this.syncStatus = 'error';
-                    this.syncMessage = cloudState.message;
-                    this.isSyncing = false;
-                    return;
-                }
-                
-                if (!cloudState) {
-                    alert('No cloud data found');
-                    this.syncStatus = 'idle';
-                    this.isSyncing = false;
-                    return;
-                }
-                
-                console.log('📥 Manual pull from cloud...');
-                const pullTime = Date.now();
-                this.lastPullTime = pullTime; // Set cooldown
-                localStorage.setItem(this.STORAGE_KEY_LAST_PULL, pullTime.toString());
-                await this.pullFromCloud(cloudState);
-                
-            } catch (error) {
-                alert(`Pull failed: ${error.message}`);
+            this.isSyncing = true;
+            this.syncStatus = 'syncing';
+            
+            const cloudState = await this.getCloudState(token, gistId);
+            
+            if (cloudState && cloudState.error) {
+                alert('Error: ' + cloudState.message);
                 this.syncStatus = 'error';
-                this.syncMessage = error.message;
                 this.isSyncing = false;
+                return;
             }
+            
+            if (!cloudState) {
+                alert('No cloud data found');
+                this.syncStatus = 'idle';
+                this.isSyncing = false;
+                return;
+            }
+            
+            console.log('📥 Manual pull...');
+            await this.pullFromCloud(cloudState);
         },
         
-        // ===== SMART SYNC (TIMESTAMP-BASED BIDIRECTIONAL) =====
+        // ===== SMART SYNC (DEAD SIMPLE VERSION) =====
         smartSync: async function() {
             if (this.isSyncing) {
-                console.log('⏸️ Sync already in progress, skipping...');
-                return;
-            }
-            
-            // Check cooldown - don't sync within 10 seconds of last pull
-            const lastPullStr = localStorage.getItem(this.STORAGE_KEY_LAST_PULL);
-            const lastPullTime = lastPullStr ? parseInt(lastPullStr) : 0;
-            const timeSinceLastPull = Date.now() - lastPullTime;
-            
-            if (timeSinceLastPull < 10000) {
-                console.log(`⏳ Cooldown active (${Math.floor(timeSinceLastPull/1000)}s since last pull) - skipping sync`);
+                console.log('⏸️ Already syncing, skip');
                 return;
             }
             
@@ -214,77 +202,53 @@
             const canPush = localStorage.getItem(this.STORAGE_KEY_CAN_PUSH) === 'true';
             
             if (!token || !gistId) {
-                console.log('⚠️ Sync skipped: No credentials configured');
+                console.log('⚠️ No credentials');
                 return;
             }
-            
-            console.log('🔄 Running smart sync check...');
             
             try {
                 this.isSyncing = true;
                 this.syncStatus = 'syncing';
+                console.log('🔄 Sync starting...');
                 
                 // Get local state
                 const localStateStr = localStorage.getItem('gt50-tester-state');
                 if (!localStateStr) {
-                    console.log('⚠️ No local state to sync');
+                    console.log('⚠️ No local state');
                     this.isSyncing = false;
                     return;
                 }
-                
                 const localState = JSON.parse(localStateStr);
                 
                 // Get cloud state
                 const cloudState = await this.getCloudState(token, gistId);
                 
-                // Handle errors from getCloudState
                 if (cloudState && cloudState.error) {
+                    console.error('❌ Cloud error:', cloudState.error);
                     this.syncStatus = 'error';
-                    if (cloudState.error === 404) {
-                        this.syncMessage = 'Gist not found';
-                    } else {
-                        this.syncMessage = `Error ${cloudState.error}`;
-                    }
-                    this.isSyncing = false;
-                    return;
-                }
-                
-                // No cloud state yet
-                if (!cloudState) {
-                    if (canPush) {
-                        console.log('📤 No cloud state found, pushing local...');
-                        const now = new Date().toISOString();
-                        localState.timestamp = now;
-                        localStorage.setItem(this.STORAGE_KEY_LAST_MODIFIED, now);
-                        await this.pushToCloud(token, gistId, localState);
-                        this.markAsSynced(localState);
-                        this.syncStatus = 'success';
-                        this.syncMessage = 'Initial push complete';
-                        localStorage.setItem(this.STORAGE_KEY_LAST_SYNC, now);
-                    } else {
-                        console.log('⚠️ No cloud state, but pushing disabled');
-                        this.syncStatus = 'idle';
-                        this.syncMessage = 'Waiting for cloud data (push disabled)';
-                    }
+                    this.syncMessage = 'Cloud error';
                     this.isSyncing = false;
                     return;
                 }
                 
                 // PULL-ONLY MODE
                 if (!canPush) {
-                    // Extract timestamps
-                    const localData = this.extractDataOnly(localState);
-                    const localTime = new Date(localData.timestamp || 0).getTime();
+                    if (!cloudState) {
+                        console.log('⚠️ No cloud data yet');
+                        this.syncStatus = 'idle';
+                        this.isSyncing = false;
+                        return;
+                    }
+                    
                     const cloudTime = new Date(cloudState.timestamp || 0).getTime();
+                    const localTime = new Date(localState.timestamp || 0).getTime();
                     
                     if (cloudTime > localTime) {
-                        console.log('📥 Pull-only: Cloud is newer - auto-pulling...');
-                        const pullTime = Date.now();
-                        localStorage.setItem(this.STORAGE_KEY_LAST_PULL, pullTime.toString());
+                        console.log('📥 PULL-ONLY: Pulling...');
                         await this.pullFromCloud(cloudState);
                         return;
                     } else {
-                        console.log('✓ Pull-only: Local is up to date');
+                        console.log('✓ PULL-ONLY: Up to date');
                         this.syncStatus = 'success';
                         this.syncMessage = 'In sync';
                         this.isSyncing = false;
@@ -292,65 +256,62 @@
                     }
                 }
                 
-                // BIDIRECTIONAL SYNC MODE
-                // Get cloud timestamp
+                // TWO-WAY SYNC
+                // No cloud data yet? Push.
+                if (!cloudState) {
+                    console.log('📤 No cloud data, initial push...');
+                    const now = new Date().toISOString();
+                    localState.timestamp = now;
+                    localStorage.setItem(this.STORAGE_KEY_LAST_MODIFIED, now);
+                    localStorage.setItem('gt50-tester-state', JSON.stringify(localState));
+                    await this.pushToCloud(token, gistId, localState);
+                    this.syncStatus = 'success';
+                    this.syncMessage = 'Pushed';
+                    localStorage.setItem(this.STORAGE_KEY_LAST_SYNC, now);
+                    this.isSyncing = false;
+                    return;
+                }
+                
+                // Compare timestamps
                 const cloudTime = new Date(cloudState.timestamp || 0).getTime();
+                const localModStr = localStorage.getItem(this.STORAGE_KEY_LAST_MODIFIED);
+                const localModTime = localModStr ? new Date(localModStr).getTime() : 0;
                 
-                // Get local modification time
-                const localModifiedStr = localStorage.getItem(this.STORAGE_KEY_LAST_MODIFIED);
-                const localModifiedTime = localModifiedStr ? new Date(localModifiedStr).getTime() : 0;
+                console.log(`Cloud: ${new Date(cloudTime).toLocaleString()}`);
+                console.log(`Local: ${localModStr ? new Date(localModTime).toLocaleString() : 'never'}`);
                 
-                // Check if local changes happened in the last 60 seconds (this cycle)
-                const now = Date.now();
-                const localChangedRecently = (now - localModifiedTime) < 60000;
+                // Check if local changed in last 60 seconds
+                const changedRecently = (Date.now() - localModTime) < 60000;
                 
-                console.log(`⏰ Local modified: ${localModifiedStr ? new Date(localModifiedTime).toLocaleString() : 'never'}`);
-                console.log(`⏰ Cloud timestamp: ${new Date(cloudTime).toLocaleString()}`);
-                console.log(`📊 Local changed in last 60s: ${localChangedRecently}`);
-                
-                // SIMPLE DECISION: Compare modification times directly
-                // Whoever made the most recent change wins
-                
-                if (cloudTime > localModifiedTime) {
-                    // Cloud has newer changes - AUTO-PULL
-                    console.log('📥 Cloud is newer - auto-pulling...');
-                    const pullTime = Date.now();
-                    localStorage.setItem(this.STORAGE_KEY_LAST_PULL, pullTime.toString());
+                if (cloudTime > localModTime) {
+                    // Cloud is newer - PULL
+                    console.log('📥 Cloud newer - pulling...');
                     await this.pullFromCloud(cloudState);
                     return;
                     
-                } else if (localModifiedTime > cloudTime && localChangedRecently) {
-                    // Local has newer changes AND changed in this cycle - AUTO-PUSH
-                    console.log('📤 Local is newer and changed recently - auto-pushing...');
-                    
-                    // Update state timestamp to match modification time before pushing
-                    localState.timestamp = localModifiedStr;
+                } else if (localModTime > cloudTime && changedRecently) {
+                    // Local is newer and changed recently - PUSH
+                    console.log('📤 Local newer - pushing...');
+                    localState.timestamp = localModStr;
                     localStorage.setItem('gt50-tester-state', JSON.stringify(localState));
-                    
                     await this.pushToCloud(token, gistId, localState);
-                    this.markAsSynced(localState);
                     this.syncStatus = 'success';
-                    this.syncMessage = 'Auto-pushed to cloud';
+                    this.syncMessage = 'Pushed';
                     localStorage.setItem(this.STORAGE_KEY_LAST_SYNC, new Date().toISOString());
                     this.isSyncing = false;
-                    console.log('✅ Auto-push complete');
                     
                 } else {
-                    // In sync or no recent changes
-                    if (localModifiedTime > cloudTime) {
-                        console.log('⏭️ Local has older changes but not in this cycle - skipping push');
-                    } else {
-                        console.log('✓ Timestamps match - in sync');
-                    }
+                    // In sync
+                    console.log('✓ In sync');
                     this.syncStatus = 'success';
                     this.syncMessage = 'In sync';
                     this.isSyncing = false;
                 }
                 
             } catch (error) {
-                console.error('❌ Sync error:', error);
+                console.error('❌ Sync failed:', error);
                 this.syncStatus = 'error';
-                this.syncMessage = error.message || 'Sync failed';
+                this.syncMessage = 'Failed';
                 this.isSyncing = false;
             }
         },
@@ -452,78 +413,68 @@
         
         // ===== PULL FROM CLOUD =====
         pullFromCloud: async function(cloudData) {
-            // Don't stop auto-sync - just let it continue running
-            // Auto-sync will handle the next cycle
+            console.log('📥 Pulling from cloud...');
             
-            // Convert to text like import button expects
             const text = JSON.stringify(cloudData);
-            
-            // Use EXACT import button code
             const result = GT50Lib.ImpEx.importData(text);
             
-            if (result.success) {
-                // Get current app state from localStorage
-                const stateStr = localStorage.getItem('gt50-tester-state');
-                if (!stateStr) {
-                    console.error('ERROR: Cannot access app state from localStorage');
-                    this.isSyncing = false;
-                    return;
-                }
-                
-                const appState = JSON.parse(stateStr);
-                
-                // EXACT COPY from import button - lines 691-717
-                // Update app state
-                appState.tabs = result.data.tabs;
-                appState.tabComponents = result.data.tabComponents;
-                
-                // Update global state
-                if (typeof window !== 'undefined') {
-                    window.nextId = Date.now();
-                    window.navigationStack = [];
-                    window.scrollStack = [];
-                }
-                
-                // Reset header
-                if (!appState.header) {
-                    appState.header = GT50Lib.Header.defaultState();
-                }
-                appState.header.isMain = true;
-                appState.header.title = 'GT50 TESTER';
-                
-                // Set timestamp to match cloud (CRITICAL for next sync)
-                appState.timestamp = cloudData.timestamp;
-                
-                // Set last modified to cloud timestamp (we just got fresh data)
-                localStorage.setItem(this.STORAGE_KEY_LAST_MODIFIED, cloudData.timestamp);
-                localStorage.setItem(this.STORAGE_KEY_LAST_SYNC, new Date().toISOString());
-                
-                // Close window
-                appState.impex.isOpen = false;
-                
-                // Save the updated state
-                localStorage.setItem('gt50-tester-state', JSON.stringify(appState));
-                
-                // Render if available
-                if (typeof window !== 'undefined' && window.render) {
-                    window.render(true);
-                }
-                
-                // Mark as synced with pulled state
-                this.markAsSynced(appState);
-                
-                this.syncStatus = 'success';
-                this.syncMessage = 'Pulled from cloud';
-                this.isSyncing = false;
-                
-                console.log('✅ Pull complete - UI updated');
-                
-            } else {
-                console.error(`Pull failed: ${result.error}`);
+            if (!result.success) {
+                console.error('Pull failed:', result.error);
                 this.syncStatus = 'error';
-                this.syncMessage = result.error;
+                this.syncMessage = 'Pull failed';
                 this.isSyncing = false;
+                return;
             }
+            
+            // Get state from localStorage
+            const stateStr = localStorage.getItem('gt50-tester-state');
+            if (!stateStr) {
+                console.error('No state in localStorage');
+                this.isSyncing = false;
+                return;
+            }
+            
+            const appState = JSON.parse(stateStr);
+            
+            // Update with pulled data
+            appState.tabs = result.data.tabs;
+            appState.tabComponents = result.data.tabComponents;
+            appState.timestamp = cloudData.timestamp;
+            
+            // Reset navigation
+            if (typeof window !== 'undefined') {
+                window.nextId = Date.now();
+                window.navigationStack = [];
+                window.scrollStack = [];
+            }
+            
+            // Reset header
+            if (!appState.header) {
+                appState.header = GT50Lib.Header.defaultState();
+            }
+            appState.header.isMain = true;
+            appState.header.title = 'GT50 TESTER';
+            appState.impex.isOpen = false;
+            
+            // Save state
+            localStorage.setItem('gt50-tester-state', JSON.stringify(appState));
+            
+            // Set lastModified to cloud timestamp (critical!)
+            localStorage.setItem(this.STORAGE_KEY_LAST_MODIFIED, cloudData.timestamp);
+            localStorage.setItem(this.STORAGE_KEY_LAST_SYNC, new Date().toISOString());
+            
+            // Render (while isSyncing is still true)
+            if (typeof window !== 'undefined' && window.render) {
+                window.render(true);
+            }
+            
+            // Wait for render to complete, THEN set isSyncing to false
+            setTimeout(() => {
+                this.syncStatus = 'success';
+                this.syncMessage = 'Pulled';
+                this.isSyncing = false;
+                console.log('✅ Pull complete');
+            }, 100);
         },
         
         // ===== CREATE NEW GIST =====
@@ -1028,29 +979,31 @@
                 manualPullBtn.textContent = 'PULLING...';
                 
                 await this.manualPull();
+                
+                // Wait a bit for isSyncing to be set to false
+                setTimeout(() => {
+                    manualPullBtn.disabled = false;
+                    manualPullBtn.textContent = 'PULL NOW';
+                    onChange();
+                }, 200);
             };
             
             manualSyncBtn.onclick = async () => {
                 manualSyncBtn.disabled = true;
                 manualSyncBtn.textContent = 'SYNCING...';
                 
-                try {
-                    await this.smartSync();
-                    
-                    // Reset countdown after manual sync
-                    this.nextSyncTime = Date.now() + 60000;
-                    this.secondsUntilSync = 60;
-                    
-                    // Trigger UI update
-                    onChange();
-                } catch (error) {
-                    console.error('Manual sync error:', error);
-                }
+                await this.smartSync();
                 
+                // Reset countdown
+                this.nextSyncTime = Date.now() + 60000;
+                this.secondsUntilSync = 60;
+                
+                // Re-enable button
                 setTimeout(() => {
                     manualSyncBtn.disabled = false;
                     manualSyncBtn.textContent = 'SYNC NOW';
-                }, 1000);
+                    onChange();
+                }, 500);
             };
             
             togglePushBtn.onclick = () => {
