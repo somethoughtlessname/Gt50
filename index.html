@@ -322,6 +322,21 @@
         }
         
         function saveState() {
+            // Preserve existing timestamp if it exists, otherwise create new one
+            const existingState = localStorage.getItem('gt50-tester-state');
+            let timestamp = new Date().toISOString();
+            
+            if (existingState) {
+                try {
+                    const parsed = JSON.parse(existingState);
+                    if (parsed.timestamp) {
+                        timestamp = parsed.timestamp;
+                    }
+                } catch (e) {
+                    // If parse fails, use new timestamp
+                }
+            }
+            
             const toSave = {
                 nextId,
                 header: state.header,
@@ -332,7 +347,7 @@
                 cardInfo: state.cardInfo,
                 createNew: state.createNew,
                 tabComponents: state.tabComponents,
-                timestamp: new Date().toISOString()
+                timestamp: timestamp
             };
             localStorage.setItem('gt50-tester-state', JSON.stringify(toSave));
         }
