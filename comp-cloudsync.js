@@ -14,6 +14,7 @@
         STORAGE_KEY_CAN_PUSH: 'gt50-can-push',
         STORAGE_KEY_LAST_PULL: 'gt50-last-pull-time',
         STORAGE_KEY_LAST_SYNCED_HASH: 'gt50-last-synced-hash',
+        STORAGE_KEY_LAST_MODIFIED: 'gt50-last-modified-time',
         
         // ===== SYNC STATE =====
         syncInterval: null,
@@ -58,6 +59,19 @@
             const currentHash = this.simpleHash(JSON.stringify(currentState));
             const lastSyncedHash = localStorage.getItem(this.STORAGE_KEY_LAST_SYNCED_HASH);
             return !lastSyncedHash || currentHash !== lastSyncedHash;
+        },
+        
+        // ===== MARK DATA AS MODIFIED =====
+        // Call this when user makes actual changes (not just on render)
+        markAsModified: function() {
+            const now = new Date().toISOString();
+            localStorage.setItem(this.STORAGE_KEY_LAST_MODIFIED, now);
+            console.log(`✏️ Data modified at: ${now}`);
+        },
+        
+        // ===== GET LAST MODIFICATION TIME =====
+        getLastModified: function() {
+            return localStorage.getItem(this.STORAGE_KEY_LAST_MODIFIED);
         },
         
         // ===== MARK STATE AS SYNCED =====
@@ -163,7 +177,7 @@
             }
         },
         
-        // ===== SMART SYNC (TIMESTAMP-BASED) =====
+        // ===== SMART SYNC (TIMESTAMP-BASED BIDIRECTIONAL) =====
         smartSync: async function() {
             if (this.isSyncing) {
                 console.log('⏸️ Sync already in progress, skipping...');
@@ -189,7 +203,7 @@
                 return;
             }
             
-            console.log('🔄 Running sync check...');
+            console.log('🔄 Running smart sync check...');
             
             try {
                 this.isSyncing = true;
@@ -224,11 +238,14 @@
                 if (!cloudState) {
                     if (canPush) {
                         console.log('📤 No cloud state found, pushing local...');
+                        const now = new Date().toISOString();
+                        localState.timestamp = now;
+                        localStorage.setItem(this.STORAGE_KEY_LAST_MODIFIED, now);
                         await this.pushToCloud(token, gistId, localState);
                         this.markAsSynced(localState);
                         this.syncStatus = 'success';
                         this.syncMessage = 'Initial push complete';
-                        localStorage.setItem(this.STORAGE_KEY_LAST_SYNC, new Date().toISOString());
+                        localStorage.setItem(this.STORAGE_KEY_LAST_SYNC, now);
                     } else {
                         console.log('⚠️ No cloud state, but pushing disabled');
                         this.syncStatus = 'idle';
@@ -246,7 +263,7 @@
                     const cloudTime = new Date(cloudState.timestamp || 0).getTime();
                     
                     if (cloudTime > localTime) {
-                        console.log('📥 Pull-only: Cloud is newer - pulling...');
+                        console.log('📥 Pull-only: Cloud is newer - auto-pulling...');
                         const pullTime = Date.now();
                         localStorage.setItem(this.STORAGE_KEY_LAST_PULL, pullTime.toString());
                         await this.pullFromCloud(cloudState);
@@ -260,34 +277,39 @@
                     }
                 }
                 
-                // NORMAL SYNC MODE - Compare timestamps AND content
-                const localData = this.extractDataOnly(localState);
-                const localTime = new Date(localData.timestamp || 0).getTime();
+                // BIDIRECTIONAL SYNC MODE
+                // Get modification times
+                const localModifiedStr = localStorage.getItem(this.STORAGE_KEY_LAST_MODIFIED);
+                const localModifiedTime = localModifiedStr ? new Date(localModifiedStr).getTime() : 0;
                 const cloudTime = new Date(cloudState.timestamp || 0).getTime();
                 
-                console.log(`⏰ Local: ${new Date(localTime).toLocaleString()}`);
-                console.log(`⏰ Cloud: ${new Date(cloudTime).toLocaleString()}`);
+                // Get last sync time to determine if changes happened in this cycle
+                const lastSyncStr = localStorage.getItem(this.STORAGE_KEY_LAST_SYNC);
+                const lastSyncTime = lastSyncStr ? new Date(lastSyncStr).getTime() : 0;
+                const now = Date.now();
                 
-                // Check for actual content changes regardless of timestamp
-                const hasChanges = this.hasLocalChanges(localState);
-                console.log(`📊 Content changes detected: ${hasChanges}`);
+                console.log(`⏰ Local modified: ${localModifiedStr ? new Date(localModifiedTime).toLocaleString() : 'never'}`);
+                console.log(`⏰ Cloud updated: ${new Date(cloudTime).toLocaleString()}`);
+                console.log(`⏰ Last sync: ${lastSyncStr ? new Date(lastSyncTime).toLocaleString() : 'never'}`);
                 
-                if (cloudTime > localTime) {
-                    // Cloud is newer - pull and overwrite
-                    console.log('📥 Cloud is newer - pulling and overwriting local...');
+                // Check if local changes happened in the last 60 seconds (this cycle)
+                const localChangedRecently = (now - localModifiedTime) < 60000;
+                console.log(`📊 Local changed in last 60s: ${localChangedRecently}`);
+                
+                if (cloudTime > localModifiedTime) {
+                    // Cloud is newer - AUTO-PULL
+                    console.log('📥 Cloud is newer - auto-pulling...');
                     const pullTime = Date.now();
                     localStorage.setItem(this.STORAGE_KEY_LAST_PULL, pullTime.toString());
                     await this.pullFromCloud(cloudState);
                     return;
-                } else if (hasChanges) {
-                    // Local has changes that need to be pushed
-                    // This happens when:
-                    // 1. Local timestamp is newer (user made changes)
-                    // 2. OR timestamps match but content is different (edge case)
-                    console.log('📤 Local has changes - pushing to cloud...');
                     
-                    // Ensure timestamp is current before pushing
-                    localState.timestamp = new Date().toISOString();
+                } else if (localModifiedTime > cloudTime && localChangedRecently) {
+                    // Local is newer AND was modified in this cycle - AUTO-PUSH
+                    console.log('📤 Local is newer and changed recently - auto-pushing...');
+                    
+                    // Update timestamp to match modification time
+                    localState.timestamp = localModifiedStr || new Date().toISOString();
                     localStorage.setItem('gt50-tester-state', JSON.stringify(localState));
                     
                     await this.pushToCloud(token, gistId, localState);
@@ -296,9 +318,14 @@
                     this.syncMessage = 'Auto-pushed to cloud';
                     localStorage.setItem(this.STORAGE_KEY_LAST_SYNC, new Date().toISOString());
                     console.log('✅ Auto-push complete');
+                    
                 } else {
-                    // No changes detected
-                    console.log('✓ No changes detected - in sync');
+                    // Timestamps equal or local is newer but not changed in this cycle
+                    if (localModifiedTime > cloudTime) {
+                        console.log('⏭️ Local is newer but no changes in this cycle - skipping push');
+                    } else {
+                        console.log('✓ Timestamps match - in sync');
+                    }
                     this.syncStatus = 'success';
                     this.syncMessage = 'In sync';
                 }
@@ -447,6 +474,9 @@
                 
                 // Set timestamp to match cloud (CRITICAL for next sync)
                 this.appState.timestamp = cloudData.timestamp;
+                
+                // Set last modified to cloud timestamp (we just got fresh data)
+                localStorage.setItem(this.STORAGE_KEY_LAST_MODIFIED, cloudData.timestamp);
                 
                 // Close window
                 this.appState.impex.isOpen = false;
