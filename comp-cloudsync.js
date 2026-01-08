@@ -14,7 +14,7 @@
         STORAGE_KEY_CAN_PUSH: 'gt50-can-push',
         STORAGE_KEY_LAST_PULL: 'gt50-last-pull-time',
         STORAGE_KEY_LOCAL_TIMESTAMP: 'gt50-local-timestamp',
-        STORAGE_KEY_LAST_SYNCED_HASH: 'gt50-last-synced-hash'
+        STORAGE_KEY_LAST_SYNCED_HASH: 'gt50-last-synced-hash',
         
         // ===== SYNC STATE =====
         syncInterval: null,
