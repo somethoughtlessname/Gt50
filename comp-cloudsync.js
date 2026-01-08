@@ -155,7 +155,10 @@
         
         // ===== SMART SYNC (TIMESTAMP-BASED) =====
         smartSync: async function() {
-            if (this.isSyncing) return; // Prevent concurrent syncs
+            if (this.isSyncing) {
+                console.log('⏸️ Sync already in progress, skipping...');
+                return;
+            }
             
             // Check cooldown - don't sync within 10 seconds of last pull
             const lastPullStr = localStorage.getItem(this.STORAGE_KEY_LAST_PULL);
@@ -163,7 +166,7 @@
             const timeSinceLastPull = Date.now() - lastPullTime;
             
             if (timeSinceLastPull < 10000) {
-                console.log(`⏳ Cooldown active (${Math.floor(timeSinceLastPull/1000)}s since last pull)`);
+                console.log(`⏳ Cooldown active (${Math.floor(timeSinceLastPull/1000)}s since last pull) - skipping sync`);
                 return;
             }
             
@@ -175,6 +178,8 @@
                 console.log('⚠️ Sync skipped: No credentials configured');
                 return;
             }
+            
+            console.log('🔄 Running sync check...');
             
             try {
                 this.isSyncing = true;
@@ -264,6 +269,9 @@
                     // Local is newer - check if there are actual changes
                     const hasChanges = this.hasLocalChanges(localState);
                     
+                    console.log(`📊 Local timestamp is newer. Checking for actual changes...`);
+                    console.log(`   Has changes: ${hasChanges}`);
+                    
                     if (hasChanges) {
                         console.log('📤 Local has changes - pushing to cloud...');
                         await this.pushToCloud(token, gistId, localState);
@@ -272,13 +280,13 @@
                         this.syncMessage = 'Pushed to cloud';
                         localStorage.setItem(this.STORAGE_KEY_LAST_SYNC, new Date().toISOString());
                     } else {
-                        console.log('✓ No changes detected - already synced');
+                        console.log('✓ No changes detected - skipping push');
                         this.syncStatus = 'success';
                         this.syncMessage = 'In sync';
                     }
                 } else {
                     // Timestamps are equal
-                    console.log('✓ Timestamps match - in sync');
+                    console.log('✓ Timestamps match - already in sync');
                     this.syncStatus = 'success';
                     this.syncMessage = 'In sync';
                 }
@@ -1040,6 +1048,11 @@
             const canPush = localStorage.getItem(GT50Lib.CloudSync.STORAGE_KEY_CAN_PUSH) === 'true';
             console.log(`Mode: ${canPush ? 'TWO-WAY SYNC' : 'PULL-ONLY'}`);
             GT50Lib.CloudSync.autoSyncEnabled = true;
+            
+            // Clear cooldown to allow immediate sync on app load
+            localStorage.removeItem(GT50Lib.CloudSync.STORAGE_KEY_LAST_PULL);
+            
+            // Start auto-sync (runs immediately, then every 60 seconds)
             GT50Lib.CloudSync.startAutoSync();
         }
     });
