@@ -845,6 +845,33 @@
                         <div style="font-weight: 600; color: var(--error-color); margin-bottom: 8px;">
                             Danger Zone
                         </div>
+                        
+                        <!-- Cleanup Button -->
+                        <button id="cleanup-active-btn" style="
+                            width: 100%;
+                            height: var(--card-height);
+                            background: var(--bg-3);
+                            border: var(--border-width) solid var(--error-border);
+                            border-radius: 8px;
+                            font-weight: 600;
+                            color: #f59e0b;
+                            font-size: 12px;
+                            cursor: pointer;
+                            transition: filter 0.2s;
+                            margin-bottom: 8px;
+                        ">🧹 CLEAN OLD DATA</button>
+                        
+                        <div id="cleanup-active-status" style="
+                            display: none;
+                            padding: 8px;
+                            background: var(--bg-3);
+                            border: var(--border-width) solid var(--border-color);
+                            border-radius: 4px;
+                            color: var(--color-10);
+                            font-size: 11px;
+                            margin-bottom: 8px;
+                        "></div>
+                        
                         <button id="disable-btn" style="
                             width: 100%;
                             height: var(--card-height);
@@ -881,7 +908,54 @@
             const manualPullBtn = container.querySelector('#manual-pull-btn');
             const manualSyncBtn = container.querySelector('#manual-sync-btn');
             const togglePushBtn = container.querySelector('#toggle-push-btn');
+            const cleanupActiveBtn = container.querySelector('#cleanup-active-btn');
+            const cleanupActiveStatus = container.querySelector('#cleanup-active-status');
             const disableBtn = container.querySelector('#disable-btn');
+            
+            // Cleanup button handler
+            cleanupActiveBtn.onclick = () => {
+                cleanupActiveBtn.disabled = true;
+                cleanupActiveBtn.textContent = 'CLEANING...';
+                
+                try {
+                    const stateStr = localStorage.getItem('gt50-tester-state');
+                    if (stateStr) {
+                        const appState = JSON.parse(stateStr);
+                        let cleaned = false;
+                        
+                        // Remove old cloud sync data from state
+                        if (appState.impex && appState.impex.cloudSync) {
+                            if (appState.impex.cloudSync.token) {
+                                delete appState.impex.cloudSync.token;
+                                cleaned = true;
+                            }
+                            if (appState.impex.cloudSync.gistId) {
+                                delete appState.impex.cloudSync.gistId;
+                                cleaned = true;
+                            }
+                        }
+                        
+                        if (cleaned) {
+                            localStorage.setItem('gt50-tester-state', JSON.stringify(appState));
+                            cleanupActiveStatus.style.display = 'block';
+                            cleanupActiveStatus.style.background = '#22c55e';
+                            cleanupActiveStatus.textContent = '✓ Cleaned! Old data removed.';
+                        } else {
+                            cleanupActiveStatus.style.display = 'block';
+                            cleanupActiveStatus.textContent = '✓ No cleanup needed.';
+                        }
+                    }
+                    
+                    cleanupActiveBtn.disabled = false;
+                    cleanupActiveBtn.textContent = '🧹 CLEAN OLD DATA';
+                } catch (error) {
+                    cleanupActiveStatus.style.display = 'block';
+                    cleanupActiveStatus.style.background = '#ef4444';
+                    cleanupActiveStatus.textContent = '✗ Error: ' + error.message;
+                    cleanupActiveBtn.disabled = false;
+                    cleanupActiveBtn.textContent = '🧹 CLEAN OLD DATA';
+                }
+            };
             
             manualPullBtn.onclick = async () => {
                 manualPullBtn.disabled = true;
@@ -932,6 +1006,8 @@
             manualSyncBtn.onmouseout = () => manualSyncBtn.style.filter = 'brightness(1)';
             togglePushBtn.onmouseover = () => togglePushBtn.style.filter = 'brightness(1.1)';
             togglePushBtn.onmouseout = () => togglePushBtn.style.filter = 'brightness(1)';
+            cleanupActiveBtn.onmouseover = () => cleanupActiveBtn.style.filter = 'brightness(1.1)';
+            cleanupActiveBtn.onmouseout = () => cleanupActiveBtn.style.filter = 'brightness(1)';
             disableBtn.onmouseover = () => disableBtn.style.filter = 'brightness(1.1)';
             disableBtn.onmouseout = () => disableBtn.style.filter = 'brightness(1)';
         },
