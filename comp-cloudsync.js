@@ -278,34 +278,43 @@
                 }
                 
                 // BIDIRECTIONAL SYNC MODE
-                // Get modification times
+                // Get timestamps from actual state data (for pull comparison)
+                const localData = this.extractDataOnly(localState);
+                const localStateTime = new Date(localData.timestamp || 0).getTime();
+                const cloudTime = new Date(cloudState.timestamp || 0).getTime();
+                
+                // Get last modification time (for push decision)
                 const localModifiedStr = localStorage.getItem(this.STORAGE_KEY_LAST_MODIFIED);
                 const localModifiedTime = localModifiedStr ? new Date(localModifiedStr).getTime() : 0;
-                const cloudTime = new Date(cloudState.timestamp || 0).getTime();
                 
                 // Get last sync time to determine if changes happened in this cycle
                 const lastSyncStr = localStorage.getItem(this.STORAGE_KEY_LAST_SYNC);
                 const lastSyncTime = lastSyncStr ? new Date(lastSyncStr).getTime() : 0;
                 const now = Date.now();
                 
+                console.log(`⏰ Local state timestamp: ${new Date(localStateTime).toLocaleString()}`);
                 console.log(`⏰ Local modified: ${localModifiedStr ? new Date(localModifiedTime).toLocaleString() : 'never'}`);
-                console.log(`⏰ Cloud updated: ${new Date(cloudTime).toLocaleString()}`);
+                console.log(`⏰ Cloud timestamp: ${new Date(cloudTime).toLocaleString()}`);
                 console.log(`⏰ Last sync: ${lastSyncStr ? new Date(lastSyncTime).toLocaleString() : 'never'}`);
                 
                 // Check if local changes happened in the last 60 seconds (this cycle)
                 const localChangedRecently = (now - localModifiedTime) < 60000;
                 console.log(`📊 Local changed in last 60s: ${localChangedRecently}`);
                 
-                if (cloudTime > localModifiedTime) {
-                    // Cloud is newer - AUTO-PULL
-                    console.log('📥 Cloud is newer - auto-pulling...');
+                // DECISION LOGIC:
+                // 1. Compare STATE timestamps to decide pull vs push
+                // 2. Only push if changes happened in this 60s cycle
+                
+                if (cloudTime > localStateTime) {
+                    // Cloud state is newer than local state - AUTO-PULL
+                    console.log('📥 Cloud is newer than local state - auto-pulling...');
                     const pullTime = Date.now();
                     localStorage.setItem(this.STORAGE_KEY_LAST_PULL, pullTime.toString());
                     await this.pullFromCloud(cloudState);
                     return;
                     
-                } else if (localModifiedTime > cloudTime && localChangedRecently) {
-                    // Local is newer AND was modified in this cycle - AUTO-PUSH
+                } else if (localStateTime > cloudTime && localChangedRecently) {
+                    // Local state is newer AND was modified in this cycle - AUTO-PUSH
                     console.log('📤 Local is newer and changed recently - auto-pushing...');
                     
                     // Update timestamp to match modification time
@@ -321,10 +330,10 @@
                     
                 } else {
                     // Timestamps equal or local is newer but not changed in this cycle
-                    if (localModifiedTime > cloudTime) {
-                        console.log('⏭️ Local is newer but no changes in this cycle - skipping push');
+                    if (localStateTime > cloudTime) {
+                        console.log('⏭️ Local state is newer but no changes in this cycle - skipping push');
                     } else {
-                        console.log('✓ Timestamps match - in sync');
+                        console.log('✓ State timestamps match - in sync');
                     }
                     this.syncStatus = 'success';
                     this.syncMessage = 'In sync';
