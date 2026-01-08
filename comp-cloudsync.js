@@ -561,6 +561,29 @@
                         font-size: 12px;
                     "></div>
                     
+                    <!-- Cleanup Button -->
+                    <button id="cleanup-btn" style="
+                        height: var(--card-height);
+                        background: #ef4444;
+                        border: var(--border-width) solid var(--border-color);
+                        border-radius: 8px;
+                        font-weight: 600;
+                        color: var(--color-10);
+                        font-size: 14px;
+                        cursor: pointer;
+                        transition: filter 0.2s;
+                    ">🧹 CLEAN OLD DATA FIRST</button>
+                    
+                    <div id="cleanup-status" style="
+                        display: none;
+                        padding: 12px;
+                        background: var(--bg-3);
+                        border: var(--border-width) solid var(--border-color);
+                        border-radius: 8px;
+                        color: var(--color-10);
+                        font-size: 12px;
+                    "></div>
+                    
                     <button id="enable-btn" style="
                         height: var(--card-height);
                         background: var(--accent);
@@ -578,7 +601,60 @@
             const tokenInput = container.querySelector('#token-input');
             const gistInput = container.querySelector('#gist-input');
             const enableBtn = container.querySelector('#enable-btn');
+            const cleanupBtn = container.querySelector('#cleanup-btn');
+            const cleanupStatus = container.querySelector('#cleanup-status');
             const errorMsg = container.querySelector('#error-msg');
+            
+            // Cleanup button - removes old sync data from localStorage
+            cleanupBtn.onclick = () => {
+                cleanupBtn.disabled = true;
+                cleanupBtn.textContent = 'CLEANING...';
+                
+                try {
+                    const stateStr = localStorage.getItem('gt50-tester-state');
+                    if (stateStr) {
+                        const appState = JSON.parse(stateStr);
+                        let cleaned = false;
+                        
+                        // Remove old cloud sync data from state
+                        if (appState.impex && appState.impex.cloudSync) {
+                            if (appState.impex.cloudSync.token) {
+                                delete appState.impex.cloudSync.token;
+                                cleaned = true;
+                            }
+                            if (appState.impex.cloudSync.gistId) {
+                                delete appState.impex.cloudSync.gistId;
+                                cleaned = true;
+                            }
+                        }
+                        
+                        if (cleaned) {
+                            localStorage.setItem('gt50-tester-state', JSON.stringify(appState));
+                            cleanupStatus.style.display = 'block';
+                            cleanupStatus.style.background = '#22c55e';
+                            cleanupStatus.textContent = '✓ Cleaned! Old token/gist data removed from storage. You can now set up fresh.';
+                        } else {
+                            cleanupStatus.style.display = 'block';
+                            cleanupStatus.textContent = '✓ No cleanup needed - storage is clean.';
+                        }
+                    } else {
+                        cleanupStatus.style.display = 'block';
+                        cleanupStatus.textContent = '✓ No cleanup needed - no stored data found.';
+                    }
+                    
+                    cleanupBtn.disabled = false;
+                    cleanupBtn.textContent = '🧹 CLEAN OLD DATA FIRST';
+                } catch (error) {
+                    cleanupStatus.style.display = 'block';
+                    cleanupStatus.style.background = '#ef4444';
+                    cleanupStatus.textContent = '✗ Error: ' + error.message;
+                    cleanupBtn.disabled = false;
+                    cleanupBtn.textContent = '🧹 CLEAN OLD DATA FIRST';
+                }
+            };
+            
+            cleanupBtn.onmouseover = () => cleanupBtn.style.filter = 'brightness(1.1)';
+            cleanupBtn.onmouseout = () => cleanupBtn.style.filter = 'brightness(1)';
             
             enableBtn.onclick = async () => {
                 const token = tokenInput.value.trim();
