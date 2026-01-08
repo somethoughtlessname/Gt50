@@ -91,11 +91,21 @@
             console.log('🔄 Starting auto-sync (every 60 seconds)');
             
             // Run immediately on start
-            this.smartSync();
+            this.smartSync().then(() => {
+                // After initial sync, trigger UI update if available
+                if (window.render) {
+                    console.log('🎨 Auto-sync: Initial sync complete, updating UI');
+                }
+            });
             
             // Then every 60 seconds
             this.syncInterval = setInterval(() => {
-                this.smartSync();
+                this.smartSync().then(() => {
+                    // After each auto-sync, trigger UI update to refresh sync status
+                    if (window.render) {
+                        console.log('🎨 Auto-sync: Periodic sync complete, updating UI');
+                    }
+                });
             }, 60000);
         },
         
@@ -250,13 +260,17 @@
                     }
                 }
                 
-                // NORMAL SYNC MODE - Compare timestamps only
+                // NORMAL SYNC MODE - Compare timestamps AND content
                 const localData = this.extractDataOnly(localState);
                 const localTime = new Date(localData.timestamp || 0).getTime();
                 const cloudTime = new Date(cloudState.timestamp || 0).getTime();
                 
                 console.log(`⏰ Local: ${new Date(localTime).toLocaleString()}`);
                 console.log(`⏰ Cloud: ${new Date(cloudTime).toLocaleString()}`);
+                
+                // Check for actual content changes regardless of timestamp
+                const hasChanges = this.hasLocalChanges(localState);
+                console.log(`📊 Content changes detected: ${hasChanges}`);
                 
                 if (cloudTime > localTime) {
                     // Cloud is newer - pull and overwrite
@@ -265,28 +279,26 @@
                     localStorage.setItem(this.STORAGE_KEY_LAST_PULL, pullTime.toString());
                     await this.pullFromCloud(cloudState);
                     return;
-                } else if (localTime > cloudTime) {
-                    // Local is newer - check if there are actual changes
-                    const hasChanges = this.hasLocalChanges(localState);
+                } else if (hasChanges) {
+                    // Local has changes that need to be pushed
+                    // This happens when:
+                    // 1. Local timestamp is newer (user made changes)
+                    // 2. OR timestamps match but content is different (edge case)
+                    console.log('📤 Local has changes - pushing to cloud...');
                     
-                    console.log(`📊 Local timestamp is newer. Checking for actual changes...`);
-                    console.log(`   Has changes: ${hasChanges}`);
+                    // Ensure timestamp is current before pushing
+                    localState.timestamp = new Date().toISOString();
+                    localStorage.setItem('gt50-tester-state', JSON.stringify(localState));
                     
-                    if (hasChanges) {
-                        console.log('📤 Local has changes - pushing to cloud...');
-                        await this.pushToCloud(token, gistId, localState);
-                        this.markAsSynced(localState);
-                        this.syncStatus = 'success';
-                        this.syncMessage = 'Pushed to cloud';
-                        localStorage.setItem(this.STORAGE_KEY_LAST_SYNC, new Date().toISOString());
-                    } else {
-                        console.log('✓ No changes detected - skipping push');
-                        this.syncStatus = 'success';
-                        this.syncMessage = 'In sync';
-                    }
+                    await this.pushToCloud(token, gistId, localState);
+                    this.markAsSynced(localState);
+                    this.syncStatus = 'success';
+                    this.syncMessage = 'Auto-pushed to cloud';
+                    localStorage.setItem(this.STORAGE_KEY_LAST_SYNC, new Date().toISOString());
+                    console.log('✅ Auto-push complete');
                 } else {
-                    // Timestamps are equal
-                    console.log('✓ Timestamps match - already in sync');
+                    // No changes detected
+                    console.log('✓ No changes detected - in sync');
                     this.syncStatus = 'success';
                     this.syncMessage = 'In sync';
                 }
