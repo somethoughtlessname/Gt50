@@ -920,8 +920,15 @@ function renderNestEditWindow() {
             // Mark as modified for cloud sync if:
             // 1. Not the initial page load
             // 2. Not currently syncing (pulling/pushing)
+            // 3. Not within 3 seconds of last sync (cooldown to prevent marking during sync operations)
             if (!isInitialLoad && GT50Lib.CloudSync && !GT50Lib.CloudSync.isSyncing) {
-                GT50Lib.CloudSync.markAsModified();
+                const lastSyncStr = localStorage.getItem(GT50Lib.CloudSync.STORAGE_KEY_LAST_SYNC);
+                const lastSyncTime = lastSyncStr ? new Date(lastSyncStr).getTime() : 0;
+                const timeSinceSync = Date.now() - lastSyncTime;
+                
+                if (timeSinceSync > 3000) {
+                    GT50Lib.CloudSync.markAsModified();
+                }
             }
             
             // Clear initial load flag after first render

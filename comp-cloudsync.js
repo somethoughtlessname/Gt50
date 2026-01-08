@@ -18,12 +18,15 @@
         
         // ===== SYNC STATE =====
         syncInterval: null,
+        countdownInterval: null,
         isSyncing: false,
         lastSyncedState: null,
         syncStatus: 'idle', // idle, syncing, success, error
         syncMessage: '',
         autoSyncEnabled: false,
         lastPullTime: 0, // Track when we last pulled to prevent immediate re-pulls
+        nextSyncTime: 0, // Track when next sync will happen
+        secondsUntilSync: 0, // Countdown display
         
         // ===== STATE FACTORY =====
         // NOTE: token and gistId are NOT stored in state, only in localStorage
@@ -103,21 +106,29 @@
             
             console.log('🔄 Starting auto-sync (every 60 seconds)');
             
+            // Set next sync time
+            this.nextSyncTime = Date.now() + 60000;
+            this.secondsUntilSync = 60;
+            
             // Run immediately on start
             this.smartSync().then(() => {
-                // After initial sync, trigger UI update if available
-                if (window.render) {
-                    console.log('🎨 Auto-sync: Initial sync complete, updating UI');
-                }
+                // Reset countdown after sync
+                this.nextSyncTime = Date.now() + 60000;
+                this.secondsUntilSync = 60;
             });
             
-            // Then every 60 seconds
+            // Countdown interval (every second)
+            this.countdownInterval = setInterval(() => {
+                this.secondsUntilSync = Math.max(0, Math.ceil((this.nextSyncTime - Date.now()) / 1000));
+            }, 1000);
+            
+            // Sync interval (every 60 seconds)
             this.syncInterval = setInterval(() => {
+                this.nextSyncTime = Date.now() + 60000;
+                this.secondsUntilSync = 60;
+                
                 this.smartSync().then(() => {
-                    // After each auto-sync, trigger UI update to refresh sync status
-                    if (window.render) {
-                        console.log('🎨 Auto-sync: Periodic sync complete, updating UI');
-                    }
+                    // Countdown continues automatically
                 });
             }, 60000);
         },
@@ -129,6 +140,11 @@
                 this.syncInterval = null;
                 console.log('⏸️ Stopped auto-sync');
             }
+            if (this.countdownInterval) {
+                clearInterval(this.countdownInterval);
+                this.countdownInterval = null;
+            }
+            this.secondsUntilSync = 0;
         },
         
         // ===== MANUAL PULL =====
@@ -277,47 +293,38 @@
                 }
                 
                 // BIDIRECTIONAL SYNC MODE
-                // Get timestamps from actual state data (for pull comparison)
-                const localData = this.extractDataOnly(localState);
-                const localStateTime = new Date(localData.timestamp || 0).getTime();
+                // Get cloud timestamp
                 const cloudTime = new Date(cloudState.timestamp || 0).getTime();
                 
-                // Get last modification time (for push decision)
+                // Get local modification time
                 const localModifiedStr = localStorage.getItem(this.STORAGE_KEY_LAST_MODIFIED);
                 const localModifiedTime = localModifiedStr ? new Date(localModifiedStr).getTime() : 0;
                 
-                // Get last sync time to determine if changes happened in this cycle
-                const lastSyncStr = localStorage.getItem(this.STORAGE_KEY_LAST_SYNC);
-                const lastSyncTime = lastSyncStr ? new Date(lastSyncStr).getTime() : 0;
+                // Check if local changes happened in the last 60 seconds (this cycle)
                 const now = Date.now();
+                const localChangedRecently = (now - localModifiedTime) < 60000;
                 
-                console.log(`⏰ Local state timestamp: ${new Date(localStateTime).toLocaleString()}`);
                 console.log(`⏰ Local modified: ${localModifiedStr ? new Date(localModifiedTime).toLocaleString() : 'never'}`);
                 console.log(`⏰ Cloud timestamp: ${new Date(cloudTime).toLocaleString()}`);
-                console.log(`⏰ Last sync: ${lastSyncStr ? new Date(lastSyncTime).toLocaleString() : 'never'}`);
-                
-                // Check if local changes happened in the last 60 seconds (this cycle)
-                const localChangedRecently = (now - localModifiedTime) < 60000;
                 console.log(`📊 Local changed in last 60s: ${localChangedRecently}`);
                 
-                // DECISION LOGIC:
-                // 1. Compare STATE timestamps to decide pull vs push
-                // 2. Only push if changes happened in this 60s cycle
+                // SIMPLE DECISION: Compare modification times directly
+                // Whoever made the most recent change wins
                 
-                if (cloudTime > localStateTime) {
-                    // Cloud state is newer than local state - AUTO-PULL
-                    console.log('📥 Cloud is newer than local state - auto-pulling...');
+                if (cloudTime > localModifiedTime) {
+                    // Cloud has newer changes - AUTO-PULL
+                    console.log('📥 Cloud is newer - auto-pulling...');
                     const pullTime = Date.now();
                     localStorage.setItem(this.STORAGE_KEY_LAST_PULL, pullTime.toString());
                     await this.pullFromCloud(cloudState);
                     return;
                     
-                } else if (localStateTime > cloudTime && localChangedRecently) {
-                    // Local state is newer AND was modified in this cycle - AUTO-PUSH
+                } else if (localModifiedTime > cloudTime && localChangedRecently) {
+                    // Local has newer changes AND changed in this cycle - AUTO-PUSH
                     console.log('📤 Local is newer and changed recently - auto-pushing...');
                     
-                    // Update timestamp to match modification time
-                    localState.timestamp = localModifiedStr || new Date().toISOString();
+                    // Update state timestamp to match modification time before pushing
+                    localState.timestamp = localModifiedStr;
                     localStorage.setItem('gt50-tester-state', JSON.stringify(localState));
                     
                     await this.pushToCloud(token, gistId, localState);
@@ -325,20 +332,20 @@
                     this.syncStatus = 'success';
                     this.syncMessage = 'Auto-pushed to cloud';
                     localStorage.setItem(this.STORAGE_KEY_LAST_SYNC, new Date().toISOString());
+                    this.isSyncing = false;
                     console.log('✅ Auto-push complete');
                     
                 } else {
-                    // Timestamps equal or local is newer but not changed in this cycle
-                    if (localStateTime > cloudTime) {
-                        console.log('⏭️ Local state is newer but no changes in this cycle - skipping push');
+                    // In sync or no recent changes
+                    if (localModifiedTime > cloudTime) {
+                        console.log('⏭️ Local has older changes but not in this cycle - skipping push');
                     } else {
-                        console.log('✓ State timestamps match - in sync');
+                        console.log('✓ Timestamps match - in sync');
                     }
                     this.syncStatus = 'success';
                     this.syncMessage = 'In sync';
+                    this.isSyncing = false;
                 }
-                
-                this.isSyncing = false;
                 
             } catch (error) {
                 console.error('❌ Sync error:', error);
@@ -445,8 +452,8 @@
         
         // ===== PULL FROM CLOUD =====
         pullFromCloud: async function(cloudData) {
-            // Stop auto-sync
-            this.stopAutoSync();
+            // Don't stop auto-sync - just let it continue running
+            // Auto-sync will handle the next cycle
             
             // Convert to text like import button expects
             const text = JSON.stringify(cloudData);
@@ -489,6 +496,7 @@
                 
                 // Set last modified to cloud timestamp (we just got fresh data)
                 localStorage.setItem(this.STORAGE_KEY_LAST_MODIFIED, cloudData.timestamp);
+                localStorage.setItem(this.STORAGE_KEY_LAST_SYNC, new Date().toISOString());
                 
                 // Close window
                 appState.impex.isOpen = false;
@@ -509,13 +517,6 @@
                 this.isSyncing = false;
                 
                 console.log('✅ Pull complete - UI updated');
-                
-                // Restart auto-sync
-                setTimeout(() => {
-                    if (this.autoSyncEnabled) {
-                        this.startAutoSync();
-                    }
-                }, 2000);
                 
             } else {
                 console.error(`Pull failed: ${result.error}`);
@@ -819,6 +820,7 @@
                         </div>
                         <div style="font-size: 12px; color: var(--color-10); opacity: 0.8;">
                             Last sync: ${timeAgoStr}<br/>
+                            Next sync: <span id="countdown-display">${this.secondsUntilSync}s</span><br/>
                             ${this.syncMessage ? `Status: ${this.syncMessage}` : ''}
                         </div>
                     </div>
@@ -1032,8 +1034,18 @@
                 manualSyncBtn.disabled = true;
                 manualSyncBtn.textContent = 'SYNCING...';
                 
-                await this.smartSync();
-                onChange();
+                try {
+                    await this.smartSync();
+                    
+                    // Reset countdown after manual sync
+                    this.nextSyncTime = Date.now() + 60000;
+                    this.secondsUntilSync = 60;
+                    
+                    // Trigger UI update
+                    onChange();
+                } catch (error) {
+                    console.error('Manual sync error:', error);
+                }
                 
                 setTimeout(() => {
                     manualSyncBtn.disabled = false;
@@ -1074,6 +1086,23 @@
             cleanupActiveBtn.onmouseout = () => cleanupActiveBtn.style.filter = 'brightness(1)';
             disableBtn.onmouseover = () => disableBtn.style.filter = 'brightness(1.1)';
             disableBtn.onmouseout = () => disableBtn.style.filter = 'brightness(1)';
+            
+            // Update countdown display in real-time
+            const countdownDisplay = container.querySelector('#countdown-display');
+            if (countdownDisplay) {
+                // Update immediately
+                countdownDisplay.textContent = `${this.secondsUntilSync}s`;
+                
+                // Then update every 100ms for smooth countdown
+                const displayInterval = setInterval(() => {
+                    if (countdownDisplay && countdownDisplay.isConnected) {
+                        countdownDisplay.textContent = `${this.secondsUntilSync}s`;
+                    } else {
+                        // Element was removed, clear interval
+                        clearInterval(displayInterval);
+                    }
+                }, 100);
+            }
         },
         
         // ===== MAIN RENDER =====
