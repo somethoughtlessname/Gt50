@@ -322,18 +322,14 @@
         }
         
         function saveState() {
-            // Get existing timestamp to preserve it
+            // Preserve existing timestamp
             let timestamp = new Date().toISOString();
-            const existingStr = localStorage.getItem('gt50-tester-state');
-            if (existingStr) {
+            const existing = localStorage.getItem('gt50-tester-state');
+            if (existing) {
                 try {
-                    const existing = JSON.parse(existingStr);
-                    if (existing.timestamp) {
-                        timestamp = existing.timestamp;
-                    }
-                } catch (e) {
-                    // Use new timestamp if parse fails
-                }
+                    const parsed = JSON.parse(existing);
+                    if (parsed.timestamp) timestamp = parsed.timestamp;
+                } catch (e) {}
             }
             
             const toSave = {
@@ -892,8 +888,6 @@ function renderNestEditWindow() {
     }
 }
     
-        let isInitialLoad = true; // Track if this is the first render
-        
         function render(skipScrollRestore = false) {
             const currentScroll = window.scrollY;
             
@@ -916,15 +910,9 @@ function renderNestEditWindow() {
             
             saveState();
             
-            // Mark as modified if:
-            // 1. Not initial load
-            // 2. Not currently syncing
-            if (!isInitialLoad && GT50Lib.CloudSync && !GT50Lib.CloudSync.isSyncing) {
+            // Mark as modified for cloud sync (isSyncing flag prevents overwrites during sync)
+            if (GT50Lib.CloudSync) {
                 GT50Lib.CloudSync.markAsModified();
-            }
-            
-            if (isInitialLoad) {
-                isInitialLoad = false;
             }
             
             if (!skipScrollRestore) {
