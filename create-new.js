@@ -72,7 +72,9 @@
                 summaryState: {
                     showSummary: false,
                     summaryIncludeChildren: false,
-                    summaryDisplayMode: null
+                    summaryDisplayMode: null,
+                    summaryShowChildNestProgress: false,
+                    summaryChildNestSubdivision: 'first-tab' // 'first-tab' or 'all-tabs'
                 }
             };
         },
@@ -106,6 +108,8 @@ createEntry: function(state, nextId, currentComponents) {
         newEntry.state.showSummary = state.summaryState.showSummary || false;
         newEntry.state.summaryIncludeChildren = state.summaryState.summaryIncludeChildren || false;
         newEntry.state.summaryDisplayMode = state.summaryState.summaryDisplayMode || null;
+        newEntry.state.summaryShowChildNestProgress = state.summaryState.summaryShowChildNestProgress || false;
+        newEntry.state.summaryChildNestSubdivision = state.summaryState.summaryChildNestSubdivision || 'first-tab';
     }
     
     // For custom template, ensure NO tabs are auto-created
@@ -159,7 +163,9 @@ createEntry: function(state, nextId, currentComponents) {
                 state.summaryState = {
                     showSummary: false,
                     summaryIncludeChildren: false,
-                    summaryDisplayMode: null
+                    summaryDisplayMode: null,
+                    summaryShowChildNestProgress: false,
+                    summaryChildNestSubdivision: 'first-tab'
                 };
             }
             this._lastOpenState = true;
@@ -495,6 +501,68 @@ createEntry: function(state, nextId, currentComponents) {
                             cursor: pointer;
                             transition: filter 0.2s;
                         ">Percentage</div>
+                    </div>
+                ` : ''}
+                
+                <!-- Activate Child Nest Summaries Card (Independent) -->
+                <div data-action="toggle-child-nest-progress" style="
+                    background: ${state.summaryState.summaryShowChildNestProgress ? summaryColor : 'var(--color-10)'};
+                    border: var(--border-width) solid var(--border-color);
+                    border-radius: 8px;
+                    height: var(--card-height);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin-bottom: var(--margin);
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 700;
+                    color: ${state.summaryState.summaryShowChildNestProgress ? 'var(--color-10)' : summaryColor};
+                    text-transform: uppercase;
+                    transition: filter 0.2s;
+                ">Activate Child Nest Summaries</div>
+                
+                ${state.summaryState.summaryShowChildNestProgress ? `
+                    <!-- Subdivision Mode Radio (only when child nest progress is active) -->
+                    <div style="
+                        background: var(--color-10);
+                        border: var(--border-width) solid var(--border-color);
+                        border-radius: 8px;
+                        height: var(--card-height);
+                        display: flex;
+                        align-items: center;
+                        overflow: hidden;
+                        margin-bottom: var(--margin);
+                    ">
+                        <div data-action="set-first-tab-subdivision" style="
+                            flex: 1;
+                            height: 100%;
+                            background: ${state.summaryState.summaryChildNestSubdivision === 'first-tab' ? summaryColor : 'var(--color-10)'};
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: ${state.summaryState.summaryChildNestSubdivision === 'first-tab' ? 'var(--color-10)' : summaryColor};
+                            text-transform: uppercase;
+                            cursor: pointer;
+                            border-right: var(--border-width) solid var(--border-color);
+                            transition: filter 0.2s;
+                        ">First Tab</div>
+                        <div data-action="set-all-tabs-subdivision" style="
+                            flex: 1;
+                            height: 100%;
+                            background: ${state.summaryState.summaryChildNestSubdivision === 'all-tabs' ? summaryColor : 'var(--color-10)'};
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: ${state.summaryState.summaryChildNestSubdivision === 'all-tabs' ? 'var(--color-10)' : summaryColor};
+                            text-transform: uppercase;
+                            cursor: pointer;
+                            transition: filter 0.2s;
+                        ">All Tabs</div>
                     </div>
                 ` : ''}
                 
@@ -873,6 +941,37 @@ createEntry: function(state, nextId, currentComponents) {
                     };
                     percentageBtn.onmouseover = () => percentageBtn.style.filter = 'brightness(1.1)';
                     percentageBtn.onmouseout = () => percentageBtn.style.filter = 'brightness(1)';
+                }
+                
+                const childNestProgressBtn = contentContainer.querySelector('[data-action="toggle-child-nest-progress"]');
+                if (childNestProgressBtn) {
+                    childNestProgressBtn.onclick = () => {
+                        state.summaryState.summaryShowChildNestProgress = !state.summaryState.summaryShowChildNestProgress;
+                        onChange();
+                    };
+                    childNestProgressBtn.onmouseover = () => childNestProgressBtn.style.filter = 'brightness(1.1)';
+                    childNestProgressBtn.onmouseout = () => childNestProgressBtn.style.filter = 'brightness(1)';
+                }
+                
+                // Subdivision mode buttons
+                const firstTabBtn = contentContainer.querySelector('[data-action="set-first-tab-subdivision"]');
+                if (firstTabBtn) {
+                    firstTabBtn.onclick = () => {
+                        state.summaryState.summaryChildNestSubdivision = 'first-tab';
+                        onChange();
+                    };
+                    firstTabBtn.onmouseover = () => firstTabBtn.style.filter = 'brightness(1.1)';
+                    firstTabBtn.onmouseout = () => firstTabBtn.style.filter = 'brightness(1)';
+                }
+                
+                const allTabsBtn = contentContainer.querySelector('[data-action="set-all-tabs-subdivision"]');
+                if (allTabsBtn) {
+                    allTabsBtn.onclick = () => {
+                        state.summaryState.summaryChildNestSubdivision = 'all-tabs';
+                        onChange();
+                    };
+                    allTabsBtn.onmouseover = () => allTabsBtn.style.filter = 'brightness(1.1)';
+                    allTabsBtn.onmouseout = () => allTabsBtn.style.filter = 'brightness(1)';
                 }
             }
             

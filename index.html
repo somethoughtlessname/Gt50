@@ -820,12 +820,13 @@ function renderNestEditWindow() {
                     render();
                 },
                 () => {
-                    // onSave - save changes and navigate into cycle in BUILD mode
+                    // onSaveAndClose - for Cycle, just use same as old onSave for now
                     openEditNest.state.editWindow.isOpen = false;
-                    activeMode = 'build';  // Switch to build mode before navigating
+                    activeMode = 'build';
                     saveState();
                     navigateInto(openEditNest.id);
-                }
+                },
+                null  // onSaveAndOpen - not implemented for Cycle yet
             );
         } else {
             GT50Lib.Nest.renderEditWindow(
@@ -856,7 +857,13 @@ function renderNestEditWindow() {
                     render();
                 },
                 () => {
-                    // onSave - save changes and navigate into nest in BUILD mode
+                    // onSaveAndClose - save changes and close (no navigation)
+                    openEditNest.state.editWindow.isOpen = false;
+                    saveState();
+                    render();
+                },
+                () => {
+                    // onSaveAndOpen - save changes and navigate into nest in BUILD mode
                     openEditNest.state.editWindow.isOpen = false;
                     activeMode = 'build';  // Switch to build mode before navigating
                     saveState();
@@ -1012,6 +1019,10 @@ components.forEach(component => {
     console.log('Calling Scale.renderView with color:', currentTabColor);
     GT50Lib.Scale.renderView(componentWrapper, component.state, render, currentTabColor);
 } else if (component.type === 'nest') {
+    // Get parent nest's setting for showing child nest progress
+    const parentShowsChildProgress = currentNest && currentNest.state && currentNest.state.summaryShowChildNestProgress;
+    const parentChildProgressMode = currentNest && currentNest.state && currentNest.state.summaryChildNestProgressMode;
+    
     GT50Lib.Nest.renderView(
         componentWrapper, 
         component.state, 
@@ -1020,7 +1031,9 @@ components.forEach(component => {
         (dir) => moveComponent(component.id, dir),
         () => deleteComponent(component.id),
         render,
-        closeAllNestActions
+        closeAllNestActions,
+        parentShowsChildProgress,
+        parentChildProgressMode
     );
 } else if (component.type === 'cycle') {
     GT50Lib.Cycle.renderView(

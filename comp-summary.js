@@ -8,9 +8,23 @@
     window.GT50Lib.Summary = {
         
         // ===== CALCULATE SUMMARY FOR CURRENT TAB =====
-        calculateSummary: function(nestState) {
-            const activeTab = nestState.tabs.activeViewTab;
-            const components = nestState.tabComponents[activeTab] || [];
+        calculateSummary: function(nestState, mode = 'first-tab', specificTabIndex = null) {
+            // mode can be 'first-tab' or 'all-tabs'
+            // specificTabIndex: if provided, calculate only for that tab (overrides mode)
+            let tabsToProcess = [];
+            
+            if (typeof specificTabIndex === 'number') {
+                // Calculate for a specific tab index (handles 0 correctly)
+                tabsToProcess = [specificTabIndex];
+            } else if (mode === 'all-tabs') {
+                // Process all tabs
+                for (let i = 0; i < nestState.tabComponents.length; i++) {
+                    tabsToProcess.push(i);
+                }
+            } else {
+                // Default: only process active tab (first-tab mode)
+                tabsToProcess = [nestState.tabs.activeViewTab];
+            }
             
             let totalCards = 0;
             let completedValue = 0;
@@ -101,7 +115,11 @@
                 });
             };
             
-            processComponents(components);
+            // Process all selected tabs
+            tabsToProcess.forEach(tabIndex => {
+                const components = nestState.tabComponents[tabIndex] || [];
+                processComponents(components);
+            });
             
             return {
                 totalCards,

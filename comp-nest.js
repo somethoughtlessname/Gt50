@@ -16,6 +16,8 @@
                 },
                 tabComponents: [[]],
                 showSummary: true,
+                summaryShowChildNestProgress: false, // NEW SETTING
+                summaryChildNestProgressMode: 'first-tab', // 'first-tab' or 'all-tabs'
                 editWindow: {
                     isOpen: false
                 },
@@ -224,7 +226,7 @@
         },
         
         // ===== VIEW MODE RENDERER =====
-        renderView: function(container, state, depth, onNavigate, onMove, onDelete, render, closeAllActions) {
+        renderView: function(container, state, depth, onNavigate, onMove, onDelete, render, closeAllActions, parentShowsChildProgress, parentChildProgressMode) {
             const displayName = state.name || 'Nest';
             
             // Use the nest's stored color for view mode
@@ -251,18 +253,137 @@
             const isOpen = state.actionState.isOpen;
             const isDeletePending = state.actionState.deletePending;
             
+            // Calculate progress for child nest fill (if enabled by parent)
+            let showProgressFill = false;
+            let showTabBars = false;
+            let progressPercentage = 0;
+            let progressColor = 'var(--color-4)';
+            let tabProgressData = [];
+            
+            if (parentShowsChildProgress && depth > 0 && GT50Lib.Summary) {
+                // Use parent's mode setting, not our own
+                const mode = parentChildProgressMode || 'first-tab';
+                
+                if (mode === 'tab-bars') {
+                    // Show individual tab bars instead of progress fill
+                    showTabBars = true;
+                    
+                    // Calculate progress for each tab
+                    const numTabs = state.tabs.tabs.length;
+                    
+                    // Special handling for single tab - show one "MAIN" bar
+                    if (numTabs <= 1) {
+                        // Calculate summary for the entire nest (all content)
+                        const tabSummary = GT50Lib.Summary.calculateSummary(state, 'all-tabs');
+                        const tabColor = (numTabs === 1 && state.tabs.tabs[0].color) ? state.tabs.tabs[0].color : 'var(--color-4)';
+                        
+                        let barColor = tabColor;
+                        if (tabSummary.totalCards > 0) {
+                            const difference = Math.abs(tabSummary.completedValue - tabSummary.totalCards);
+                            const isComplete = difference < 0.001;
+                            if (isComplete) {
+                                barColor = '#d4af37';
+                            }
+                        }
+                        
+                        tabProgressData.push({
+                            name: 'MAIN',
+                            percentage: tabSummary.percentage,
+                            color: barColor
+                        });
+                    } else {
+                        // Multiple tabs - show individual bars (max 6)
+                        for (let i = 0; i < Math.min(numTabs, 6); i++) {
+                            const tabSummary = GT50Lib.Summary.calculateSummary(state, 'first-tab', i);
+                            const tabColor = state.tabs.tabs[i].color || 'var(--color-4)';
+                            const tabName = state.tabs.tabs[i].label || state.tabs.tabs[i].name || `Tab ${i + 1}`;
+                            
+                            let barColor = tabColor;
+                            if (tabSummary.totalCards > 0) {
+                                const difference = Math.abs(tabSummary.completedValue - tabSummary.totalCards);
+                                const isComplete = difference < 0.001;
+                                if (isComplete) {
+                                    barColor = '#d4af37';
+                                }
+                            }
+                            
+                            tabProgressData.push({
+                                name: tabName,
+                                percentage: tabSummary.percentage,
+                                color: barColor
+                            });
+                        }
+                    }
+                } else {
+                    // Show progress fill (first-tab or all-tabs mode)
+                    const summary = GT50Lib.Summary.calculateSummary(state, mode);
+                    if (summary.totalCards > 0) {
+                        showProgressFill = true;
+                        progressPercentage = summary.percentage;
+                        
+                        // Check if 100% complete
+                        const difference = Math.abs(summary.completedValue - summary.totalCards);
+                        const isComplete = difference < 0.001;
+                        progressColor = isComplete ? '#d4af37' : 'var(--color-4)';
+                    }
+                }
+            }
+            
             container.innerHTML = `
+                ${showTabBars ? `
+                <style>
+                    /* Tab bar label scrolling animation */
+                    @keyframes ticker-scroll {
+                        0% {
+                            transform: translateX(0);
+                        }
+                        100% {
+                            transform: translateX(-33.333%);
+                        }
+                    }
+                    
+                    .tab-bar-label-text.scroll {
+                        animation: ticker-scroll 12s linear 2s infinite;
+                        white-space: nowrap;
+                        display: inline-block;
+                    }
+                    
+                    .tab-bar-label-text.scroll::before,
+                    .tab-bar-label-text.scroll::after {
+                        content: attr(data-text);
+                        padding-right: 20px;
+                    }
+                    
+                    .tab-bar-label-text.scroll::before {
+                        padding-left: 0px;
+                    }
+                </style>
+                ` : ''}
                 <div class="nest-view-card" style="
                     background: ${nestColor};
                     border: var(--border-width) solid var(--border-color);
                     border-radius: 8px;
                     height: var(--card-height);
                     display: flex;
-                    align-items: center;
-                    overflow: hidden;
+                    ${showTabBars ? 'flex-direction: column;' : 'align-items: center;'}
+                    overflow: ${showTabBars ? 'visible' : 'hidden'};
                     margin-bottom: var(--margin);
                     position: relative;
                 ">
+                    <!-- Progress Fill Layer (for child nests when parent enables it) -->
+                    ${showProgressFill ? `
+                        <div style="
+                            position: absolute;
+                            top: 0;
+                            left: 0;
+                            height: 100%;
+                            width: ${Math.min(100, progressPercentage)}%;
+                            background: ${progressColor};
+                            pointer-events: none;
+                            z-index: 0;
+                        "></div>
+                    ` : ''}
+                    
                     <!-- Action Sections Overlay -->
                     <div class="action-sections" style="
                         position: absolute;
@@ -362,13 +483,12 @@
                     
                     <!-- Main Content -->
                     <div data-action="navigate" style="
-                        flex: 1;
-                        height: 100%;
+                        ${showTabBars ? 'flex: 1;' : 'flex: 1; height: 100%;'}
                         display: flex;
                         align-items: center;
                         justify-content: center;
                         cursor: pointer;
-                        font-size: 16px;
+                        font-size: ${showTabBars ? '11px' : '16px'};
                         font-weight: 600;
                         color: var(--color-10);
                         transition: opacity 0.2s, filter 0.2s;
@@ -376,6 +496,63 @@
                         z-index: 1;
                         opacity: ${isOpen ? '0.3' : '1'};
                     ">${displayName}</div>
+                    
+                    ${showTabBars ? `
+                        <!-- Tab Progress Bars -->
+                        <div style="
+                            height: 22px;
+                            display: flex;
+                            gap: var(--margin);
+                            padding: 0 var(--margin) var(--margin) var(--margin);
+                        ">
+                            ${tabProgressData.map(tab => `
+                                <div style="
+                                    flex: 1;
+                                    background: var(--bg-1);
+                                    border: var(--border-width) solid var(--border-color);
+                                    border-radius: 4px;
+                                    position: relative;
+                                    overflow: hidden;
+                                ">
+                                    <div style="
+                                        background: var(--bg-1);
+                                        height: 100%;
+                                        position: relative;
+                                    ">
+                                        <div style="
+                                            position: absolute;
+                                            top: 0;
+                                            left: 0;
+                                            height: 100%;
+                                            width: ${Math.min(100, tab.percentage)}%;
+                                            background: ${tab.color};
+                                            transition: width 0.3s ease;
+                                        "></div>
+                                        <div class="tab-bar-label" style="
+                                            position: absolute;
+                                            top: 0;
+                                            left: 0;
+                                            width: 100%;
+                                            height: 100%;
+                                            display: flex;
+                                            align-items: center;
+                                            justify-content: center;
+                                            font-size: 8px;
+                                            font-weight: 700;
+                                            color: var(--color-10);
+                                            text-transform: uppercase;
+                                            letter-spacing: 0.5px;
+                                            z-index: 1;
+                                            overflow: hidden;
+                                            white-space: nowrap;
+                                        ">
+                                            <span class="tab-bar-label-text" data-text="${tab.name}" style="white-space: nowrap;">${tab.name}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
                 </div>
             `;
             
@@ -552,10 +729,32 @@
                     if (render) render();
                 };
             }
+            
+            // Add scroll animation for long tab names in tab bars mode
+            if (showTabBars) {
+                // Use setTimeout to ensure DOM is ready
+                setTimeout(() => {
+                    const labels = container.querySelectorAll('.tab-bar-label-text');
+                    labels.forEach(label => {
+                        const parent = label.closest('.tab-bar-label');
+                        if (!parent) return;
+                        
+                        // Measure if text overflows
+                        const textWidth = label.scrollWidth;
+                        const containerWidth = parent.offsetWidth;
+                        
+                        if (textWidth > containerWidth) {
+                            label.classList.add('scroll');
+                            // Override centering for scrolling parent
+                            parent.style.justifyContent = 'flex-start';
+                        }
+                    });
+                }, 0);
+            }
         },
         
         // ===== EDIT WINDOW RENDERER =====
-        renderEditWindow: function(container, state, onChange, onClose, onSave) {
+        renderEditWindow: function(container, state, onChange, onClose, onSaveAndClose, onSaveAndOpen) {
             if (!state.editWindow || !state.editWindow.isOpen) {
                 container.innerHTML = '';
                 container.style.display = 'none';
@@ -916,6 +1115,16 @@
                     state.summaryDisplayMode = null;
                 }
                 
+                // Initialize new setting if not set
+                if (state.summaryShowChildNestProgress === undefined) {
+                    state.summaryShowChildNestProgress = false;
+                }
+                
+                // Initialize mode if not set
+                if (state.summaryChildNestProgressMode === undefined) {
+                    state.summaryChildNestProgressMode = 'first-tab';
+                }
+                
                 summaryContainer.innerHTML = `
                     <!-- Summary Activation Card -->
                     <div data-action="toggle-summary" style="
@@ -998,6 +1207,88 @@
                             ">Percentage</div>
                         </div>
                     ` : ''}
+                    
+                    <!-- Activate Child Nest Summaries Card (Independent) -->
+                    <div data-action="toggle-child-nest-progress" style="
+                        background: ${state.summaryShowChildNestProgress ? summaryColor : 'var(--color-10)'};
+                        border: var(--border-width) solid var(--border-color);
+                        border-radius: 8px;
+                        height: var(--card-height);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        margin-bottom: var(--margin);
+                        cursor: pointer;
+                        font-size: 14px;
+                        font-weight: 700;
+                        color: ${state.summaryShowChildNestProgress ? 'var(--color-10)' : summaryColor};
+                        text-transform: uppercase;
+                        transition: filter 0.2s;
+                    ">Activate Child Nest Summaries</div>
+                    
+                    ${state.summaryShowChildNestProgress ? `
+                        <!-- Child Nest Progress Mode Card -->
+                        <div style="
+                            background: var(--color-10);
+                            border: var(--border-width) solid var(--border-color);
+                            border-radius: 8px;
+                            height: var(--card-height);
+                            display: flex;
+                            align-items: center;
+                            overflow: hidden;
+                            margin-bottom: var(--margin);
+                        ">
+                            <!-- First Tab Only -->
+                            <div data-action="set-first-tab-mode" style="
+                                flex: 1;
+                                height: 100%;
+                                background: ${state.summaryChildNestProgressMode === 'first-tab' ? summaryColor : 'var(--color-10)'};
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-size: 10px;
+                                font-weight: 700;
+                                color: ${state.summaryChildNestProgressMode === 'first-tab' ? 'var(--color-10)' : summaryColor};
+                                text-transform: uppercase;
+                                cursor: pointer;
+                                border-right: var(--border-width) solid var(--border-color);
+                                transition: filter 0.2s;
+                            ">First Tab</div>
+                            
+                            <!-- All Tabs -->
+                            <div data-action="set-all-tabs-mode" style="
+                                flex: 1;
+                                height: 100%;
+                                background: ${state.summaryChildNestProgressMode === 'all-tabs' ? summaryColor : 'var(--color-10)'};
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-size: 10px;
+                                font-weight: 700;
+                                color: ${state.summaryChildNestProgressMode === 'all-tabs' ? 'var(--color-10)' : summaryColor};
+                                text-transform: uppercase;
+                                cursor: pointer;
+                                border-right: var(--border-width) solid var(--border-color);
+                                transition: filter 0.2s;
+                            ">All Tabs</div>
+                            
+                            <!-- Tab Bars -->
+                            <div data-action="set-tab-bars-mode" style="
+                                flex: 1;
+                                height: 100%;
+                                background: ${state.summaryChildNestProgressMode === 'tab-bars' ? summaryColor : 'var(--color-10)'};
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-size: 10px;
+                                font-weight: 700;
+                                color: ${state.summaryChildNestProgressMode === 'tab-bars' ? 'var(--color-10)' : summaryColor};
+                                text-transform: uppercase;
+                                cursor: pointer;
+                                transition: filter 0.2s;
+                            ">Tab Bars</div>
+                        </div>
+                    ` : ''}
                 `;
                 
                 // Summary activation handler
@@ -1044,6 +1335,48 @@
                     };
                     percentageBtn.onmouseover = () => percentageBtn.style.filter = 'brightness(1.1)';
                     percentageBtn.onmouseout = () => percentageBtn.style.filter = 'brightness(1)';
+                }
+                
+                // NEW: Child nest progress handler
+                const childNestProgressBtn = summaryContainer.querySelector('[data-action="toggle-child-nest-progress"]');
+                if (childNestProgressBtn) {
+                    childNestProgressBtn.onclick = () => {
+                        state.summaryShowChildNestProgress = !state.summaryShowChildNestProgress;
+                        onChange();
+                    };
+                    childNestProgressBtn.onmouseover = () => childNestProgressBtn.style.filter = 'brightness(1.1)';
+                    childNestProgressBtn.onmouseout = () => childNestProgressBtn.style.filter = 'brightness(1)';
+                }
+                
+                // NEW: Child nest progress mode handlers
+                const firstTabModeBtn = summaryContainer.querySelector('[data-action="set-first-tab-mode"]');
+                if (firstTabModeBtn) {
+                    firstTabModeBtn.onclick = () => {
+                        state.summaryChildNestProgressMode = 'first-tab';
+                        onChange();
+                    };
+                    firstTabModeBtn.onmouseover = () => firstTabModeBtn.style.filter = 'brightness(1.1)';
+                    firstTabModeBtn.onmouseout = () => firstTabModeBtn.style.filter = 'brightness(1)';
+                }
+                
+                const allTabsModeBtn = summaryContainer.querySelector('[data-action="set-all-tabs-mode"]');
+                if (allTabsModeBtn) {
+                    allTabsModeBtn.onclick = () => {
+                        state.summaryChildNestProgressMode = 'all-tabs';
+                        onChange();
+                    };
+                    allTabsModeBtn.onmouseover = () => allTabsModeBtn.style.filter = 'brightness(1.1)';
+                    allTabsModeBtn.onmouseout = () => allTabsModeBtn.style.filter = 'brightness(1)';
+                }
+                
+                const tabBarsModeBtn = summaryContainer.querySelector('[data-action="set-tab-bars-mode"]');
+                if (tabBarsModeBtn) {
+                    tabBarsModeBtn.onclick = () => {
+                        state.summaryChildNestProgressMode = 'tab-bars';
+                        onChange();
+                    };
+                    tabBarsModeBtn.onmouseover = () => tabBarsModeBtn.style.filter = 'brightness(1.1)';
+                    tabBarsModeBtn.onmouseout = () => tabBarsModeBtn.style.filter = 'brightness(1)';
                 }
             }
             
@@ -1099,13 +1432,14 @@
                     font-weight: 700;
                     color: var(--color-10);
                     cursor: pointer;
-                    transition: filter 0.2s;
+                    text-transform: uppercase;
                     font-family: inherit;
-                ">CANCEL</button>
-                <button data-action="save-close" ${!canSave ? 'disabled' : ''} style="
+                    transition: filter 0.2s;
+                ">Cancel</button>
+                <button data-action="save" style="
                     flex: 1;
                     height: 100%;
-                    background: ${canSave ? 'var(--color-6)' : 'var(--bg-4)'};
+                    background: ${canSave ? 'var(--color-4)' : 'var(--color-9)'};
                     border: none;
                     border-right: var(--border-width) solid var(--border-color);
                     display: flex;
@@ -1113,75 +1447,57 @@
                     justify-content: center;
                     font-size: 14px;
                     font-weight: 700;
-                    color: ${canSave ? 'var(--color-10)' : 'var(--color-9)'};
+                    color: var(--color-10);
                     cursor: ${canSave ? 'pointer' : 'not-allowed'};
-                    transition: filter 0.2s;
+                    text-transform: uppercase;
                     font-family: inherit;
-                ">SAVE & CLOSE</button>
-                <button data-action="save-open" ${!canSave ? 'disabled' : ''} style="
+                    transition: filter 0.2s;
+                    opacity: ${canSave ? '1' : '0.5'};
+                ">Save</button>
+                <button data-action="save-and-open" style="
                     flex: 1;
                     height: 100%;
-                    background: ${canSave ? 'var(--color-4)' : 'var(--bg-4)'};
+                    background: ${canSave ? 'var(--color-4)' : 'var(--color-9)'};
                     border: none;
                     display: flex;
+                    flex-direction: column;
                     align-items: center;
                     justify-content: center;
-                    font-size: 14px;
+                    font-size: 11px;
                     font-weight: 700;
-                    color: ${canSave ? 'var(--color-10)' : 'var(--color-9)'};
+                    color: var(--color-10);
                     cursor: ${canSave ? 'pointer' : 'not-allowed'};
-                    transition: filter 0.2s;
+                    text-transform: uppercase;
                     font-family: inherit;
-                ">SAVE & OPEN</button>
+                    transition: filter 0.2s;
+                    opacity: ${canSave ? '1' : '0.5'};
+                    line-height: 1.2;
+                ">
+                    <div>Save</div>
+                    <div>and Open</div>
+                </button>
             `;
             
+            // Footer handlers
             const cancelBtn = footerContainer.querySelector('[data-action="cancel"]');
-            if (cancelBtn) {
-                cancelBtn.onclick = () => {
-                    // Close without saving - just reset the window
-                    state.editWindow.isOpen = false;
-                    delete state.editWindow.tempName;
-                    delete state.editWindow.tempColorIndex;
-                    delete state.editWindow.tempType;
-                    onChange();
-                };
-                cancelBtn.onmouseover = () => cancelBtn.style.filter = 'brightness(1.2)';
+            if (cancelBtn && onClose) {
+                cancelBtn.onclick = onClose;
+                cancelBtn.onmouseover = () => cancelBtn.style.filter = 'brightness(1.1)';
                 cancelBtn.onmouseout = () => cancelBtn.style.filter = 'brightness(1)';
             }
             
-            const saveCloseBtn = footerContainer.querySelector('[data-action="save-close"]');
-            if (saveCloseBtn && canSave) {
-                saveCloseBtn.onclick = () => {
-                    state.name = state.editWindow.tempName.trim();
-                    state.color = GT50Lib.CreateNew.colors[state.editWindow.tempColorIndex].name;
-                    // Note: tempType conversion would need to be handled by parent component
-                    // Store it in state for now
-                    state._pendingTypeChange = state.editWindow.tempType;
-                    state.editWindow.isOpen = false;
-                    delete state.editWindow.tempName;
-                    delete state.editWindow.tempColorIndex;
-                    delete state.editWindow.tempType;
-                    onChange();
-                };
-                saveCloseBtn.onmouseover = () => saveCloseBtn.style.filter = 'brightness(1.2)';
-                saveCloseBtn.onmouseout = () => saveCloseBtn.style.filter = 'brightness(1)';
+            const saveBtn = footerContainer.querySelector('[data-action="save"]');
+            if (saveBtn && onSaveAndClose && canSave) {
+                saveBtn.onclick = onSaveAndClose;
+                saveBtn.onmouseover = () => saveBtn.style.filter = 'brightness(1.1)';
+                saveBtn.onmouseout = () => saveBtn.style.filter = 'brightness(1)';
             }
             
-            const saveOpenBtn = footerContainer.querySelector('[data-action="save-open"]');
-            if (saveOpenBtn && canSave) {
-                saveOpenBtn.onclick = () => {
-                    state.name = state.editWindow.tempName.trim();
-                    state.color = GT50Lib.CreateNew.colors[state.editWindow.tempColorIndex].name;
-                    // Note: tempType conversion would need to be handled by parent component
-                    // Store it in state for now
-                    state._pendingTypeChange = state.editWindow.tempType;
-                    delete state.editWindow.tempName;
-                    delete state.editWindow.tempColorIndex;
-                    delete state.editWindow.tempType;
-                    onSave();
-                };
-                saveOpenBtn.onmouseover = () => saveOpenBtn.style.filter = 'brightness(1.2)';
-                saveOpenBtn.onmouseout = () => saveOpenBtn.style.filter = 'brightness(1)';
+            const saveAndOpenBtn = footerContainer.querySelector('[data-action="save-and-open"]');
+            if (saveAndOpenBtn && onSaveAndOpen && canSave) {
+                saveAndOpenBtn.onclick = onSaveAndOpen;
+                saveAndOpenBtn.onmouseover = () => saveAndOpenBtn.style.filter = 'brightness(1.1)';
+                saveAndOpenBtn.onmouseout = () => saveAndOpenBtn.style.filter = 'brightness(1)';
             }
         }
     };
