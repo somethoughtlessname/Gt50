@@ -305,17 +305,24 @@
                             justify-content: center;
                         ">
                             <div style="
-                                font-size: 8px;
+                                flex: 1;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-size: 12px;
                                 font-weight: 600;
                                 color: var(--color-10);
                                 line-height: 1;
                             ">${state.title || 'Progress'}</div>
                             <div style="
-                                font-size: 18px;
+                                flex: 1;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-size: 12px;
                                 font-weight: 700;
                                 color: var(--color-10);
                                 line-height: 1;
-                                margin-top: 2px;
                             ">${state.current} / ${state.total}</div>
                         </div>
                     </div>

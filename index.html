@@ -416,7 +416,12 @@
                 }
                 
                 if (currentNest.state.tabs.tabs.length > 0) {
-                    currentNest.state.tabs.activeViewTab = 0;
+                    // Only reset if activeViewTab is invalid (out of bounds)
+                    // This preserves tab selection when clicking tab bars
+                    if (currentNest.state.tabs.activeViewTab >= currentNest.state.tabs.tabs.length) {
+                        currentNest.state.tabs.activeViewTab = 0;
+                    }
+                    // Always reset build tab to 0
                     currentNest.state.tabs.selectedBuildTab = 0;
                 }
                 

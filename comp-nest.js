@@ -271,11 +271,12 @@
                     // Calculate progress for each tab
                     const numTabs = state.tabs.tabs.length;
                     
-                    // Special handling for single tab - show one "MAIN" bar
+                    // Special handling for single tab - show one bar with tab name
                     if (numTabs <= 1) {
                         // Calculate summary for the entire nest (all content)
                         const tabSummary = GT50Lib.Summary.calculateSummary(state, 'all-tabs');
                         const tabColor = (numTabs === 1 && state.tabs.tabs[0].color) ? state.tabs.tabs[0].color : 'var(--color-4)';
+                        const tabName = (numTabs === 1) ? (state.tabs.tabs[0].name || state.tabs.tabs[0].label || 'MAIN') : 'MAIN';
                         
                         let barColor = tabColor;
                         if (tabSummary.totalCards > 0) {
@@ -287,7 +288,7 @@
                         }
                         
                         tabProgressData.push({
-                            name: 'MAIN',
+                            name: tabName,
                             percentage: tabSummary.percentage,
                             color: barColor
                         });
@@ -296,7 +297,7 @@
                         for (let i = 0; i < Math.min(numTabs, 6); i++) {
                             const tabSummary = GT50Lib.Summary.calculateSummary(state, 'first-tab', i);
                             const tabColor = state.tabs.tabs[i].color || 'var(--color-4)';
-                            const tabName = state.tabs.tabs[i].label || state.tabs.tabs[i].name || `Tab ${i + 1}`;
+                            const tabName = state.tabs.tabs[i].name || state.tabs.tabs[i].label || `Tab ${i + 1}`;
                             
                             let barColor = tabColor;
                             if (tabSummary.totalCards > 0) {
@@ -362,12 +363,12 @@
                 <div class="nest-view-card" style="
                     background: ${nestColor};
                     border: var(--border-width) solid var(--border-color);
-                    border-radius: 8px;
+                    border-radius: ${showTabBars ? '8px 8px 0 0' : '8px'};
                     height: var(--card-height);
                     display: flex;
-                    ${showTabBars ? 'flex-direction: column;' : 'align-items: center;'}
-                    overflow: ${showTabBars ? 'visible' : 'hidden'};
-                    margin-bottom: var(--margin);
+                    align-items: center;
+                    overflow: hidden;
+                    margin-bottom: ${showTabBars ? '0' : 'var(--margin)'};
                     position: relative;
                 ">
                     <!-- Progress Fill Layer (for child nests when parent enables it) -->
@@ -483,12 +484,13 @@
                     
                     <!-- Main Content -->
                     <div data-action="navigate" style="
-                        ${showTabBars ? 'flex: 1;' : 'flex: 1; height: 100%;'}
+                        flex: 1;
+                        height: 100%;
                         display: flex;
                         align-items: center;
                         justify-content: center;
                         cursor: pointer;
-                        font-size: ${showTabBars ? '11px' : '16px'};
+                        font-size: 16px;
                         font-weight: 600;
                         color: var(--color-10);
                         transition: opacity 0.2s, filter 0.2s;
@@ -496,64 +498,74 @@
                         z-index: 1;
                         opacity: ${isOpen ? '0.3' : '1'};
                     ">${displayName}</div>
-                    
-                    ${showTabBars ? `
-                        <!-- Tab Progress Bars -->
-                        <div style="
-                            height: 22px;
-                            display: flex;
-                            gap: var(--margin);
-                            padding: 0 var(--margin) var(--margin) var(--margin);
-                        ">
-                            ${tabProgressData.map(tab => `
+                </div>
+                
+                ${showTabBars ? `
+                    <!-- Tab Bars Dropdown Card (Attached) -->
+                    <div style="
+                        background: var(--bg-2);
+                        border: var(--border-width) solid var(--border-color);
+                        border-top: none;
+                        border-radius: 0 0 8px 8px;
+                        margin-top: calc(var(--border-width) * -1);
+                        margin-bottom: var(--margin);
+                        height: calc(var(--card-height) + 7px);
+                        padding: 0 var(--margin);
+                        display: flex;
+                        align-items: center;
+                        gap: var(--margin);
+                    ">
+                        ${tabProgressData.map((tab, tabIndex) => `
+                            <div class="tab-bar-clickable" data-tab-index="${tabIndex}" style="
+                                flex: 1;
+                                height: 22.5px;
+                                background: var(--bg-1);
+                                border: var(--border-width) solid var(--border-color);
+                                border-radius: 8px;
+                                position: relative;
+                                overflow: hidden;
+                                cursor: pointer;
+                                transition: filter 0.2s;
+                            ">
                                 <div style="
-                                    flex: 1;
                                     background: var(--bg-1);
-                                    border: var(--border-width) solid var(--border-color);
-                                    border-radius: 4px;
+                                    height: 100%;
                                     position: relative;
-                                    overflow: hidden;
                                 ">
                                     <div style="
-                                        background: var(--bg-1);
+                                        position: absolute;
+                                        top: 0;
+                                        left: 0;
                                         height: 100%;
-                                        position: relative;
+                                        width: ${Math.min(100, tab.percentage)}%;
+                                        background: ${tab.color};
+                                        transition: width 0.3s ease;
+                                    "></div>
+                                    <div class="tab-bar-label" style="
+                                        position: absolute;
+                                        top: 0;
+                                        left: 0;
+                                        width: 100%;
+                                        height: 100%;
+                                        display: flex;
+                                        align-items: center;
+                                        justify-content: center;
+                                        font-size: 9px;
+                                        font-weight: 700;
+                                        color: var(--color-10);
+                                        text-transform: uppercase;
+                                        letter-spacing: 0.5px;
+                                        z-index: 1;
+                                        overflow: hidden;
+                                        white-space: nowrap;
                                     ">
-                                        <div style="
-                                            position: absolute;
-                                            top: 0;
-                                            left: 0;
-                                            height: 100%;
-                                            width: ${Math.min(100, tab.percentage)}%;
-                                            background: ${tab.color};
-                                            transition: width 0.3s ease;
-                                        "></div>
-                                        <div class="tab-bar-label" style="
-                                            position: absolute;
-                                            top: 0;
-                                            left: 0;
-                                            width: 100%;
-                                            height: 100%;
-                                            display: flex;
-                                            align-items: center;
-                                            justify-content: center;
-                                            font-size: 8px;
-                                            font-weight: 700;
-                                            color: var(--color-10);
-                                            text-transform: uppercase;
-                                            letter-spacing: 0.5px;
-                                            z-index: 1;
-                                            overflow: hidden;
-                                            white-space: nowrap;
-                                        ">
-                                            <span class="tab-bar-label-text" data-text="${tab.name}" style="white-space: nowrap;">${tab.name}</span>
-                                        </div>
+                                        <span class="tab-bar-label-text" data-text="${tab.name}" style="white-space: nowrap;">${tab.name}</span>
                                     </div>
                                 </div>
-                            `).join('')}
-                        </div>
-                    ` : ''}
-                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
             `;
             
             // ===== EVENT LISTENERS =====
@@ -748,6 +760,31 @@
                             // Override centering for scrolling parent
                             parent.style.justifyContent = 'flex-start';
                         }
+                    });
+                    
+                    // Add click handlers to navigate to specific tab
+                    const clickableBars = container.querySelectorAll('.tab-bar-clickable');
+                    clickableBars.forEach(bar => {
+                        const tabIndex = parseInt(bar.dataset.tabIndex);
+                        
+                        bar.onclick = () => {
+                            // Set the active tab before navigating
+                            state.tabs.activeViewTab = tabIndex;
+                            // Render to persist state change, then navigate
+                            if (render) {
+                                render();
+                                // Use setTimeout to ensure state is saved before navigation
+                                setTimeout(() => {
+                                    if (onNavigate) onNavigate();
+                                }, 0);
+                            } else {
+                                if (onNavigate) onNavigate();
+                            }
+                        };
+                        
+                        // Add hover effect
+                        bar.onmouseover = () => bar.style.filter = 'brightness(1.2)';
+                        bar.onmouseout = () => bar.style.filter = 'brightness(1)';
                     });
                 }, 0);
             }
@@ -1126,6 +1163,41 @@
                 }
                 
                 summaryContainer.innerHTML = `
+                    <!-- Parent Nest Summary Divider -->
+                    <div class="divider" style="
+                        height: var(--card-height);
+                        background: transparent;
+                        border: var(--border-width) solid rgba(0, 0, 0, 0.0);
+                        border-radius: 8px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        margin-bottom: var(--margin);
+                        position: relative;
+                    ">
+                        <div style="
+                            position: absolute;
+                            top: 50%;
+                            left: calc(var(--border-width) * -1);
+                            right: calc(var(--border-width) * -1);
+                            height: var(--border-width);
+                            background: var(--border-color);
+                            transform: translateY(-50%);
+                            z-index: 1;
+                        "></div>
+                        <div style="
+                            background: var(--bg-2);
+                            padding: 0 12px;
+                            font-size: 12px;
+                            font-weight: 700;
+                            color: var(--font-color-3);
+                            text-transform: uppercase;
+                            letter-spacing: 0.5px;
+                            position: relative;
+                            z-index: 2;
+                        ">PARENT NEST SUMMARY</div>
+                    </div>
+                    
                     <!-- Summary Activation Card -->
                     <div data-action="toggle-summary" style="
                         background: ${state.showSummary ? summaryColor : 'var(--color-10)'};
@@ -1133,16 +1205,28 @@
                         border-radius: 8px;
                         height: var(--card-height);
                         display: flex;
+                        flex-direction: column;
                         align-items: center;
                         justify-content: center;
                         margin-bottom: var(--margin);
                         cursor: pointer;
-                        font-size: 14px;
-                        font-weight: 700;
-                        color: ${state.showSummary ? 'var(--color-10)' : summaryColor};
-                        text-transform: uppercase;
                         transition: filter 0.2s;
-                    ">Activate Summary Card</div>
+                    ">
+                        <div style="
+                            font-size: 12px;
+                            font-weight: 700;
+                            color: ${state.showSummary ? 'var(--color-10)' : summaryColor};
+                            text-transform: uppercase;
+                        ">Activate Summary Card</div>
+                        <div style="
+                            font-size: 7px;
+                            color: ${state.showSummary ? 'var(--color-10)' : summaryColor};
+                            opacity: 0.7;
+                            margin-top: 2px;
+                            text-align: center;
+                            line-height: 1.2;
+                        ">Shows summary with counts & completion</div>
+                    </div>
                     
                     ${state.showSummary ? `
                         <!-- Summary Options Card (only visible when summary is active) -->
@@ -1162,16 +1246,30 @@
                                 height: 100%;
                                 background: ${state.summaryIncludeChildren ? summaryColor : 'var(--color-10)'};
                                 display: flex;
+                                flex-direction: column;
                                 align-items: center;
                                 justify-content: center;
-                                font-size: 11px;
-                                font-weight: 700;
-                                color: ${state.summaryIncludeChildren ? 'var(--color-10)' : summaryColor};
-                                text-transform: uppercase;
                                 cursor: pointer;
                                 border-right: var(--border-width) solid var(--border-color);
                                 transition: filter 0.2s;
-                            ">Track Child Nest Cards</div>
+                                padding: 4px;
+                            ">
+                                <div style="
+                                    font-size: 9px;
+                                    font-weight: 700;
+                                    color: ${state.summaryIncludeChildren ? 'var(--color-10)' : summaryColor};
+                                    text-transform: uppercase;
+                                    text-align: center;
+                                ">Track Child Nest Cards</div>
+                                <div style="
+                                    font-size: 6px;
+                                    color: ${state.summaryIncludeChildren ? 'var(--color-10)' : summaryColor};
+                                    opacity: 0.7;
+                                    margin-top: 2px;
+                                    text-align: center;
+                                    line-height: 1.2;
+                                ">Include nested sections</div>
+                            </div>
                             
                             <!-- XX/YY Display -->
                             <div data-action="set-value-display" style="
@@ -1179,16 +1277,30 @@
                                 height: 100%;
                                 background: ${state.summaryDisplayMode === 'value' ? summaryColor : 'var(--color-10)'};
                                 display: flex;
+                                flex-direction: column;
                                 align-items: center;
                                 justify-content: center;
-                                font-size: 11px;
-                                font-weight: 700;
-                                color: ${state.summaryDisplayMode === 'value' ? 'var(--color-10)' : summaryColor};
-                                text-transform: uppercase;
                                 border-right: var(--border-width) solid var(--border-color);
                                 cursor: pointer;
                                 transition: filter 0.2s;
-                            ">XX/YY</div>
+                                padding: 4px;
+                            ">
+                                <div style="
+                                    font-size: 9px;
+                                    font-weight: 700;
+                                    color: ${state.summaryDisplayMode === 'value' ? 'var(--color-10)' : summaryColor};
+                                    text-transform: uppercase;
+                                    text-align: center;
+                                ">XX/YY</div>
+                                <div style="
+                                    font-size: 6px;
+                                    color: ${state.summaryDisplayMode === 'value' ? 'var(--color-10)' : summaryColor};
+                                    opacity: 0.7;
+                                    margin-top: 2px;
+                                    text-align: center;
+                                    line-height: 1.2;
+                                ">5/10 format</div>
+                            </div>
                             
                             <!-- Percentage Display -->
                             <div data-action="set-percentage-display" style="
@@ -1196,17 +1308,66 @@
                                 height: 100%;
                                 background: ${state.summaryDisplayMode === 'percentage' ? summaryColor : 'var(--color-10)'};
                                 display: flex;
+                                flex-direction: column;
                                 align-items: center;
                                 justify-content: center;
-                                font-size: 11px;
-                                font-weight: 700;
-                                color: ${state.summaryDisplayMode === 'percentage' ? 'var(--color-10)' : summaryColor};
-                                text-transform: uppercase;
                                 cursor: pointer;
                                 transition: filter 0.2s;
-                            ">Percentage</div>
+                                padding: 4px;
+                            ">
+                                <div style="
+                                    font-size: 9px;
+                                    font-weight: 700;
+                                    color: ${state.summaryDisplayMode === 'percentage' ? 'var(--color-10)' : summaryColor};
+                                    text-transform: uppercase;
+                                    text-align: center;
+                                ">Percentage</div>
+                                <div style="
+                                    font-size: 6px;
+                                    color: ${state.summaryDisplayMode === 'percentage' ? 'var(--color-10)' : summaryColor};
+                                    opacity: 0.7;
+                                    margin-top: 2px;
+                                    text-align: center;
+                                    line-height: 1.2;
+                                ">50% format</div>
+                            </div>
                         </div>
                     ` : ''}
+                    
+                    <!-- Child Nest Summary Divider -->
+                    <div class="divider" style="
+                        height: var(--card-height);
+                        background: transparent;
+                        border: var(--border-width) solid rgba(0, 0, 0, 0.0);
+                        border-radius: 8px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        margin-bottom: var(--margin);
+                        position: relative;
+                    ">
+                        <div style="
+                            position: absolute;
+                            top: 50%;
+                            left: calc(var(--border-width) * -1);
+                            right: calc(var(--border-width) * -1);
+                            height: var(--border-width);
+                            background: var(--border-color);
+                            transform: translateY(-50%);
+                            z-index: 1;
+                        "></div>
+                        <div style="
+                            background: var(--bg-2);
+                            padding: 0 12px;
+                            font-size: 12px;
+                            font-weight: 700;
+                            color: var(--font-color-3);
+                            text-transform: uppercase;
+                            letter-spacing: 0.5px;
+                            position: relative;
+                            z-index: 2;
+                        ">CHILD NEST SUMMARY</div>
+                    </div>
                     
                     <!-- Activate Child Nest Summaries Card (Independent) -->
                     <div data-action="toggle-child-nest-progress" style="
@@ -1215,16 +1376,28 @@
                         border-radius: 8px;
                         height: var(--card-height);
                         display: flex;
+                        flex-direction: column;
                         align-items: center;
                         justify-content: center;
                         margin-bottom: var(--margin);
                         cursor: pointer;
-                        font-size: 14px;
-                        font-weight: 700;
-                        color: ${state.summaryShowChildNestProgress ? 'var(--color-10)' : summaryColor};
-                        text-transform: uppercase;
                         transition: filter 0.2s;
-                    ">Activate Child Nest Summaries</div>
+                    ">
+                        <div style="
+                            font-size: 12px;
+                            font-weight: 700;
+                            color: ${state.summaryShowChildNestProgress ? 'var(--color-10)' : summaryColor};
+                            text-transform: uppercase;
+                        ">Activate Child Nest Summaries</div>
+                        <div style="
+                            font-size: 7px;
+                            color: ${state.summaryShowChildNestProgress ? 'var(--color-10)' : summaryColor};
+                            opacity: 0.7;
+                            margin-top: 2px;
+                            text-align: center;
+                            line-height: 1.2;
+                        ">Show progress on child nest cards</div>
+                    </div>
                     
                     ${state.summaryShowChildNestProgress ? `
                         <!-- Child Nest Progress Mode Card -->
@@ -1244,16 +1417,30 @@
                                 height: 100%;
                                 background: ${state.summaryChildNestProgressMode === 'first-tab' ? summaryColor : 'var(--color-10)'};
                                 display: flex;
+                                flex-direction: column;
                                 align-items: center;
                                 justify-content: center;
-                                font-size: 10px;
-                                font-weight: 700;
-                                color: ${state.summaryChildNestProgressMode === 'first-tab' ? 'var(--color-10)' : summaryColor};
-                                text-transform: uppercase;
                                 cursor: pointer;
                                 border-right: var(--border-width) solid var(--border-color);
                                 transition: filter 0.2s;
-                            ">First Tab</div>
+                                padding: 4px;
+                            ">
+                                <div style="
+                                    font-size: 9px;
+                                    font-weight: 700;
+                                    color: ${state.summaryChildNestProgressMode === 'first-tab' ? 'var(--color-10)' : summaryColor};
+                                    text-transform: uppercase;
+                                    text-align: center;
+                                ">First Tab</div>
+                                <div style="
+                                    font-size: 6px;
+                                    color: ${state.summaryChildNestProgressMode === 'first-tab' ? 'var(--color-10)' : summaryColor};
+                                    opacity: 0.7;
+                                    margin-top: 2px;
+                                    text-align: center;
+                                    line-height: 1.2;
+                                ">Progress fill only</div>
+                            </div>
                             
                             <!-- All Tabs -->
                             <div data-action="set-all-tabs-mode" style="
@@ -1261,16 +1448,30 @@
                                 height: 100%;
                                 background: ${state.summaryChildNestProgressMode === 'all-tabs' ? summaryColor : 'var(--color-10)'};
                                 display: flex;
+                                flex-direction: column;
                                 align-items: center;
                                 justify-content: center;
-                                font-size: 10px;
-                                font-weight: 700;
-                                color: ${state.summaryChildNestProgressMode === 'all-tabs' ? 'var(--color-10)' : summaryColor};
-                                text-transform: uppercase;
                                 cursor: pointer;
                                 border-right: var(--border-width) solid var(--border-color);
                                 transition: filter 0.2s;
-                            ">All Tabs</div>
+                                padding: 4px;
+                            ">
+                                <div style="
+                                    font-size: 9px;
+                                    font-weight: 700;
+                                    color: ${state.summaryChildNestProgressMode === 'all-tabs' ? 'var(--color-10)' : summaryColor};
+                                    text-transform: uppercase;
+                                    text-align: center;
+                                ">All Tabs</div>
+                                <div style="
+                                    font-size: 6px;
+                                    color: ${state.summaryChildNestProgressMode === 'all-tabs' ? 'var(--color-10)' : summaryColor};
+                                    opacity: 0.7;
+                                    margin-top: 2px;
+                                    text-align: center;
+                                    line-height: 1.2;
+                                ">Combined progress</div>
+                            </div>
                             
                             <!-- Tab Bars -->
                             <div data-action="set-tab-bars-mode" style="
@@ -1278,15 +1479,29 @@
                                 height: 100%;
                                 background: ${state.summaryChildNestProgressMode === 'tab-bars' ? summaryColor : 'var(--color-10)'};
                                 display: flex;
+                                flex-direction: column;
                                 align-items: center;
                                 justify-content: center;
-                                font-size: 10px;
-                                font-weight: 700;
-                                color: ${state.summaryChildNestProgressMode === 'tab-bars' ? 'var(--color-10)' : summaryColor};
-                                text-transform: uppercase;
                                 cursor: pointer;
                                 transition: filter 0.2s;
-                            ">Tab Bars</div>
+                                padding: 4px;
+                            ">
+                                <div style="
+                                    font-size: 9px;
+                                    font-weight: 700;
+                                    color: ${state.summaryChildNestProgressMode === 'tab-bars' ? 'var(--color-10)' : summaryColor};
+                                    text-transform: uppercase;
+                                    text-align: center;
+                                ">Tab Bars</div>
+                                <div style="
+                                    font-size: 6px;
+                                    color: ${state.summaryChildNestProgressMode === 'tab-bars' ? 'var(--color-10)' : summaryColor};
+                                    opacity: 0.7;
+                                    margin-top: 2px;
+                                    text-align: center;
+                                    line-height: 1.2;
+                                ">Clickable dropdown</div>
+                            </div>
                         </div>
                     ` : ''}
                 `;
