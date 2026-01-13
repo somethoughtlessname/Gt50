@@ -573,6 +573,12 @@
                         // Toggle single item
                         state.completed = !state.completed;
                     }
+                    
+                    // Trigger timestamp update for sort-filter
+                    if (window.GT50Lib && window.GT50Lib.SortFilter && window.GT50Lib.SortFilter.onListCheckboxToggled) {
+                        window.GT50Lib.SortFilter.onListCheckboxToggled(container);
+                    }
+                    
                     onChange();
                 };
             }
@@ -590,6 +596,12 @@
                     const idx = parseInt(item.dataset.idx);
                     item.onclick = () => {
                         state.items[idx].completed = !state.items[idx].completed;
+                        
+                        // Trigger timestamp update for sort-filter
+                        if (window.GT50Lib && window.GT50Lib.SortFilter && window.GT50Lib.SortFilter.onListCheckboxToggled) {
+                            window.GT50Lib.SortFilter.onListCheckboxToggled(container);
+                        }
+                        
                         onChange();
                     };
                 });

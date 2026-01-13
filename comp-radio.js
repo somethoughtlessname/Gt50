@@ -574,6 +574,11 @@ if (clearSelection) {
         if (hasSelection) {
             // If there's a selection, clear it
             state.selectedIndex = null;
+            
+            // Trigger timestamp update for sort-filter
+            if (window.GT50Lib && window.GT50Lib.SortFilter && window.GT50Lib.SortFilter.onComponentChanged) {
+                window.GT50Lib.SortFilter.onComponentChanged(container);
+            }
         } else {
             // If no selection, toggle dropdown
             state.open = !state.open;
@@ -594,6 +599,12 @@ if (clearSelection) {
                     const idx = parseInt(item.dataset.idx);
                     item.onclick = () => {
                         state.selectedIndex = idx;
+                        
+                        // Trigger timestamp update for sort-filter
+                        if (window.GT50Lib && window.GT50Lib.SortFilter && window.GT50Lib.SortFilter.onComponentChanged) {
+                            window.GT50Lib.SortFilter.onComponentChanged(container);
+                        }
+                        
                         onChange();
                     };
                 });

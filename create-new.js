@@ -61,6 +61,8 @@
         selectedTemplate: 'custom',
         currentColorIndex: 0, // Changed from 7 to 0 (GRAY is now first)
         cycleMode: false,
+        autoSortByLastUpdated: false,
+        autoSortDropdownOpen: false,
                 tabs: {
                     tabs: [
                         { name: 'Templates', label: 'Templates', color: 'var(--color-5-2)' },
@@ -71,9 +73,12 @@
                 },
                 summaryState: {
                     showSummary: false,
+                    summaryDropdownOpen: false,
                     summaryIncludeChildren: false,
+                    summaryIncludeChildrenDropdownOpen: false,
                     summaryDisplayMode: null,
                     summaryShowChildNestProgress: false,
+                    summaryShowChildNestProgressDropdownOpen: false,
                     summaryChildNestProgressMode: 'first-tab' // 'first-tab' or 'all-tabs'
                 }
             };
@@ -102,6 +107,7 @@ createEntry: function(state, nextId, currentComponents) {
     
     newEntry.state.name = state.name.trim();
     newEntry.state.color = this.colors[colorIndex].name; // Use validated colorIndex
+    newEntry.state.autoSortByLastUpdated = state.autoSortByLastUpdated || false;
     
     // Apply summary settings
     if (state.summaryState) {
@@ -160,6 +166,7 @@ createEntry: function(state, nextId, currentComponents) {
     state.selectedTemplate = 'custom';
     state.currentColorIndex = 0; // Changed from 7 to 0 (GRAY is now first)
     state.cycleMode = false;
+    state.autoSortByLastUpdated = false;
                 state.summaryState = {
                     showSummary: false,
                     summaryIncludeChildren: false,
@@ -262,7 +269,7 @@ createEntry: function(state, nextId, currentComponents) {
                         letter-spacing: 0.5px;
                         position: relative;
                         z-index: 2;
-                    ">NAME</div>
+                    ">ENTRY NAME</div>
                 </div>
                 
                 <!-- Name Input Card -->
@@ -347,7 +354,7 @@ createEntry: function(state, nextId, currentComponents) {
                         letter-spacing: 0.5px;
                         position: relative;
                         z-index: 2;
-                    ">COLOR</div>
+                    ">COLORS</div>
                 </div>
                 
                 <!-- Color Selector with Circles -->
@@ -387,7 +394,7 @@ createEntry: function(state, nextId, currentComponents) {
             
             // ===== SETTINGS TAB CONTENT =====
             const settingsTabHTML = nameSection + colorSection + `
-                <!-- Summary Divider -->
+                <!-- Summary Settings Divider -->
                 <div class="divider" style="
                     height: var(--card-height);
                     background: transparent;
@@ -419,146 +426,405 @@ createEntry: function(state, nextId, currentComponents) {
                         letter-spacing: 0.5px;
                         position: relative;
                         z-index: 2;
-                    ">PARENT NEST SUMMARY</div>
+                    ">SUMMARY SETTINGS</div>
                 </div>
                 
-                <!-- Summary Activation Card -->
-                <div data-action="toggle-summary" style="
-                    background: ${state.summaryState.showSummary ? summaryColor : 'var(--color-10)'};
+                <!-- Activate Summary Card -->
+                <div style="
+                    background: var(--bg-2);
                     border: var(--border-width) solid var(--border-color);
-                    border-radius: 8px;
+                    border-radius: ${state.summaryState.showSummary && state.summaryState.summaryDropdownOpen ? '8px 8px 0 0' : '8px'};
                     height: var(--card-height);
                     display: flex;
-                    flex-direction: column;
                     align-items: center;
-                    justify-content: center;
-                    margin-bottom: var(--margin);
-                    cursor: pointer;
-                    transition: filter 0.2s;
+                    margin-bottom: ${state.summaryState.showSummary && state.summaryState.summaryDropdownOpen ? '0' : 'var(--margin)'};
+                    overflow: hidden;
                 ">
-                    <div style="
-                        font-size: 12px;
-                        font-weight: 700;
-                        color: ${state.summaryState.showSummary ? 'var(--color-10)' : summaryColor};
-                        text-transform: uppercase;
-                    ">Activate Summary Card</div>
-                    <div style="
-                        font-size: 7px;
-                        color: ${state.summaryState.showSummary ? 'var(--color-10)' : summaryColor};
-                        opacity: 0.7;
-                        margin-top: 2px;
-                        text-align: center;
-                        line-height: 1.2;
-                    ">Shows summary with counts & completion</div>
-                </div>
-                
-                ${state.summaryState.showSummary ? `
-                    <!-- Summary Options Card -->
-                    <div style="
-                        background: var(--color-10);
-                        border: var(--border-width) solid var(--border-color);
-                        border-radius: 8px;
-                        height: var(--card-height);
+                    <div data-action="toggle-summary" style="
+                        width: var(--square-section);
+                        height: 100%;
+                        background: ${state.summaryState.showSummary ? summaryColor : 'var(--color-10)'};
+                        border-right: var(--border-width) solid var(--border-color);
                         display: flex;
                         align-items: center;
-                        overflow: hidden;
+                        justify-content: center;
+                        font-size: 14px;
+                        font-weight: 700;
+                        color: ${state.summaryState.showSummary ? 'var(--color-10)' : summaryColor};
+                        cursor: pointer;
+                    ">${state.summaryState.showSummary ? '✓' : ''}</div>
+                    <div data-action="summary-card-click" style="
+                        flex: 1;
+                        background: var(--bg-4);
+                        height: 100%;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        cursor: pointer;
+                        padding-right: 55px;
+                    ">
+                        <div style="
+                            font-size: 12px;
+                            font-weight: 700;
+                            color: var(--color-10);
+                            text-transform: uppercase;
+                        ">Activate Summary Card</div>
+                        <div style="
+                            font-size: 7px;
+                            font-weight: 700;
+                            color: var(--color-10);
+                            opacity: 0.7;
+                            margin-top: 2px;
+                            text-align: center;
+                            line-height: 1.2;
+                        ">Shows summary with counts & completion</div>
+                    </div>
+                    <div data-action="toggle-summary-dropdown" style="
+                        width: var(--square-section);
+                        height: 100%;
+                        background: var(--bg-4);
+                        border-left: var(--border-width) solid var(--border-color);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        cursor: ${state.summaryState.showSummary ? 'pointer' : 'default'};
+                        pointer-events: ${state.summaryState.showSummary ? 'auto' : 'none'};
+                    ">
+                        <div style="
+                            width: 0;
+                            height: 0;
+                            border-left: 6px solid transparent;
+                            border-right: 6px solid transparent;
+                            border-top: 8px solid var(--color-10);
+                            transform: rotate(${state.summaryState.summaryDropdownOpen ? '180deg' : '0deg'});
+                            opacity: ${state.summaryState.showSummary ? '1' : '0.3'};
+                        "></div>
+                    </div>
+                </div>
+                ${state.summaryState.showSummary && state.summaryState.summaryDropdownOpen ? `
+                    <div style="
+                        background: var(--bg-2);
+                        border-radius: 0 0 8px 8px;
+                        padding: var(--margin);
+                        border: var(--border-width) solid var(--border-color);
+                        border-top: none;
                         margin-bottom: var(--margin);
                     ">
                         <!-- Track Child Nest Cards -->
                         <div data-action="toggle-children" style="
-                            flex: 1;
-                            height: 100%;
                             background: ${state.summaryState.summaryIncludeChildren ? summaryColor : 'var(--color-10)'};
+                            border: var(--border-width) solid var(--border-color);
+                            border-radius: 8px;
+                            height: var(--card-height);
                             display: flex;
                             flex-direction: column;
                             align-items: center;
                             justify-content: center;
+                            margin-bottom: var(--margin);
                             cursor: pointer;
-                            border-right: var(--border-width) solid var(--border-color);
                             transition: filter 0.2s;
                             padding: 4px;
                         ">
                             <div style="
-                                font-size: 9px;
+                                font-size: 12px;
                                 font-weight: 700;
                                 color: ${state.summaryState.summaryIncludeChildren ? 'var(--color-10)' : summaryColor};
                                 text-transform: uppercase;
                                 text-align: center;
                             ">Track Child Nest Cards</div>
                             <div style="
-                                font-size: 6px;
+                                font-size: 7px;
+                                font-weight: 700;
                                 color: ${state.summaryState.summaryIncludeChildren ? 'var(--color-10)' : summaryColor};
                                 opacity: 0.7;
                                 margin-top: 2px;
                                 text-align: center;
                                 line-height: 1.2;
-                            ">Include nested sections</div>
+                            ">Includes cards from child nests in the summary count</div>
                         </div>
                         
-                        <!-- XX/YY Display -->
-                        <div data-action="set-value-display" style="
-                            flex: 1;
-                            height: 100%;
-                            background: ${state.summaryState.summaryDisplayMode === 'value' ? summaryColor : 'var(--color-10)'};
+                        <!-- Display Mode Toggle (None / XX/YY / Percentage) -->
+                        <div style="
+                            background: var(--color-10);
+                            border: var(--border-width) solid var(--border-color);
+                            border-radius: 8px;
+                            height: var(--card-height);
                             display: flex;
-                            flex-direction: column;
                             align-items: center;
-                            justify-content: center;
-                            cursor: pointer;
-                            border-right: var(--border-width) solid var(--border-color);
-                            transition: filter 0.2s;
-                            padding: 4px;
+                            overflow: hidden;
                         ">
-                            <div style="
-                                font-size: 9px;
-                                font-weight: 700;
-                                color: ${state.summaryState.summaryDisplayMode === 'value' ? 'var(--color-10)' : summaryColor};
-                                text-transform: uppercase;
-                                text-align: center;
-                            ">XX/YY</div>
-                            <div style="
-                                font-size: 6px;
-                                color: ${state.summaryState.summaryDisplayMode === 'value' ? 'var(--color-10)' : summaryColor};
-                                opacity: 0.7;
-                                margin-top: 2px;
-                                text-align: center;
-                                line-height: 1.2;
-                            ">5/10 format</div>
-                        </div>
-                        
-                        <!-- Percentage Display -->
-                        <div data-action="set-percentage-display" style="
-                            flex: 1;
-                            height: 100%;
-                            background: ${state.summaryState.summaryDisplayMode === 'percentage' ? summaryColor : 'var(--color-10)'};
-                            display: flex;
-                            flex-direction: column;
-                            align-items: center;
-                            justify-content: center;
-                            cursor: pointer;
-                            transition: filter 0.2s;
-                            padding: 4px;
-                        ">
-                            <div style="
-                                font-size: 9px;
-                                font-weight: 700;
-                                color: ${state.summaryState.summaryDisplayMode === 'percentage' ? 'var(--color-10)' : summaryColor};
-                                text-transform: uppercase;
-                                text-align: center;
-                            ">Percentage</div>
-                            <div style="
-                                font-size: 6px;
-                                color: ${state.summaryState.summaryDisplayMode === 'percentage' ? 'var(--color-10)' : summaryColor};
-                                opacity: 0.7;
-                                margin-top: 2px;
-                                text-align: center;
-                                line-height: 1.2;
-                            ">50% format</div>
+                            <div data-action="set-none-display" style="
+                                flex: 1;
+                                height: 100%;
+                                background: ${state.summaryState.summaryDisplayMode === null ? summaryColor : 'var(--color-10)'};
+                                display: flex;
+                                flex-direction: column;
+                                align-items: center;
+                                justify-content: center;
+                                cursor: pointer;
+                                border-right: var(--border-width) solid var(--border-color);
+                                transition: filter 0.2s;
+                                padding: 4px;
+                            ">
+                                <div style="
+                                    font-size: 14px;
+                                    font-weight: 700;
+                                    color: ${state.summaryState.summaryDisplayMode === null ? 'var(--color-10)' : summaryColor};
+                                    text-transform: uppercase;
+                                ">None</div>
+                                <div style="
+                                    font-size: 7px;
+                                    font-weight: 700;
+                                    color: ${state.summaryState.summaryDisplayMode === null ? 'var(--color-10)' : summaryColor};
+                                    opacity: 0.7;
+                                    margin-top: 2px;
+                                    text-align: center;
+                                    line-height: 1.2;
+                                ">No display format</div>
+                            </div>
+                            <div data-action="set-value-display" style="
+                                flex: 1;
+                                height: 100%;
+                                background: ${state.summaryState.summaryDisplayMode === 'value' ? summaryColor : 'var(--color-10)'};
+                                display: flex;
+                                flex-direction: column;
+                                align-items: center;
+                                justify-content: center;
+                                cursor: pointer;
+                                border-right: var(--border-width) solid var(--border-color);
+                                transition: filter 0.2s;
+                                padding: 4px;
+                            ">
+                                <div style="
+                                    font-size: 14px;
+                                    font-weight: 700;
+                                    color: ${state.summaryState.summaryDisplayMode === 'value' ? 'var(--color-10)' : summaryColor};
+                                    text-transform: uppercase;
+                                ">XX/YY</div>
+                                <div style="
+                                    font-size: 7px;
+                                    font-weight: 700;
+                                    color: ${state.summaryState.summaryDisplayMode === 'value' ? 'var(--color-10)' : summaryColor};
+                                    opacity: 0.7;
+                                    margin-top: 2px;
+                                    text-align: center;
+                                    line-height: 1.2;
+                                ">Completed/total format (e.g., 5/10)</div>
+                            </div>
+                            <div data-action="set-percentage-display" style="
+                                flex: 1;
+                                height: 100%;
+                                background: ${state.summaryState.summaryDisplayMode === 'percentage' ? summaryColor : 'var(--color-10)'};
+                                display: flex;
+                                flex-direction: column;
+                                align-items: center;
+                                justify-content: center;
+                                cursor: pointer;
+                                transition: filter 0.2s;
+                                padding: 4px;
+                            ">
+                                <div style="
+                                    font-size: 14px;
+                                    font-weight: 700;
+                                    color: ${state.summaryState.summaryDisplayMode === 'percentage' ? 'var(--color-10)' : summaryColor};
+                                    text-transform: uppercase;
+                                ">%</div>
+                                <div style="
+                                    font-size: 7px;
+                                    font-weight: 700;
+                                    color: ${state.summaryState.summaryDisplayMode === 'percentage' ? 'var(--color-10)' : summaryColor};
+                                    opacity: 0.7;
+                                    margin-top: 2px;
+                                    text-align: center;
+                                    line-height: 1.2;
+                                ">Percentage format (e.g., 50%)</div>
+                            </div>
                         </div>
                     </div>
                 ` : ''}
                 
-                <!-- Child Nest Summary Divider -->
+                <!-- Activate Child Nest Summaries -->
+                <div style="
+                    background: var(--bg-2);
+                    border: var(--border-width) solid var(--border-color);
+                    border-radius: ${state.summaryState.summaryShowChildNestProgress && state.summaryState.summaryShowChildNestProgressDropdownOpen ? '8px 8px 0 0' : '8px'};
+                    height: var(--card-height);
+                    display: flex;
+                    align-items: center;
+                    margin-bottom: ${state.summaryState.summaryShowChildNestProgress && state.summaryState.summaryShowChildNestProgressDropdownOpen ? '0' : 'var(--margin)'};
+                    overflow: hidden;
+                ">
+                    <div data-action="toggle-child-nest-progress" style="
+                        width: var(--square-section);
+                        height: 100%;
+                        background: ${state.summaryState.summaryShowChildNestProgress ? summaryColor : 'var(--color-10)'};
+                        border-right: var(--border-width) solid var(--border-color);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 14px;
+                        font-weight: 700;
+                        color: ${state.summaryState.summaryShowChildNestProgress ? 'var(--color-10)' : summaryColor};
+                        cursor: pointer;
+                    ">${state.summaryState.summaryShowChildNestProgress ? '✓' : ''}</div>
+                    <div data-action="child-nest-progress-card-click" style="
+                        flex: 1;
+                        background: var(--bg-4);
+                        height: 100%;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        cursor: pointer;
+                        padding-right: 55px;
+                    ">
+                        <div style="
+                            font-size: 12px;
+                            font-weight: 700;
+                            color: var(--color-10);
+                            text-transform: uppercase;
+                        ">Activate Child Nest Summaries</div>
+                        <div style="
+                            font-size: 7px;
+                            font-weight: 700;
+                            color: var(--color-10);
+                            opacity: 0.7;
+                            margin-top: 2px;
+                            text-align: center;
+                            line-height: 1.2;
+                        ">Show progress on child nest cards</div>
+                    </div>
+                    <div data-action="toggle-child-nest-progress-dropdown" style="
+                        width: var(--square-section);
+                        height: 100%;
+                        background: var(--bg-4);
+                        border-left: var(--border-width) solid var(--border-color);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        cursor: ${state.summaryState.summaryShowChildNestProgress ? 'pointer' : 'default'};
+                        pointer-events: ${state.summaryState.summaryShowChildNestProgress ? 'auto' : 'none'};
+                    ">
+                        <div style="
+                            width: 0;
+                            height: 0;
+                            border-left: 6px solid transparent;
+                            border-right: 6px solid transparent;
+                            border-top: 8px solid var(--color-10);
+                            transform: rotate(${state.summaryState.summaryShowChildNestProgressDropdownOpen ? '180deg' : '0deg'});
+                            opacity: ${state.summaryState.summaryShowChildNestProgress ? '1' : '0.3'};
+                        "></div>
+                    </div>
+                </div>
+                ${state.summaryState.summaryShowChildNestProgress && state.summaryState.summaryShowChildNestProgressDropdownOpen ? `
+                    <div style="
+                        background: var(--bg-2);
+                        border-radius: 0 0 8px 8px;
+                        padding: var(--margin);
+                        border: var(--border-width) solid var(--border-color);
+                        border-top: none;
+                        margin-bottom: var(--margin);
+                    ">
+                        <!-- First Tab -->
+                        <div data-action="set-first-tab-mode" style="
+                            background: ${state.summaryState.summaryChildNestProgressMode === 'first-tab' ? summaryColor : 'var(--color-10)'};
+                            border: var(--border-width) solid var(--border-color);
+                            border-radius: 8px;
+                            height: var(--card-height);
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            justify-content: center;
+                            margin-bottom: var(--margin);
+                            cursor: pointer;
+                            transition: filter 0.2s;
+                            padding: 4px;
+                        ">
+                            <div style="
+                                font-size: 12px;
+                                font-weight: 700;
+                                color: ${state.summaryState.summaryChildNestProgressMode === 'first-tab' ? 'var(--color-10)' : summaryColor};
+                                text-transform: uppercase;
+                                text-align: center;
+                            ">First Tab</div>
+                            <div style="
+                                font-size: 7px;
+                                color: ${state.summaryState.summaryChildNestProgressMode === 'first-tab' ? 'var(--color-10)' : summaryColor};
+                                opacity: 0.7;
+                                margin-top: 2px;
+                                text-align: center;
+                                line-height: 1.2;
+                            ">Fills child nest card background based on first tab's progress</div>
+                        </div>
+                        
+                        <!-- All Tabs -->
+                        <div data-action="set-all-tabs-mode" style="
+                            background: ${state.summaryState.summaryChildNestProgressMode === 'all-tabs' ? summaryColor : 'var(--color-10)'};
+                            border: var(--border-width) solid var(--border-color);
+                            border-radius: 8px;
+                            height: var(--card-height);
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            justify-content: center;
+                            margin-bottom: var(--margin);
+                            cursor: pointer;
+                            transition: filter 0.2s;
+                            padding: 4px;
+                        ">
+                            <div style="
+                                font-size: 12px;
+                                font-weight: 700;
+                                color: ${state.summaryState.summaryChildNestProgressMode === 'all-tabs' ? 'var(--color-10)' : summaryColor};
+                                text-transform: uppercase;
+                                text-align: center;
+                            ">All Tabs</div>
+                            <div style="
+                                font-size: 7px;
+                                color: ${state.summaryState.summaryChildNestProgressMode === 'all-tabs' ? 'var(--color-10)' : summaryColor};
+                                opacity: 0.7;
+                                margin-top: 2px;
+                                text-align: center;
+                                line-height: 1.2;
+                            ">Fills child nest card background based on combined progress of all tabs</div>
+                        </div>
+                        
+                        <!-- Tab Bars -->
+                        <div data-action="set-tab-bars-mode" style="
+                            background: ${state.summaryState.summaryChildNestProgressMode === 'tab-bars' ? summaryColor : 'var(--color-10)'};
+                            border: var(--border-width) solid var(--border-color);
+                            border-radius: 8px;
+                            height: var(--card-height);
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            justify-content: center;
+                            cursor: pointer;
+                            transition: filter 0.2s;
+                            padding: 4px;
+                        ">
+                            <div style="
+                                font-size: 12px;
+                                font-weight: 700;
+                                color: ${state.summaryState.summaryChildNestProgressMode === 'tab-bars' ? 'var(--color-10)' : summaryColor};
+                                text-transform: uppercase;
+                                text-align: center;
+                            ">Tab Bars</div>
+                            <div style="
+                                font-size: 7px;
+                                color: ${state.summaryState.summaryChildNestProgressMode === 'tab-bars' ? 'var(--color-10)' : summaryColor};
+                                opacity: 0.7;
+                                margin-top: 2px;
+                                text-align: center;
+                                line-height: 1.2;
+                            ">Shows clickable progress bars for each tab - tap to navigate directly to that tab</div>
+                        </div>
+                    </div>
+                ` : ''}
+                
+                
+                <!-- Sorting Divider -->
                 <div class="divider" style="
                     height: var(--card-height);
                     background: transparent;
@@ -590,146 +856,107 @@ createEntry: function(state, nextId, currentComponents) {
                         letter-spacing: 0.5px;
                         position: relative;
                         z-index: 2;
-                    ">CHILD NEST SUMMARY</div>
+                    ">SORTING</div>
                 </div>
                 
-                <!-- Activate Child Nest Summaries Card (Independent) -->
-                <div data-action="toggle-child-nest-progress" style="
-                    background: ${state.summaryState.summaryShowChildNestProgress ? summaryColor : 'var(--color-10)'};
+                <!-- Auto Sort Settings -->
+                <div style="
+                    background: var(--bg-2);
                     border: var(--border-width) solid var(--border-color);
-                    border-radius: 8px;
+                    border-radius: ${state.autoSortByLastUpdated && state.autoSortDropdownOpen ? '8px 8px 0 0' : '8px'};
                     height: var(--card-height);
                     display: flex;
-                    flex-direction: column;
                     align-items: center;
-                    justify-content: center;
-                    margin-bottom: var(--margin);
-                    cursor: pointer;
-                    transition: filter 0.2s;
+                    margin-bottom: ${state.autoSortByLastUpdated && state.autoSortDropdownOpen ? '0' : 'var(--margin)'};
+                    overflow: hidden;
                 ">
-                    <div style="
-                        font-size: 12px;
-                        font-weight: 700;
-                        color: ${state.summaryState.summaryShowChildNestProgress ? 'var(--color-10)' : summaryColor};
-                        text-transform: uppercase;
-                    ">Activate Child Nest Summaries</div>
-                    <div style="
-                        font-size: 7px;
-                        color: ${state.summaryState.summaryShowChildNestProgress ? 'var(--color-10)' : summaryColor};
-                        opacity: 0.7;
-                        margin-top: 2px;
-                        text-align: center;
-                        line-height: 1.2;
-                    ">Show progress on child nest cards</div>
-                </div>
-                
-                <!-- Description removed -->
-                ${state.summaryState.summaryShowChildNestProgress ? `
-                    <!-- Child Nest Progress Mode Card -->
-                    <div style="
-                        background: var(--color-10);
-                        border: var(--border-width) solid var(--border-color);
-                        border-radius: 8px;
-                        height: var(--card-height);
+                    <div data-action="toggle-auto-sort" style="
+                        width: var(--square-section);
+                        height: 100%;
+                        background: ${state.autoSortByLastUpdated ? 'var(--color-5)' : 'var(--color-10)'};
+                        border-right: var(--border-width) solid var(--border-color);
                         display: flex;
                         align-items: center;
-                        overflow: hidden;
+                        justify-content: center;
+                        font-size: 14px;
+                        font-weight: 700;
+                        color: ${state.autoSortByLastUpdated ? 'var(--color-10)' : 'var(--color-5)'};
+                        cursor: pointer;
+                    ">${state.autoSortByLastUpdated ? '✓' : ''}</div>
+                    <div data-action="auto-sort-card-click" style="
+                        flex: 1;
+                        background: var(--bg-4);
+                        height: 100%;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        cursor: pointer;
+                        padding-right: 55px;
+                    ">
+                        <div style="
+                            font-size: 12px;
+                            font-weight: 700;
+                            color: var(--color-10);
+                            text-transform: uppercase;
+                        ">Auto Sort by Last Updated</div>
+                        <div style="
+                            font-size: 7px;
+                            font-weight: 700;
+                            color: var(--color-10);
+                            opacity: 0.7;
+                            margin-top: 2px;
+                            text-align: center;
+                            line-height: 1.2;
+                        ">Sorts cards by most recently changed</div>
+                    </div>
+                    <div data-action="toggle-auto-sort-dropdown" style="
+                        width: var(--square-section);
+                        height: 100%;
+                        background: var(--bg-4);
+                        border-left: var(--border-width) solid var(--border-color);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        cursor: ${state.autoSortByLastUpdated ? 'pointer' : 'default'};
+                        pointer-events: ${state.autoSortByLastUpdated ? 'auto' : 'none'};
+                    ">
+                        <div style="
+                            width: 0;
+                            height: 0;
+                            border-left: 6px solid transparent;
+                            border-right: 6px solid transparent;
+                            border-top: 8px solid var(--color-10);
+                            transform: rotate(${state.autoSortDropdownOpen ? '180deg' : '0deg'});
+                            opacity: ${state.autoSortByLastUpdated ? '1' : '0.3'};
+                        "></div>
+                    </div>
+                </div>
+                ${state.autoSortByLastUpdated && state.autoSortDropdownOpen ? `
+                    <div style="
+                        background: var(--bg-2);
+                        border-radius: 0 0 8px 8px;
+                        padding: var(--margin);
+                        border: var(--border-width) solid var(--border-color);
+                        border-top: none;
                         margin-bottom: var(--margin);
                     ">
-                        <!-- First Tab Only -->
-                        <div data-action="set-first-tab-mode" style="
-                            flex: 1;
-                            height: 100%;
-                            background: ${state.summaryState.summaryChildNestProgressMode === 'first-tab' ? summaryColor : 'var(--color-10)'};
+                        <!-- Placeholder for future sub-settings -->
+                        <div style="
+                            background: var(--bg-3);
+                            border: var(--border-width) solid var(--border-color);
+                            border-radius: 8px;
+                            height: 32px;
                             display: flex;
-                            flex-direction: column;
                             align-items: center;
                             justify-content: center;
-                            cursor: pointer;
-                            border-right: var(--border-width) solid var(--border-color);
-                            transition: filter 0.2s;
-                            padding: 4px;
-                        ">
-                            <div style="
-                                font-size: 9px;
-                                font-weight: 700;
-                                color: ${state.summaryState.summaryChildNestProgressMode === 'first-tab' ? 'var(--color-10)' : summaryColor};
-                                text-transform: uppercase;
-                                text-align: center;
-                            ">First Tab</div>
-                            <div style="
-                                font-size: 6px;
-                                color: ${state.summaryState.summaryChildNestProgressMode === 'first-tab' ? 'var(--color-10)' : summaryColor};
-                                opacity: 0.7;
-                                margin-top: 2px;
-                                text-align: center;
-                                line-height: 1.2;
-                            ">Progress fill only</div>
-                        </div>
-                        
-                        <!-- All Tabs -->
-                        <div data-action="set-all-tabs-mode" style="
-                            flex: 1;
-                            height: 100%;
-                            background: ${state.summaryState.summaryChildNestProgressMode === 'all-tabs' ? summaryColor : 'var(--color-10)'};
-                            display: flex;
-                            flex-direction: column;
-                            align-items: center;
-                            justify-content: center;
-                            cursor: pointer;
-                            border-right: var(--border-width) solid var(--border-color);
-                            transition: filter 0.2s;
-                            padding: 4px;
-                        ">
-                            <div style="
-                                font-size: 9px;
-                                font-weight: 700;
-                                color: ${state.summaryState.summaryChildNestProgressMode === 'all-tabs' ? 'var(--color-10)' : summaryColor};
-                                text-transform: uppercase;
-                                text-align: center;
-                            ">All Tabs</div>
-                            <div style="
-                                font-size: 6px;
-                                color: ${state.summaryState.summaryChildNestProgressMode === 'all-tabs' ? 'var(--color-10)' : summaryColor};
-                                opacity: 0.7;
-                                margin-top: 2px;
-                                text-align: center;
-                                line-height: 1.2;
-                            ">Combined progress</div>
-                        </div>
-                        
-                        <!-- Tab Bars -->
-                        <div data-action="set-tab-bars-mode" style="
-                            flex: 1;
-                            height: 100%;
-                            background: ${state.summaryState.summaryChildNestProgressMode === 'tab-bars' ? summaryColor : 'var(--color-10)'};
-                            display: flex;
-                            flex-direction: column;
-                            align-items: center;
-                            justify-content: center;
-                            cursor: pointer;
-                            transition: filter 0.2s;
-                            padding: 4px;
-                        ">
-                            <div style="
-                                font-size: 9px;
-                                font-weight: 700;
-                                color: ${state.summaryState.summaryChildNestProgressMode === 'tab-bars' ? 'var(--color-10)' : summaryColor};
-                                text-transform: uppercase;
-                                text-align: center;
-                            ">Tab Bars</div>
-                            <div style="
-                                font-size: 6px;
-                                color: ${state.summaryState.summaryChildNestProgressMode === 'tab-bars' ? 'var(--color-10)' : summaryColor};
-                                opacity: 0.7;
-                                margin-top: 2px;
-                                text-align: center;
-                                line-height: 1.2;
-                            ">Clickable dropdown</div>
-                        </div>
+                            color: var(--color-10);
+                            font-size: 10px;
+                            font-weight: 600;
+                            opacity: 0.5;
+                        ">No additional settings</div>
                     </div>
                 ` : ''}
-                
                 
                 <!-- Card Type Divider -->
                 <div class="divider" style="
@@ -1067,6 +1294,40 @@ createEntry: function(state, nextId, currentComponents) {
                     cycleBtn.onmouseout = () => cycleBtn.style.filter = 'brightness(1)';
                 }
                 
+                // Auto sort toggle
+                const autoSortBtn = contentContainer.querySelector('[data-action="toggle-auto-sort"]');
+                if (autoSortBtn) {
+                    autoSortBtn.onclick = () => {
+                        state.autoSortByLastUpdated = !state.autoSortByLastUpdated;
+                        onChange();
+                    };
+                    autoSortBtn.onmouseover = () => autoSortBtn.style.filter = 'brightness(1.2)';
+                    autoSortBtn.onmouseout = () => autoSortBtn.style.filter = 'brightness(1)';
+                }
+                
+                // Auto sort card click - toggles feature or dropdown based on state
+                const autoSortCardClick = contentContainer.querySelector('[data-action="auto-sort-card-click"]');
+                if (autoSortCardClick) {
+                    autoSortCardClick.onclick = () => {
+                        if (!state.autoSortByLastUpdated) {
+                            state.autoSortByLastUpdated = true;
+                        } else {
+                            state.autoSortDropdownOpen = !state.autoSortDropdownOpen;
+                        }
+                        onChange();
+                    };
+                }
+                
+                // Auto sort dropdown toggle
+                const autoSortDropdownBtn = contentContainer.querySelector('[data-action="toggle-auto-sort-dropdown"]');
+                if (autoSortDropdownBtn) {
+                    autoSortDropdownBtn.onclick = (e) => {
+                        e.stopPropagation(); // Prevent triggering the card-click handler
+                        state.autoSortDropdownOpen = !state.autoSortDropdownOpen;
+                        onChange();
+                    };
+                }
+                
                 // Summary controls
                 const summaryBtn = contentContainer.querySelector('[data-action="toggle-summary"]');
                 if (summaryBtn) {
@@ -1076,6 +1337,19 @@ createEntry: function(state, nextId, currentComponents) {
                     };
                     summaryBtn.onmouseover = () => summaryBtn.style.filter = 'brightness(1.1)';
                     summaryBtn.onmouseout = () => summaryBtn.style.filter = 'brightness(1)';
+                }
+                
+                // Summary card click - toggles feature or dropdown based on state
+                const summaryCardClick = contentContainer.querySelector('[data-action="summary-card-click"]');
+                if (summaryCardClick) {
+                    summaryCardClick.onclick = () => {
+                        if (!state.summaryState.showSummary) {
+                            state.summaryState.showSummary = true;
+                        } else {
+                            state.summaryState.summaryDropdownOpen = !state.summaryState.summaryDropdownOpen;
+                        }
+                        onChange();
+                    };
                 }
                 
                 const childrenBtn = contentContainer.querySelector('[data-action="toggle-children"]');
@@ -1088,10 +1362,20 @@ createEntry: function(state, nextId, currentComponents) {
                     childrenBtn.onmouseout = () => childrenBtn.style.filter = 'brightness(1)';
                 }
                 
+                const noneBtn = contentContainer.querySelector('[data-action="set-none-display"]');
+                if (noneBtn) {
+                    noneBtn.onclick = () => {
+                        state.summaryState.summaryDisplayMode = null;
+                        onChange();
+                    };
+                    noneBtn.onmouseover = () => noneBtn.style.filter = 'brightness(1.1)';
+                    noneBtn.onmouseout = () => noneBtn.style.filter = 'brightness(1)';
+                }
+                
                 const valueBtn = contentContainer.querySelector('[data-action="set-value-display"]');
                 if (valueBtn) {
                     valueBtn.onclick = () => {
-                        state.summaryState.summaryDisplayMode = state.summaryState.summaryDisplayMode === 'value' ? null : 'value';
+                        state.summaryState.summaryDisplayMode = 'value';
                         onChange();
                     };
                     valueBtn.onmouseover = () => valueBtn.style.filter = 'brightness(1.1)';
@@ -1101,7 +1385,7 @@ createEntry: function(state, nextId, currentComponents) {
                 const percentageBtn = contentContainer.querySelector('[data-action="set-percentage-display"]');
                 if (percentageBtn) {
                     percentageBtn.onclick = () => {
-                        state.summaryState.summaryDisplayMode = state.summaryState.summaryDisplayMode === 'percentage' ? null : 'percentage';
+                        state.summaryState.summaryDisplayMode = 'percentage';
                         onChange();
                     };
                     percentageBtn.onmouseover = () => percentageBtn.style.filter = 'brightness(1.1)';
@@ -1116,6 +1400,38 @@ createEntry: function(state, nextId, currentComponents) {
                     };
                     childNestProgressBtn.onmouseover = () => childNestProgressBtn.style.filter = 'brightness(1.1)';
                     childNestProgressBtn.onmouseout = () => childNestProgressBtn.style.filter = 'brightness(1)';
+                }
+                
+                // Child nest progress card click - toggles feature or dropdown based on state
+                const childNestProgressCardClick = contentContainer.querySelector('[data-action="child-nest-progress-card-click"]');
+                if (childNestProgressCardClick) {
+                    childNestProgressCardClick.onclick = () => {
+                        if (!state.summaryState.summaryShowChildNestProgress) {
+                            state.summaryState.summaryShowChildNestProgress = true;
+                        } else {
+                            state.summaryState.summaryShowChildNestProgressDropdownOpen = !state.summaryState.summaryShowChildNestProgressDropdownOpen;
+                        }
+                        onChange();
+                    };
+                }
+                
+                // Summary dropdown toggles
+                const summaryDropdownBtn = contentContainer.querySelector('[data-action="toggle-summary-dropdown"]');
+                if (summaryDropdownBtn) {
+                    summaryDropdownBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        state.summaryState.summaryDropdownOpen = !state.summaryState.summaryDropdownOpen;
+                        onChange();
+                    };
+                }
+                
+                const childNestProgressDropdownBtn = contentContainer.querySelector('[data-action="toggle-child-nest-progress-dropdown"]');
+                if (childNestProgressDropdownBtn) {
+                    childNestProgressDropdownBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        state.summaryState.summaryShowChildNestProgressDropdownOpen = !state.summaryState.summaryShowChildNestProgressDropdownOpen;
+                        onChange();
+                    };
                 }
                 
                 const firstTabModeBtn = contentContainer.querySelector('[data-action="set-first-tab-mode"]');

@@ -118,7 +118,8 @@
 <script src="comp-text.js"></script>
 <script src="comp-import.js"></script>
 <script src="info.js"></script>
-<script src="comp-scale.js"></script>   
+<script src="comp-scale.js"></script>
+<script src="sort-filter.js"></script>   
 <script src="comp-summary.js"></script>    
     
     <script>
@@ -137,10 +138,13 @@
         let nextId = 1;
         let activeMode = 'view';
         let selectedInsertionPoint = 0;
-        let navigationStack = [];
         let scrollStack = [];
         let pendingDeleteId = null;
         let deleteTimeout = null;
+        
+        // Expose to global scope for Sort-filter to access parent nests
+        window.state = state;
+        window.window.navigationStack = [];
 
         function resetAllTabsToFirst(tabComponentsArray) {
             if (!tabComponentsArray || !Array.isArray(tabComponentsArray)) return;
@@ -174,7 +178,7 @@
         }
 
         function loadState() {
-            navigationStack = [];
+            window.navigationStack = [];
             scrollStack = [];
             
             const saved = localStorage.getItem('gt50-tester-state');
@@ -303,7 +307,7 @@
             
             // ALWAYS start in view mode at main window, regardless of where user was when app closed
             activeMode = 'view';
-            navigationStack = [];
+            window.navigationStack = [];
             scrollStack = [];
             
             if (state.tabs && state.tabs.tabs && state.tabs.tabs.length > 0) {
@@ -333,7 +337,7 @@
         window.render = render;
 
         function getCurrentTabs() {
-            if (navigationStack.length === 0) {
+            if (window.navigationStack.length === 0) {
                 return { tabs: state.tabs, tabComponents: state.tabComponents };
             }
             
@@ -341,7 +345,7 @@
             let currentTabs = null;
             let currentTabComponents = null;
             
-            for (const nestId of navigationStack) {
+            for (const nestId of window.navigationStack) {
                 const component = current.flat().find(c => c.id === nestId);
                 if (!component) break;
                 
@@ -379,12 +383,12 @@
         }
 
         function getCurrentNest() {
-            if (navigationStack.length === 0) return null;
+            if (window.navigationStack.length === 0) return null;
             
             let current = state.tabComponents;
             let nestComponent = null;
             
-            for (const nestId of navigationStack) {
+            for (const nestId of window.navigationStack) {
                 const component = current.flat().find(c => c.id === nestId);
                 if (!component) break;
                 
@@ -397,7 +401,7 @@
 
         function navigateInto(nestId) {
             scrollStack.push(window.scrollY);
-            navigationStack.push(nestId);
+            window.navigationStack.push(nestId);
             
             if (deleteTimeout) {
                 clearTimeout(deleteTimeout);
@@ -440,7 +444,7 @@
         }
 
         function navigateBack() {
-            if (navigationStack.length === 0) return;
+            if (window.navigationStack.length === 0) return;
             
             const { tabs: currentTabs } = getCurrentTabs();
             if (currentTabs && currentTabs.tabs && currentTabs.tabs.length > 0) {
@@ -448,7 +452,7 @@
                 currentTabs.selectedBuildTab = 0;
             }
             
-            navigationStack.pop();
+            window.navigationStack.pop();
             
             if (deleteTimeout) {
                 clearTimeout(deleteTimeout);
@@ -460,7 +464,7 @@
                 GT50Lib.Utils.closeAllDropdowns(state.tabComponents);
             }
             
-            if (navigationStack.length === 0) {
+            if (window.navigationStack.length === 0) {
                 state.header.isMain = true;
                 state.header.title = 'GT50 TESTER';
                 activeMode = 'view';
@@ -490,7 +494,7 @@
                 state.tabs.selectedBuildTab = 0;
             }
             
-            navigationStack = [];
+            window.navigationStack = [];
             scrollStack = [];
             
             if (deleteTimeout) {
@@ -848,7 +852,7 @@ function renderNestEditWindow() {
                         delete openEditNest.state.editWindow._navigateHomeAfterClose;
                         
                         // FORCE COMPLETE NAVIGATION TO ROOT
-                        navigationStack = [];
+                        window.navigationStack = [];
                         state.header.isMain = true;
                         state.header.title = 'GT50 TESTER';
                         activeMode = 'view';
@@ -916,7 +920,7 @@ function renderNestEditWindow() {
             container.innerHTML = '';
             
             const components = getCurrentComponents();
-            const depth = navigationStack.length;
+            const depth = window.navigationStack.length;
             
             const currentNest = getCurrentNest();
 if (currentNest && currentNest.type === 'cycle') {
@@ -1006,15 +1010,32 @@ if (currentNest && GT50Lib.Summary) {
     GT50Lib.Summary.renderSummaryCard(container, currentNest.state, render);
 }
 
-const components = getCurrentComponents();  // ← This existing line stays
-const depth = navigationStack.length;
+const components = getCurrentComponents();
+const depth = window.navigationStack.length;
+
+// Apply sorting if enabled on this nest/window
+if (GT50Lib.SortFilter) {
+    const currentNest = getCurrentNest();
+    const shouldSort = currentNest && currentNest.state && currentNest.state.autoSortByLastUpdated;
+    
+    if (shouldSort) {
+        const sorted = GT50Lib.SortFilter.applySorting(components);
+        components.length = 0;
+        components.push(...sorted);
+    }
+}
+
+// Store components for timestamp tracking
+window.GT50 = window.GT50 || {};
+window.GT50._currentTabComponents = components;
 
 // Get current tab color once
 const currentContext = getCurrentTabs();
 const currentTabColor = currentContext.tabs.tabs[currentContext.tabs.activeViewTab]?.color;
 
-components.forEach(component => {
+components.forEach((component, componentIndex) => {
                 const componentWrapper = document.createElement('div');
+                componentWrapper.dataset.componentIndex = componentIndex; // Track index for timestamp updates
                 
                 if (component.type === 'divider') {
     GT50Lib.Divider.renderView(componentWrapper, component.state, render);
@@ -1097,7 +1118,7 @@ components.forEach(component => {
             
             // INJECT SEARCH BAR AT THE END
 if (GT50Lib.Search) {
-    const isMainWindow = navigationStack.length === 0;
+    const isMainWindow = window.navigationStack.length === 0;
     GT50Lib.Search.inject(container, { visible: isMainWindow });
 }
         }

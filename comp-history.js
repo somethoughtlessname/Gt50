@@ -364,8 +364,8 @@
                             cursor: pointer;
                             font-family: inherit;
                             position: relative;
-                            font-size: var(--delete-sub-size);
-                            font-weight: var(--delete-sub-weight);
+                            font-size: 18px;
+                            font-weight: 700;
                             display: flex;
                             align-items: center;
                             justify-content: center;
@@ -403,7 +403,7 @@
                     <div data-action="toggle" style="
                         width: var(--square-section);
                         height: var(--card-height);
-                        background: var(--color-10);
+                        background: ${count > 0 ? 'var(--color-2-2)' : 'var(--bg-3)'};
                         border-right: var(--border-width) solid var(--border-color);
                         display: flex;
                         align-items: center;
@@ -448,8 +448,8 @@
                             cursor: pointer;
                             font-family: inherit;
                             position: relative;
-                            font-size: var(--up-sub-size);
-                            font-weight: var(--up-sub-weight);
+                            font-size: 16px;
+                            font-weight: 700;
                             display: flex;
                             align-items: center;
                             justify-content: center;
@@ -465,7 +465,7 @@
                                 background: var(--color-2-2);
                                 filter: brightness(0.75);
                                 z-index: -1;
-                            "></div>▲
+                            "></div>↑
                         </button>
                         <button data-action="move-down-card" style="
                             width: var(--square-section);
@@ -477,8 +477,8 @@
                             cursor: pointer;
                             font-family: inherit;
                             position: relative;
-                            font-size: var(--down-sub-size);
-                            font-weight: var(--down-sub-weight);
+                            font-size: 16px;
+                            font-weight: 700;
                             display: flex;
                             align-items: center;
                             justify-content: center;
@@ -494,26 +494,35 @@
                                 background: var(--color-2-2);
                                 filter: brightness(0.75);
                                 z-index: -1;
-                            "></div>▼
+                            "></div>↓
                         </button>
                         <button data-action="delete-card" style="
                             width: var(--square-section);
                             height: 100%;
-                            background: ${isDeletePending ? 'var(--color-10)' : 'transparent'};
+                            background: transparent;
                             border: none;
-                            color: ${isDeletePending ? 'var(--color-1)' : 'var(--color-10)'};
+                            color: var(--color-10);
                             cursor: pointer;
                             font-family: inherit;
                             position: relative;
-                            font-size: var(--delete-sub-size);
-                            font-weight: var(--delete-sub-weight);
+                            font-size: 18px;
+                            font-weight: 700;
                             display: flex;
                             align-items: center;
                             justify-content: center;
                             padding: 0;
                             margin: 0;
                         ">
-                            ${isDeletePending ? '' : `<div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--color-2-2); filter: brightness(0.75); z-index: -1;"></div>`}×
+                            <div style="
+                                position: absolute;
+                                top: 0;
+                                left: 0;
+                                width: 100%;
+                                height: 100%;
+                                background: ${isDeletePending ? 'var(--delete-pending-bg)' : 'var(--color-2-2)'};
+                                filter: brightness(0.75);
+                                z-index: -1;
+                            "></div>×
                         </button>
                     </div>
                 </div>
@@ -1022,6 +1031,12 @@
             if (logBtn && !state.locked) {
                 logBtn.onclick = () => {
                     state.entries.unshift({ timestamp: Date.now() });
+                    
+                    // Trigger timestamp update for sort-filter
+                    if (window.GT50Lib && window.GT50Lib.SortFilter && window.GT50Lib.SortFilter.onComponentChanged) {
+                        window.GT50Lib.SortFilter.onComponentChanged(container);
+                    }
+                    
                     onChange();
                 };
             }

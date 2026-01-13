@@ -363,10 +363,28 @@
             
             // ===== EVENT LISTENERS =====
             const dec = container.querySelector('[data-action="decrement"]');
-            if (dec) dec.onclick = () => { state.value = Math.max(0, state.value - 1); onChange(); };
+            if (dec) dec.onclick = () => { 
+                state.value = Math.max(0, state.value - 1); 
+                
+                // Trigger timestamp update for sort-filter
+                if (window.GT50Lib && window.GT50Lib.SortFilter && window.GT50Lib.SortFilter.onComponentChanged) {
+                    window.GT50Lib.SortFilter.onComponentChanged(container);
+                }
+                
+                onChange(); 
+            };
             
             const inc = container.querySelector('[data-action="increment"]');
-            if (inc) inc.onclick = () => { state.value++; onChange(); };
+            if (inc) inc.onclick = () => { 
+                state.value++; 
+                
+                // Trigger timestamp update for sort-filter
+                if (window.GT50Lib && window.GT50Lib.SortFilter && window.GT50Lib.SortFilter.onComponentChanged) {
+                    window.GT50Lib.SortFilter.onComponentChanged(container);
+                }
+                
+                onChange(); 
+            };
             
             if (showDropdown) {
                 const toggle = container.querySelector('[data-action="toggle-dropdown"]');
@@ -377,6 +395,12 @@
                 const amount = parseInt(btn.dataset.amount);
                 btn.onclick = () => {
                     state.value = Math.max(0, state.value + amount);
+                    
+                    // Trigger timestamp update for sort-filter
+                    if (window.GT50Lib && window.GT50Lib.SortFilter && window.GT50Lib.SortFilter.onComponentChanged) {
+                        window.GT50Lib.SortFilter.onComponentChanged(container);
+                    }
+                    
                     onChange();
                 };
             });
@@ -391,11 +415,26 @@
                         state.numpadOpen = false;
                     } else if (key === 'C') {
                         state.value = 0;
+                        
+                        // Trigger timestamp update for sort-filter
+                        if (window.GT50Lib && window.GT50Lib.SortFilter && window.GT50Lib.SortFilter.onComponentChanged) {
+                            window.GT50Lib.SortFilter.onComponentChanged(container);
+                        }
                     } else if (key === '◄') {
                         let str = state.value.toString();
                         state.value = str.length > 1 ? parseInt(str.slice(0, -1)) : 0;
+                        
+                        // Trigger timestamp update for sort-filter
+                        if (window.GT50Lib && window.GT50Lib.SortFilter && window.GT50Lib.SortFilter.onComponentChanged) {
+                            window.GT50Lib.SortFilter.onComponentChanged(container);
+                        }
                     } else {
                         state.value = state.value === 0 ? parseInt(key) : parseInt(state.value.toString() + key);
+                        
+                        // Trigger timestamp update for sort-filter
+                        if (window.GT50Lib && window.GT50Lib.SortFilter && window.GT50Lib.SortFilter.onComponentChanged) {
+                            window.GT50Lib.SortFilter.onComponentChanged(container);
+                        }
                     }
                     onChange();
                 };

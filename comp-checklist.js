@@ -569,6 +569,12 @@ padding-top: var(--check-position);
                 toggleAll.onclick = () => {
                     const allCompleted = state.items.every(i => i.completed);
                     state.items.forEach(i => i.completed = !allCompleted);
+                    
+                    // Trigger timestamp update for sort-filter
+                    if (window.GT50Lib && window.GT50Lib.SortFilter && window.GT50Lib.SortFilter.onListCheckboxToggled) {
+                        window.GT50Lib.SortFilter.onListCheckboxToggled(container);
+                    }
+                    
                     onChange();
                 };
             }
@@ -585,6 +591,12 @@ padding-top: var(--check-position);
                     const idx = parseInt(item.dataset.idx);
                     item.onclick = () => {
                         state.items[idx].completed = !state.items[idx].completed;
+                        
+                        // Trigger timestamp update for sort-filter
+                        if (window.GT50Lib && window.GT50Lib.SortFilter && window.GT50Lib.SortFilter.onListCheckboxToggled) {
+                            window.GT50Lib.SortFilter.onListCheckboxToggled(container);
+                        }
+                        
                         onChange();
                     };
                 });

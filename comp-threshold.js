@@ -713,6 +713,12 @@ const itemDropdownColor = cardColor;
             if (toggleAll) {
                 toggleAll.onclick = () => {
                     state.manuallyChecked = !state.manuallyChecked;
+                    
+                    // Trigger timestamp update for sort-filter
+                    if (window.GT50Lib && window.GT50Lib.SortFilter && window.GT50Lib.SortFilter.onComponentChanged) {
+                        window.GT50Lib.SortFilter.onComponentChanged(container);
+                    }
+                    
                     onChange();
                 };
             }
@@ -730,6 +736,12 @@ const itemDropdownColor = cardColor;
                     item.onclick = () => {
                         state.items[idx].completed = !state.items[idx].completed;
                         state.manuallyChecked = false;
+                        
+                        // Trigger timestamp update for sort-filter
+                        if (window.GT50Lib && window.GT50Lib.SortFilter && window.GT50Lib.SortFilter.onComponentChanged) {
+                            window.GT50Lib.SortFilter.onComponentChanged(container);
+                        }
+                        
                         onChange();
                     };
                 });

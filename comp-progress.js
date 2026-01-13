@@ -389,12 +389,24 @@
             const dec = container.querySelector('[data-action="decrement"]');
             if (dec) dec.onclick = () => {
                 state.current = Math.max(0, state.current - 1);
+                
+                // Trigger timestamp update for sort-filter
+                if (window.GT50Lib && window.GT50Lib.SortFilter && window.GT50Lib.SortFilter.onComponentChanged) {
+                    window.GT50Lib.SortFilter.onComponentChanged(container);
+                }
+                
                 onChange();
             };
             
             const inc = container.querySelector('[data-action="increment"]');
             if (inc) inc.onclick = () => {
                 state.current = Math.min(state.total, state.current + 1);
+                
+                // Trigger timestamp update for sort-filter
+                if (window.GT50Lib && window.GT50Lib.SortFilter && window.GT50Lib.SortFilter.onComponentChanged) {
+                    window.GT50Lib.SortFilter.onComponentChanged(container);
+                }
+                
                 onChange();
             };
             
