@@ -70,6 +70,7 @@
             return { 
                 isOpen: false,
                 activeTab: 'export',
+                exportOverrideData: null, // For exporting a single nest/component - stores RAW export package to be serialized in any format
                 header: {
                     isMain: false,
                     title: 'DATA MANAGEMENT'
@@ -86,6 +87,8 @@
         // ===== CLOSE WINDOW =====
         close: function(state, onChange) {
             state.isOpen = false;
+            state.exportOverrideData = null; // Clear override data
+            state.header.title = 'DATA MANAGEMENT'; // Reset title
             onChange();
         },
         
@@ -158,6 +161,70 @@
                 // Fallback to built-in JSON
                 return this.builtInJSON.serialize(exportPackage);
             }
+        },
+        
+        // ===== EXPORT SINGLE NEST =====
+        // Returns the raw export package (not serialized) so it can be serialized in any format
+        exportNest: function(nestState, nestName) {
+            // Clean the nest state (remove temporary UI state)
+            const cleanedNest = JSON.parse(JSON.stringify(nestState));
+            
+            function cleanComponent(comp) {
+                if (comp.state) {
+                    delete comp.state.open;
+                    delete comp.state.numpadOpen;
+                    delete comp.state.viewOpen;
+                    delete comp.state.actionState;
+                    delete comp.state.editWindow;
+                    delete comp.state.importWindow;
+                    
+                    // Recursively clean nested components
+                    if ((comp.type === 'nest' || comp.type === 'cycle') && comp.state.tabComponents) {
+                        comp.state.tabComponents.forEach(componentArray => {
+                            componentArray.forEach(cleanComponent);
+                        });
+                        
+                        if (comp.state.tabs) {
+                            delete comp.state.tabs.editingTab;
+                        }
+                    }
+                }
+            }
+            
+            // Clean all tabs in the nest
+            if (cleanedNest.tabComponents) {
+                cleanedNest.tabComponents.forEach(componentArray => {
+                    componentArray.forEach(cleanComponent);
+                });
+            }
+            
+            // Clean root tabs
+            if (cleanedNest.tabs) {
+                delete cleanedNest.tabs.editingTab;
+            }
+            
+            // Remove action state and edit window from the nest itself
+            delete cleanedNest.actionState;
+            delete cleanedNest.editWindow;
+            delete cleanedNest.autoSortDropdownOpen;
+            delete cleanedNest.summaryDropdownOpen;
+            delete cleanedNest.summaryShowChildNestProgressDropdownOpen;
+            
+            // Create export package in same format as full export
+            // Return RAW package, not serialized, so it can be serialized in any format
+            const exportPackage = {
+                version: "1.0",
+                timestamp: new Date().toISOString(),
+                app: "GT50 Tester",
+                type: "nest",
+                name: nestName || cleanedNest.name || "Nest",
+                data: {
+                    tabs: cleanedNest.tabs,
+                    tabComponents: cleanedNest.tabComponents
+                }
+            };
+            
+            return exportPackage;
         },
         
         // ===== AUTO-DETECT FORMAT AND IMPORT DATA =====
@@ -319,6 +386,9 @@
                 return;
             }
             
+            // Check if this is export-only mode (single nest export)
+            const isExportOnly = !!state.exportOverrideData;
+            
             container.style.display = 'block';
             container.style.cssText = `
                 position: fixed;
@@ -341,6 +411,7 @@
                     height: var(--card-height);
                     z-index: 2001;
                 "></div>
+                ${!isExportOnly ? `
                 <div id="impex-tabs" style="
                     position: fixed;
                     top: var(--card-height);
@@ -349,14 +420,15 @@
                     height: var(--card-height);
                     z-index: 2001;
                 "></div>
+                ` : ''}
                 <div id="impex-content" style="
-                    padding-top: calc(var(--card-height) * 2 + var(--margin));
+                    padding-top: calc(var(--card-height) * ${isExportOnly ? '1' : '2'} + var(--margin));
                     padding-left: var(--margin);
                     padding-right: var(--margin);
                     padding-bottom: var(--margin);
                     display: flex;
                     flex-direction: column;
-                    min-height: calc(100vh - var(--card-height) * 2 - var(--margin));
+                    min-height: calc(100vh - var(--card-height) * ${isExportOnly ? '1' : '2'} - var(--margin));
                 "></div>
             `;
             
@@ -372,13 +444,15 @@
                 null
             );
             
-            // Render tabs header
-            const tabsContainer = container.querySelector('#impex-tabs');
-            this.renderTabs(tabsContainer, state, onChange, onClose);
+            // Render tabs header (only if not export-only mode)
+            if (!isExportOnly) {
+                const tabsContainer = container.querySelector('#impex-tabs');
+                this.renderTabs(tabsContainer, state, onChange, onClose);
+            }
             
             // Render content area
             const contentContainer = container.querySelector('#impex-content');
-            if (state.activeTab === 'export') {
+            if (isExportOnly || state.activeTab === 'export') {
                 this.renderExportTab(contentContainer, appState, state, onChange);
             } else if (state.activeTab === 'import') {
                 this.renderImportTab(contentContainer, onClose, appState, state, onChange);
@@ -447,7 +521,20 @@
         renderExportTab: function(container, appState, state, onChange) {
             const adapter = this.getCurrentFormat();
             const formatName = adapter.getFormatName();
-            const exportText = this.exportData(appState);
+            
+            // If we have override data (raw export package), serialize it now with current format
+            // Otherwise, export the full appState
+            let exportText;
+            if (state.exportOverrideData) {
+                try {
+                    exportText = adapter.serialize(state.exportOverrideData);
+                } catch (error) {
+                    console.error('Export serialization error:', error);
+                    exportText = this.builtInJSON.serialize(state.exportOverrideData);
+                }
+            } else {
+                exportText = this.exportData(appState);
+            }
             
             container.innerHTML = `
                 <div id="format-selector-container"></div>

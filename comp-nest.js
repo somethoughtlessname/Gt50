@@ -250,12 +250,14 @@
             if (!state.actionState) {
                 state.actionState = {
                     isOpen: false,
-                    deletePending: false
+                    deletePending: false,
+                    moreDropdownOpen: false
                 };
             }
             
             const isOpen = state.actionState.isOpen;
             const isDeletePending = state.actionState.deletePending;
+            const isMoreDropdownOpen = state.actionState.moreDropdownOpen || false;
             
             // Calculate progress for child nest fill (if enabled by parent)
             let showProgressFill = false;
@@ -367,12 +369,12 @@
                 <div class="nest-view-card" style="
                     background: ${nestColor};
                     border: var(--border-width) solid var(--border-color);
-                    border-radius: ${showTabBars ? '8px 8px 0 0' : '8px'};
+                    border-radius: ${showTabBars || isMoreDropdownOpen ? '8px 8px 0 0' : '8px'};
                     height: var(--card-height);
                     display: flex;
                     align-items: center;
                     overflow: hidden;
-                    margin-bottom: ${showTabBars ? '0' : 'var(--margin)'};
+                    margin-bottom: ${showTabBars || isMoreDropdownOpen ? '0' : 'var(--margin)'};
                     position: relative;
                 ">
                     <!-- Progress Fill Layer (for child nests when parent enables it) -->
@@ -402,23 +404,20 @@
                     ">
                         <!-- Move Up Section -->
                         <div data-action="move-up" style="
-                            flex: 1;
+                            width: var(--square-section);
+                            min-width: var(--square-section);
+                            max-width: var(--square-section);
+                            flex-shrink: 0;
                             height: 100%;
                             display: flex;
-                            flex-direction: column;
                             align-items: center;
                             justify-content: center;
                             border-right: var(--border-width) solid var(--border-color);
                             cursor: pointer;
-                            font-size: 12px;
+                            font-size: 20px;
                             font-weight: 700;
-                            text-transform: uppercase;
                             color: var(--color-5);
-                            line-height: 1.2;
-                        ">
-                            <div>Move</div>
-                            <div>Up</div>
-                        </div>
+                        ">▲</div>
                         
                         <!-- Edit Section -->
                         <div data-action="edit" style="
@@ -466,24 +465,36 @@
                             color: ${isDeletePending ? 'var(--color-10)' : 'var(--color-1)'};
                         ">Delete</div>
                         
-                        <!-- Move Down Section -->
-                        <div data-action="move-down" style="
+                        <!-- More Section -->
+                        <div data-action="more" style="
                             flex: 1;
                             height: 100%;
                             display: flex;
-                            flex-direction: column;
                             align-items: center;
                             justify-content: center;
+                            border-right: var(--border-width) solid var(--border-color);
                             cursor: pointer;
                             font-size: 12px;
                             font-weight: 700;
                             text-transform: uppercase;
+                            color: var(--color-6);
+                        ">More</div>
+                        
+                        <!-- Move Down Section -->
+                        <div data-action="move-down" style="
+                            width: var(--square-section);
+                            min-width: var(--square-section);
+                            max-width: var(--square-section);
+                            flex-shrink: 0;
+                            height: 100%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            cursor: pointer;
+                            font-size: 20px;
+                            font-weight: 700;
                             color: var(--color-5);
-                            line-height: 1.2;
-                        ">
-                            <div>Move</div>
-                            <div>Down</div>
-                        </div>
+                        ">▼</div>
                     </div>
                     
                     <!-- Main Content -->
@@ -504,8 +515,8 @@
                     ">${displayName}</div>
                 </div>
                 
-                ${showTabBars ? `
-                    <!-- Tab Bars Dropdown Card (Attached) -->
+                ${showTabBars || isMoreDropdownOpen ? `
+                    <!-- Tab Bars or More Actions Dropdown -->
                     <div style="
                         background: var(--bg-2);
                         border: var(--border-width) solid var(--border-color);
@@ -519,7 +530,26 @@
                         align-items: center;
                         gap: var(--margin);
                     ">
-                        ${tabProgressData.map((tab, tabIndex) => `
+                        ${isMoreDropdownOpen ? `
+                            <!-- Export Button (replaces tab bars when More is open) -->
+                            <div data-action="export" style="
+                                flex: 1;
+                                height: 22.5px;
+                                background: var(--color-3);
+                                border: var(--border-width) solid var(--border-color);
+                                border-radius: 8px;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                cursor: pointer;
+                                font-size: 9px;
+                                font-weight: 700;
+                                text-transform: uppercase;
+                                color: var(--color-10);
+                                transition: filter 0.2s;
+                                letter-spacing: 0.5px;
+                            ">Export</div>
+                        ` : showTabBars ? tabProgressData.map((tab, tabIndex) => `
                             <div class="tab-bar-clickable" data-tab-index="${tabIndex}" style="
                                 flex: 1;
                                 height: 22.5px;
@@ -567,7 +597,7 @@
                                     </div>
                                 </div>
                             </div>
-                        `).join('')}
+                        `).join('') : ''}
                     </div>
                 ` : ''}
             `;
@@ -581,6 +611,8 @@
             const moveDownBtn = container.querySelector('[data-action="move-down"]');
             const deleteBtn = container.querySelector('[data-action="delete"]');
             const closeBtn = container.querySelector('[data-action="close"]');
+            const moreBtn = container.querySelector('[data-action="more"]');
+            const exportBtn = container.querySelector('[data-action="export"]');
             
             let longPressTimer = null;
             
@@ -593,6 +625,7 @@
                     if (state.actionState.isOpen) {
                         state.actionState.isOpen = false;
                         state.actionState.deletePending = false;
+                        state.actionState.moreDropdownOpen = false;
                         if (render) render();
                     }
                 }, 5000);
@@ -647,6 +680,7 @@
                     if (currentCard && !currentCard.contains(e.target)) {
                         state.actionState.isOpen = false;
                         state.actionState.deletePending = false;
+                        state.actionState.moreDropdownOpen = false;
                         cancelAutoClose();
                         document.removeEventListener('click', closeOnClickOutside);
                         state.actionState._outsideClickListener = null;
@@ -674,6 +708,7 @@
                         // If overlay is open, clicking the dimmed card name closes it
                         state.actionState.isOpen = false;
                         state.actionState.deletePending = false;
+                        state.actionState.moreDropdownOpen = false;
                         cancelAutoClose();
                         if (render) render();
                     } else {
@@ -690,6 +725,7 @@
                     cancelAutoClose();
                     state.actionState.isOpen = false;
                     state.actionState.deletePending = false;
+                    state.actionState.moreDropdownOpen = false;
                     // Open edit window
                     if (!state.editWindow) {
                         state.editWindow = { isOpen: false };
@@ -742,8 +778,51 @@
                     cancelAutoClose();
                     state.actionState.isOpen = false;
                     state.actionState.deletePending = false;
+                    state.actionState.moreDropdownOpen = false;
                     if (render) render();
                 };
+            }
+            
+            // More action - toggle dropdown
+            if (moreBtn) {
+                moreBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    cancelAutoClose();
+                    state.actionState.moreDropdownOpen = !state.actionState.moreDropdownOpen;
+                    if (render) render();
+                    startAutoClose(); // Restart timer after action
+                };
+            }
+            
+            // Export action - exports this nest to all available formats
+            if (exportBtn) {
+                exportBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    cancelAutoClose();
+                    
+                    // Generate raw export package for this nest (will be serialized in selected format)
+                    const nestName = state.name || 'Nest';
+                    const exportPackage = GT50Lib.ImpEx.exportNest(state, nestName);
+                    
+                    // Set the export override data and open the ImpEx window
+                    if (window.state && window.state.impex) {
+                        window.state.impex.exportOverrideData = exportPackage; // Raw package, will be serialized on-demand
+                        window.state.impex.activeTab = 'export';
+                        window.state.impex.header.title = `EXPORT: ${nestName.toUpperCase()}`;
+                        GT50Lib.ImpEx.open(window.state.impex, render);
+                    }
+                    
+                    // Close the nest action menu
+                    state.actionState.isOpen = false;
+                    state.actionState.moreDropdownOpen = false;
+                    state.actionState.deletePending = false;
+                    
+                    if (render) render();
+                };
+                
+                // Hover effects
+                exportBtn.onmouseover = () => exportBtn.style.filter = 'brightness(1.2)';
+                exportBtn.onmouseout = () => exportBtn.style.filter = 'brightness(1)';
             }
             
             // Add scroll animation for long tab names in tab bars mode
