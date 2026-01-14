@@ -16,7 +16,6 @@
                 components: [],
                 tabs: null,
                 tabComponents: null,
-                selectedImportId: null,  // Stores the ID of the import selected from Create New
                 importWindow: {
                     isOpen: false,
                     header: {
@@ -327,25 +326,6 @@
             const importBtn = document.getElementById('import-btn');
             const textarea = document.getElementById('import-textarea');
             const status = document.getElementById('import-status');
-            
-            // Auto-populate textarea if selectedImportId is set
-            if (textarea && componentRef.state.selectedImportId) {
-                const importObj = window.GT50.Imports.get(componentRef.state.selectedImportId);
-                if (importObj && importObj.data) {
-                    // Convert data to string if it's an object
-                    let dataStr = importObj.data;
-                    if (typeof dataStr === 'object') {
-                        dataStr = JSON.stringify(dataStr);
-                    }
-                    textarea.value = dataStr;
-                    
-                    // Update status to show it's ready
-                    if (status) {
-                        status.textContent = `✓ Import ready: ${importObj.name}`;
-                        status.style.color = 'var(--accent)';
-                    }
-                }
-            }
             
             if (importBtn && textarea && status) {
                 importBtn.onclick = () => {

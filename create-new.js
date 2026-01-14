@@ -39,10 +39,6 @@
         }
     };
     
-    // ===== IMPORT REGISTRY =====
-    // Import registry is now defined in Import-registry.js (loaded before this file)
-    // Import files will auto-register by calling window.GT50.Imports.register({...})
-    
     // ===== CREATE NEW COMPONENT =====
     window.GT50Lib.CreateNew = {
         // ===== COLOR OPTIONS =====
@@ -63,7 +59,6 @@
         isOpen: false,
         name: '',
         selectedTemplate: 'custom',
-        selectedImport: null,
         currentColorIndex: 0, // Changed from 7 to 0 (GRAY is now first)
         cycleMode: false,
         autoSortByLastUpdated: false,
@@ -71,8 +66,7 @@
                 tabs: {
                     tabs: [
                         { name: 'Templates', label: 'Templates', color: 'var(--color-5-2)' },
-                        { name: 'Settings', label: 'Settings', color: 'var(--color-5-2)' },
-                        { name: 'Import', label: 'Import', color: 'var(--color-5-2)' }
+                        { name: 'Settings', label: 'Settings', color: 'var(--color-5-2)' }
                     ],
                     activeViewTab: 0,
                     selectedBuildTab: 0
@@ -94,22 +88,6 @@
 createEntry: function(state, nextId, currentComponents) {
     if (!state.name || state.name.trim() === '') return null;
     
-    // ===== IMPORT HANDLING =====
-    // If an import is selected, create an Import component instead of a nest
-    if (state.selectedImport) {
-        const newEntry = {
-            id: nextId,
-            type: 'import',  // Create Import component, not nest
-            state: GT50Lib.Import.defaultState()
-        };
-        
-        newEntry.state.name = state.name.trim();
-        newEntry.state.selectedImportId = state.selectedImport; // Store which import was selected
-        
-        return newEntry;
-    }
-    
-    // ===== NORMAL NEST/CYCLE CREATION =====
     // Safety check: ensure currentColorIndex is valid, default to 0 (GRAY) if not
     let colorIndex = state.currentColorIndex;
     if (typeof colorIndex !== 'number' || colorIndex < 0 || colorIndex >= this.colors.length) {
@@ -186,7 +164,6 @@ createEntry: function(state, nextId, currentComponents) {
     console.log('CreateNew: Window just opened, resetting to defaults');
     state.name = '';
     state.selectedTemplate = 'custom';
-    state.selectedImport = null;
     state.currentColorIndex = 0; // Changed from 7 to 0 (GRAY is now first)
     state.cycleMode = false;
     state.autoSortByLastUpdated = false;
@@ -215,17 +192,11 @@ createEntry: function(state, nextId, currentComponents) {
                 state.tabs = {
                     tabs: [
                         { name: 'Templates', label: 'Templates', color: 'var(--color-5-2)' },
-                        { name: 'Settings', label: 'Settings', color: 'var(--color-5-2)' },
-                        { name: 'Import', label: 'Import', color: 'var(--color-5-2)' }
+                        { name: 'Settings', label: 'Settings', color: 'var(--color-5-2)' }
                     ],
                     activeViewTab: 0,
                     selectedBuildTab: 0
                 };
-            }
-            
-            // Ensure Import tab exists if missing (migration)
-            if (state.tabs.tabs.length === 2) {
-                state.tabs.tabs.push({ name: 'Import', label: 'Import', color: 'var(--color-5-2)' });
             }
             
             // Ensure tab colors are set to nest color
@@ -259,8 +230,7 @@ createEntry: function(state, nextId, currentComponents) {
             const summaryColor = this.colors[state.currentColorIndex].value;
             
             // Determine active tab
-            const activeTab = state.tabs.activeViewTab === 0 ? 'templates' : 
-                            state.tabs.activeViewTab === 1 ? 'settings' : 'import';
+            const activeTab = state.tabs.activeViewTab === 0 ? 'templates' : 'settings';
             
             // Check if we should animate color selection
             const shouldAnimateColor = state._animateColorIndex !== undefined;
@@ -1170,85 +1140,6 @@ createEntry: function(state, nextId, currentComponents) {
                 ">No templates available</div>
             `);
             
-            // ===== IMPORT TAB CONTENT =====
-            const imports = window.GT50.Imports.getAll();
-            const hasImports = imports && imports.length > 0;
-            const importsLoading = window.GT50ImportsLoading === true;
-            
-            const importTabHTML = nameSection + colorSection + (hasImports ? `
-                <!-- Import Section -->
-                <div class="divider" style="
-                    height: var(--card-height);
-                    background: transparent;
-                    border: var(--border-width) solid rgba(0, 0, 0, 0.0);
-                    border-radius: 8px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    margin-bottom: var(--margin);
-                    position: relative;
-                ">
-                    <div style="
-                        position: absolute;
-                        top: 50%;
-                        left: calc(var(--border-width) * -1);
-                        right: calc(var(--border-width) * -1);
-                        height: var(--border-width);
-                        background: var(--border-color);
-                        transform: translateY(-50%);
-                        z-index: 1;
-                    "></div>
-                    <div style="
-                        background: var(--bg-2);
-                        padding: 0 12px;
-                        font-size: 12px;
-                        font-weight: 700;
-                        color: var(--font-color-3);
-                        text-transform: uppercase;
-                        letter-spacing: 0.5px;
-                        position: relative;
-                        z-index: 2;
-                    ">SELECT IMPORT</div>
-                </div>
-                
-                ${imports.map(imp => `
-                    <div data-import="${imp.id}" style="
-                        background: ${state.selectedImport === imp.id ? 'var(--color-4-2)' : 'var(--bg-3)'};
-                        border: var(--border-width) solid var(--border-color);
-                        border-radius: 8px;
-                        height: var(--card-height);
-                        margin-bottom: var(--margin);
-                        cursor: pointer;
-                        transition: filter 0.2s;
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        justify-content: center;
-                        padding: 0 12px;
-                    ">
-                        <div style="
-                            font-size: 14px;
-                            font-weight: 700;
-                            color: var(--color-10);
-                            text-transform: uppercase;
-                        ">${imp.name}</div>
-                        <div style="
-                            font-size: 10px;
-                            color: var(--color-10);
-                            text-align: center;
-                            margin-top: 2px;
-                        ">${imp.description || 'Imported structure'}</div>
-                    </div>
-                `).join('')}
-            ` : `
-                <div style="
-                    padding: 20px;
-                    text-align: center;
-                    color: var(--font-color-3);
-                    font-size: 12px;
-                ">${importsLoading ? 'Loading imports...' : 'No imports available'}</div>
-            `);
-            
             // ===== MAIN LAYOUT =====
             container.innerHTML = `
                 <!-- Header -->
@@ -1331,8 +1222,7 @@ createEntry: function(state, nextId, currentComponents) {
             
             // Render appropriate tab content
             const contentContainer = container.querySelector('#create-new-content');
-            contentContainer.innerHTML = activeTab === 'templates' ? templatesTabHTML : 
-                                       activeTab === 'settings' ? settingsTabHTML : importTabHTML;
+            contentContainer.innerHTML = activeTab === 'templates' ? templatesTabHTML : settingsTabHTML;
             
             // ===== EVENT LISTENERS =====
             
@@ -1583,24 +1473,6 @@ createEntry: function(state, nextId, currentComponents) {
                     card.onclick = () => {
                         state.selectedTemplate = templateId;
                         onChange();
-                    };
-                    card.onmouseover = () => card.style.filter = 'brightness(1.1)';
-                    card.onmouseout = () => card.style.filter = 'brightness(1)';
-                });
-            }
-            
-            // Import tab listeners
-            if (activeTab === 'import') {
-                const importCards = contentContainer.querySelectorAll('[data-import]');
-                importCards.forEach(card => {
-                    const importId = card.getAttribute('data-import');
-                    card.onclick = () => {
-                        const importObj = window.GT50.Imports.get(importId);
-                        if (!importObj) return;
-                        
-                        state.selectedImport = importId;
-                        state.name = importObj.name;
-                        onCreate();
                     };
                     card.onmouseover = () => card.style.filter = 'brightness(1.1)';
                     card.onmouseout = () => card.style.filter = 'brightness(1)';
