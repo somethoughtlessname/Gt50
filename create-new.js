@@ -94,22 +94,6 @@
 createEntry: function(state, nextId, currentComponents) {
     if (!state.name || state.name.trim() === '') return null;
     
-    // ===== IMPORT HANDLING =====
-    // If an import is selected, create an Import component instead of a nest
-    if (state.selectedImport) {
-        const newEntry = {
-            id: nextId,
-            type: 'import',  // Create Import component, not nest
-            state: GT50Lib.Import.defaultState()
-        };
-        
-        newEntry.state.name = state.name.trim();
-        newEntry.state.selectedImportId = state.selectedImport; // Store which import was selected
-        
-        return newEntry;
-    }
-    
-    // ===== NORMAL NEST/CYCLE CREATION =====
     // Safety check: ensure currentColorIndex is valid, default to 0 (GRAY) if not
     let colorIndex = state.currentColorIndex;
     if (typeof colorIndex !== 'number' || colorIndex < 0 || colorIndex >= this.colors.length) {
@@ -151,7 +135,7 @@ createEntry: function(state, nextId, currentComponents) {
     }
     
     // Apply template if not custom
-    if (state.selectedTemplate !== 'custom') {
+    if (state.selectedTemplate !== 'custom' && window.GT50 && window.GT50.Templates) {
         const template = window.GT50.Templates.get(state.selectedTemplate);
         if (template) {
             const generated = template.generate();
@@ -171,13 +155,45 @@ createEntry: function(state, nextId, currentComponents) {
         render: function(container, state, onChange, onClose, onCreate) {
             console.log('CreateNew.render called, state.isOpen:', state.isOpen);
             
+            // Create debug overlay
+            let debugDiv = document.getElementById('create-new-debug');
+            if (!debugDiv) {
+                debugDiv = document.createElement('div');
+                debugDiv.id = 'create-new-debug';
+                debugDiv.style.cssText = `
+                    position: fixed;
+                    top: 10px;
+                    right: 10px;
+                    background: rgba(0,0,0,0.9);
+                    color: lime;
+                    padding: 10px;
+                    font-family: monospace;
+                    font-size: 10px;
+                    z-index: 9999;
+                    max-width: 300px;
+                    border: 2px solid lime;
+                `;
+                document.body.appendChild(debugDiv);
+            }
+            
+            function addDebug(msg) {
+                debugDiv.innerHTML += msg + '<br>';
+                console.log(msg);
+            }
+            
+            addDebug('RENDER START: isOpen=' + state.isOpen);
+            
             if (!state.isOpen) {
                 container.innerHTML = '';
                 container.style.display = 'none';
-                // Track that window is now closed
                 this._lastOpenState = false;
+                debugDiv.innerHTML = '';
                 return;
             }
+            
+            addDebug('Window is OPEN, continuing...');
+            
+            try {
             
             // ===== CRITICAL FIX: Reset to defaults when transitioning from closed->open =====
             // Index.html sets currentColorIndex to 4 (BLUE) on close, we need to override it
@@ -237,6 +253,8 @@ createEntry: function(state, nextId, currentComponents) {
             const isEditMode = state.editMode === true;
             
             console.log('CreateNew window should be visible');
+            addDebug('isEditMode=' + isEditMode);
+            addDebug('Setting container to visible...');
             
             container.style.display = 'block';
             container.style.cssText = `
@@ -252,7 +270,7 @@ createEntry: function(state, nextId, currentComponents) {
             `;
             
             // Get available templates
-            const templates = window.GT50.Templates.getAll();
+            const templates = (window.GT50 && window.GT50.Templates) ? window.GT50.Templates.getAll() : [];
             const hasTemplates = templates && templates.length > 0;
             
             // Determine summary color based on current card color
@@ -1171,7 +1189,7 @@ createEntry: function(state, nextId, currentComponents) {
             `);
             
             // ===== IMPORT TAB CONTENT =====
-            const imports = window.GT50.Imports.getAll();
+            const imports = (window.GT50 && window.GT50.Imports) ? window.GT50.Imports.getAll() : [];
             const hasImports = imports && imports.length > 0;
             const importsLoading = window.GT50ImportsLoading === true;
             
@@ -1250,6 +1268,8 @@ createEntry: function(state, nextId, currentComponents) {
             `);
             
             // ===== MAIN LAYOUT =====
+            addDebug('Building HTML structure...');
+            console.log('CreateNew: About to set container.innerHTML...');
             container.innerHTML = `
                 <!-- Header -->
                 <div style="
@@ -1325,14 +1345,29 @@ createEntry: function(state, nextId, currentComponents) {
                 </div>
             `;
             
+            addDebug('HTML structure created');
+            console.log('CreateNew: container.innerHTML has been set');
+            
             // Render tabs using GT50Lib.Tabs (pass actual state.tabs object)
             const tabsContainer = container.querySelector('#create-new-tabs');
-            GT50Lib.Tabs.renderView(tabsContainer, state.tabs, onChange);
+            addDebug('Rendering tabs...');
+            if (GT50Lib && GT50Lib.Tabs && GT50Lib.Tabs.renderView) {
+                GT50Lib.Tabs.renderView(tabsContainer, state.tabs, onChange);
+                addDebug('Tabs rendered OK');
+            } else {
+                addDebug('ERROR: GT50Lib.Tabs missing!');
+                console.error('GT50Lib.Tabs.renderView not available');
+                tabsContainer.innerHTML = '<div style="padding: 20px; color: red;">Error: Tabs component not loaded</div>';
+            }
             
             // Render appropriate tab content
             const contentContainer = container.querySelector('#create-new-content');
+            addDebug('Rendering tab content: ' + activeTab);
             contentContainer.innerHTML = activeTab === 'templates' ? templatesTabHTML : 
                                        activeTab === 'settings' ? settingsTabHTML : importTabHTML;
+            
+            addDebug('Content rendered successfully');
+            console.log('CreateNew: Content has been rendered, activeTab =', activeTab);
             
             // ===== EVENT LISTENERS =====
             
@@ -1595,12 +1630,9 @@ createEntry: function(state, nextId, currentComponents) {
                 importCards.forEach(card => {
                     const importId = card.getAttribute('data-import');
                     card.onclick = () => {
-                        const importObj = window.GT50.Imports.get(importId);
-                        if (!importObj) return;
-                        
                         state.selectedImport = importId;
-                        state.name = importObj.name;
-                        onCreate();
+                        // Trigger preview mode by calling onCreate with special flag
+                        onCreate('preview');
                     };
                     card.onmouseover = () => card.style.filter = 'brightness(1.1)';
                     card.onmouseout = () => card.style.filter = 'brightness(1)';
@@ -1639,6 +1671,20 @@ if (createBtn) {
     };
     createBtn.onmouseout = () => createBtn.style.filter = 'brightness(1)';
 }
+            addDebug('RENDER COMPLETE ✓');
+            console.log('CreateNew: Render complete!');
+            
+            } catch (error) {
+                addDebug('❌ ERROR: ' + error.message);
+                addDebug('Stack: ' + error.stack);
+                container.innerHTML = `
+                    <div style="padding: 20px; background: red; color: white; margin: 20px;">
+                        <h2>Render Error</h2>
+                        <p><strong>Message:</strong> ${error.message}</p>
+                        <pre style="background: black; padding: 10px; overflow: auto; font-size: 10px;">${error.stack}</pre>
+                    </div>
+                `;
+            }
         }
     };
     
