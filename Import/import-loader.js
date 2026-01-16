@@ -59,7 +59,7 @@
             
             // Load all scripts in parallel
             const loadPromises = window.GT50ImportsList.map(filename => {
-                const path = `import/${filename}`;  // Relative to Index.html, not this file
+                const path = `import/${filename}`;
                 return loadScript(path);
             });
             
