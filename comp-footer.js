@@ -403,6 +403,105 @@
                 div.onmouseenter = () => div.style.filter = 'brightness(1.15)';
                 div.onmouseleave = () => div.style.filter = 'brightness(1)';
             });
+        },
+        
+        // ===== RENDER PREVIEW MODE FOOTER =====
+        // Special footer for Import Preview mode
+        // Shows placement instructions and INSERT/CANCEL buttons
+        renderPreview: function(container, state, onInsert, onCancel) {
+            const hasInsertionPoint = state && state.insertionPoint;
+            const insertionText = hasInsertionPoint 
+                ? `INSERT AT: ${state.insertionPoint.description}` 
+                : 'USE INSERT ON LEFT TO CHOOSE PLACEMENT';
+            
+            container.style.display = 'block';
+            container.style.cssText = `
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 1000;
+            `;
+            
+            container.innerHTML = `
+                <div style="
+                    height: 100%;
+                    display: flex;
+                    flex-direction: column;
+                    background: var(--bg-3);
+                    border-top: var(--border-width) solid var(--border-color);
+                ">
+                    <!-- Instructions -->
+                    <div style="
+                        height: calc(var(--card-height) * 0.8);
+                        background: var(--bg-4);
+                        border-bottom: var(--border-width) solid var(--border-color);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        padding: 0 12px;
+                    ">
+                        <div style="
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: ${hasInsertionPoint ? 'var(--color-4)' : 'var(--color-10)'};
+                            text-transform: uppercase;
+                            letter-spacing: 0.5px;
+                            text-align: center;
+                        ">${insertionText}</div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div style="
+                        height: var(--card-height);
+                        display: flex;
+                    ">
+                        <button data-action="cancel-preview" style="
+                            flex: 1;
+                            background: var(--bg-3);
+                            border: none;
+                            border-right: var(--border-width) solid var(--border-color);
+                            color: var(--color-10);
+                            font-size: 14px;
+                            font-weight: 700;
+                            cursor: pointer;
+                            font-family: inherit;
+                            transition: filter 0.2s;
+                        ">CANCEL</button>
+                        
+                        <button data-action="insert-preview" style="
+                            flex: 1;
+                            background: ${hasInsertionPoint ? 'var(--accent)' : 'var(--bg-4)'};
+                            border: none;
+                            color: ${hasInsertionPoint ? 'var(--color-10)' : 'var(--color-9)'};
+                            font-size: 14px;
+                            font-weight: 700;
+                            cursor: ${hasInsertionPoint ? 'pointer' : 'not-allowed'};
+                            font-family: inherit;
+                            transition: filter 0.2s;
+                        " ${!hasInsertionPoint ? 'disabled' : ''}>INSERT</button>
+                    </div>
+                </div>
+            `;
+            
+            // ===== EVENT LISTENERS =====
+            const cancelBtn = container.querySelector('[data-action="cancel-preview"]');
+            if (cancelBtn && onCancel) {
+                cancelBtn.onclick = onCancel;
+                cancelBtn.onmouseover = () => cancelBtn.style.filter = 'brightness(1.2)';
+                cancelBtn.onmouseout = () => cancelBtn.style.filter = 'brightness(1)';
+            }
+            
+            const insertBtn = container.querySelector('[data-action="insert-preview"]');
+            if (insertBtn && onInsert && hasInsertionPoint) {
+                insertBtn.onclick = onInsert;
+                insertBtn.onmouseover = () => {
+                    if (!insertBtn.disabled) {
+                        insertBtn.style.filter = 'brightness(1.2)';
+                    }
+                };
+                insertBtn.onmouseout = () => insertBtn.style.filter = 'brightness(1)';
+            }
         }
     };
 })();
