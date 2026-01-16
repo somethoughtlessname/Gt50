@@ -155,45 +155,12 @@ createEntry: function(state, nextId, currentComponents) {
         render: function(container, state, onChange, onClose, onCreate) {
             console.log('CreateNew.render called, state.isOpen:', state.isOpen);
             
-            // Create debug overlay
-            let debugDiv = document.getElementById('create-new-debug');
-            if (!debugDiv) {
-                debugDiv = document.createElement('div');
-                debugDiv.id = 'create-new-debug';
-                debugDiv.style.cssText = `
-                    position: fixed;
-                    top: 10px;
-                    right: 10px;
-                    background: rgba(0,0,0,0.9);
-                    color: lime;
-                    padding: 10px;
-                    font-family: monospace;
-                    font-size: 10px;
-                    z-index: 9999;
-                    max-width: 300px;
-                    border: 2px solid lime;
-                `;
-                document.body.appendChild(debugDiv);
-            }
-            
-            function addDebug(msg) {
-                debugDiv.innerHTML += msg + '<br>';
-                console.log(msg);
-            }
-            
-            addDebug('RENDER START: isOpen=' + state.isOpen);
-            
             if (!state.isOpen) {
                 container.innerHTML = '';
                 container.style.display = 'none';
                 this._lastOpenState = false;
-                debugDiv.innerHTML = '';
                 return;
             }
-            
-            addDebug('Window is OPEN, continuing...');
-            
-            try {
             
             // ===== CRITICAL FIX: Reset to defaults when transitioning from closed->open =====
             // Index.html sets currentColorIndex to 4 (BLUE) on close, we need to override it
@@ -253,8 +220,6 @@ createEntry: function(state, nextId, currentComponents) {
             const isEditMode = state.editMode === true;
             
             console.log('CreateNew window should be visible');
-            addDebug('isEditMode=' + isEditMode);
-            addDebug('Setting container to visible...');
             
             container.style.display = 'block';
             container.style.cssText = `
@@ -1268,7 +1233,6 @@ createEntry: function(state, nextId, currentComponents) {
             `);
             
             // ===== MAIN LAYOUT =====
-            addDebug('Building HTML structure...');
             console.log('CreateNew: About to set container.innerHTML...');
             container.innerHTML = `
                 <!-- Header -->
@@ -1345,28 +1309,22 @@ createEntry: function(state, nextId, currentComponents) {
                 </div>
             `;
             
-            addDebug('HTML structure created');
             console.log('CreateNew: container.innerHTML has been set');
             
             // Render tabs using GT50Lib.Tabs (pass actual state.tabs object)
             const tabsContainer = container.querySelector('#create-new-tabs');
-            addDebug('Rendering tabs...');
             if (GT50Lib && GT50Lib.Tabs && GT50Lib.Tabs.renderView) {
                 GT50Lib.Tabs.renderView(tabsContainer, state.tabs, onChange);
-                addDebug('Tabs rendered OK');
             } else {
-                addDebug('ERROR: GT50Lib.Tabs missing!');
                 console.error('GT50Lib.Tabs.renderView not available');
                 tabsContainer.innerHTML = '<div style="padding: 20px; color: red;">Error: Tabs component not loaded</div>';
             }
             
             // Render appropriate tab content
             const contentContainer = container.querySelector('#create-new-content');
-            addDebug('Rendering tab content: ' + activeTab);
             contentContainer.innerHTML = activeTab === 'templates' ? templatesTabHTML : 
                                        activeTab === 'settings' ? settingsTabHTML : importTabHTML;
             
-            addDebug('Content rendered successfully');
             console.log('CreateNew: Content has been rendered, activeTab =', activeTab);
             
             // ===== EVENT LISTENERS =====
@@ -1671,20 +1629,7 @@ if (createBtn) {
     };
     createBtn.onmouseout = () => createBtn.style.filter = 'brightness(1)';
 }
-            addDebug('RENDER COMPLETE ✓');
             console.log('CreateNew: Render complete!');
-            
-            } catch (error) {
-                addDebug('❌ ERROR: ' + error.message);
-                addDebug('Stack: ' + error.stack);
-                container.innerHTML = `
-                    <div style="padding: 20px; background: red; color: white; margin: 20px;">
-                        <h2>Render Error</h2>
-                        <p><strong>Message:</strong> ${error.message}</p>
-                        <pre style="background: black; padding: 10px; overflow: auto; font-size: 10px;">${error.stack}</pre>
-                    </div>
-                `;
-            }
         }
     };
     
