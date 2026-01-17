@@ -78,7 +78,7 @@
                         display: flex;
                         align-items: center;
                         overflow: hidden;
-                        border-right: var(--border-width) solid var(--border-color);
+                        ${onMove || onDelete ? 'border-right: var(--border-width) solid var(--border-color);' : ''}
                     ">
                         <input 
                             data-field="name"
@@ -97,7 +97,7 @@
                                 font-family: inherit;
                             ">
                     </div>
-                    <button data-action="move-up" style="
+                    ${onMove ? `<button data-action="move-up" style="
                         width: var(--square-section);
                         height: 100%;
                         background: transparent;
@@ -120,8 +120,8 @@
                             filter: brightness(0.75);
                             z-index: -1;
                         "></div>▲
-                    </button>
-                    <button data-action="move-down" style="
+                    </button>` : ''}
+                    ${onMove ? `<button data-action="move-down" style="
                         width: var(--square-section);
                         height: 100%;
                         background: transparent;
@@ -144,8 +144,8 @@
                             filter: brightness(0.75);
                             z-index: -1;
                         "></div>▼
-                    </button>
-                    <button data-action="delete" style="
+                    </button>` : ''}
+                    ${onDelete ? `<button data-action="delete" style="
                         width: var(--square-section);
                         height: 100%;
                         background: ${isDeletePending ? 'var(--color-1)' : 'transparent'};
@@ -167,7 +167,7 @@
                             filter: brightness(0.75);
                             z-index: -1;
                         "></div>×
-                    </button>
+                    </button>` : ''}
                 </div>
             `;
             
@@ -182,7 +182,9 @@
             const openBtn = container.querySelector('[data-action="open"]');
             if (openBtn) {
                 openBtn.onclick = () => {
-                    // Initialize editWindow if it doesn't exist (for old nests)
+                    console.log('Nest open button clicked, onNavigate:', onNavigate ? 'provided' : 'null');
+                    
+                    // Initialize editWindow and color if they don't exist (for old nests)
                     if (!state.editWindow) {
                         state.editWindow = { isOpen: false };
                     }
@@ -190,15 +192,12 @@
                         state.color = 'GRAY';
                     }
                     
-                    // Only open edit window at root level (depth === 0)
-                    // Inside nested structures, navigate directly
-                    if (depth === 0) {
-                        // Root level - open edit window
-                        state.editWindow.isOpen = true;
-                        if (onChange) onChange();
+                    // Always navigate directly - no edit window in build mode
+                    if (onNavigate) {
+                        console.log('Calling onNavigate...');
+                        onNavigate();
                     } else {
-                        // Inside a nest - navigate directly
-                        if (onNavigate) onNavigate();
+                        console.log('onNavigate is null - this should not happen in normal build mode!');
                     }
                 };
                 openBtn.onmouseover = () => openBtn.style.filter = 'brightness(1.2)';
@@ -879,6 +878,19 @@
                 container.innerHTML = '';
                 container.style.display = 'none';
                 return;
+            }
+            
+            // Create backup of state on first render (when temp values don't exist)
+            if (!state.editWindow._backup) {
+                state.editWindow._backup = {
+                    name: state.name,
+                    color: state.color,
+                    autoSortByLastUpdated: state.autoSortByLastUpdated,
+                    showSummary: state.showSummary,
+                    summaryDisplayMode: state.summaryDisplayMode,
+                    summaryShowChildNestProgress: state.summaryShowChildNestProgress,
+                    summaryChildNestProgressMode: state.summaryChildNestProgressMode
+                };
             }
             
             // Initialize temporary edit values if not already present

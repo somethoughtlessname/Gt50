@@ -64,6 +64,24 @@
             display: flex;
             flex-direction: column;
         }
+
+        /* Import Mode - Hide all move/delete buttons globally with maximum specificity */
+        body.import-mode [data-action="move-up"],
+        body.import-mode [data-action="move-down"],
+        body.import-mode [data-action="delete"],
+        body.import-mode button[data-action="move-up"],
+        body.import-mode button[data-action="move-down"],
+        body.import-mode button[data-action="delete"] {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            width: 0 !important;
+            height: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            border: 0 !important;
+            pointer-events: none !important;
+        }
     </style>
 </head>
 <body>
@@ -470,6 +488,10 @@
         function navigateBack() {
             if (window.navigationStack.length === 0) return;
             
+            // Check if the current nest was opened via "Save and Open" from edit window
+            const currentNest = getCurrentNest();
+            const shouldReturnToEdit = currentNest && currentNest.state.editWindow && currentNest.state.editWindow._returnToEditOnBack;
+            
             const { tabs: currentTabs } = getCurrentTabs();
             if (currentTabs && currentTabs.tabs && currentTabs.tabs.length > 0) {
                 currentTabs.activeViewTab = 0;
@@ -491,12 +513,24 @@
             if (window.navigationStack.length === 0) {
                 state.header.isMain = true;
                 state.header.title = 'GT50 TESTER';
-                activeMode = 'view';
+                // Only clear import mode if we're NOT in import mode
+                // If we're in import mode, we stay in build mode at root
+                if (!pendingImportComponent) {
+                    activeMode = 'view';
+                }
+                // Don't clear pendingImportComponent here - let home/cancel handle that
             } else {
                 const currentNest = getCurrentNest();
                 if (currentNest) {
                     state.header.title = currentNest.state.name || 'SECTION';
                 }
+            }
+            
+            // If we should return to edit window, reopen it
+            if (shouldReturnToEdit) {
+                currentNest.state.editWindow.isOpen = true;
+                delete currentNest.state.editWindow._returnToEditOnBack;
+                activeMode = 'view';  // Return to view mode for edit window
             }
             
             selectedInsertionPoint = getCurrentComponents().length;
@@ -534,6 +568,7 @@
             state.header.isMain = true;
             state.header.title = 'GT50 TESTER';
             activeMode = 'view';
+            pendingImportComponent = null;  // Clear any pending import when going home
             
             selectedInsertionPoint = getCurrentComponents().length;
             
@@ -568,30 +603,10 @@
         }
 
         function navigateBackBuildMode() {
-            // In Build mode, back button returns to create entry window
-            // This re-opens the create window for the current entry
-            const currentNest = getCurrentNest();
-            if (currentNest) {
-                // Re-open create window with current entry's data
-                state.createNew.isOpen = true;
-                state.createNew.editingEntryId = currentNest.id; // Store ID for potential deletion
-                state.createNew.name = currentNest.state.name || '';
-                state.createNew.selectedTemplate = 'custom';
-                // Find color index from color name
-                const colorIndex = GT50Lib.CreateNew.colors.findIndex(c => c.name === currentNest.state.color);
-                state.createNew.currentColorIndex = colorIndex >= 0 ? colorIndex : 0;
-                state.createNew.cycleMode = currentNest.type === 'cycle';
-                state.createNew.summaryState = {
-                    showSummary: currentNest.state.showSummary || false,
-                    summaryIncludeChildren: currentNest.state.summaryIncludeChildren || false,
-                    summaryDisplayMode: currentNest.state.summaryDisplayMode || null
-                };
-                
-                // Navigate back first, then switch to view mode
-                navigateBack();
-                activeMode = 'view';
-                render();
-            }
+            // In Build mode, back button simply navigates back and stays in build mode
+            navigateBack();
+            activeMode = 'build';
+            render();
         }
 
         function navigateHomeBuildMode() {
@@ -599,6 +614,7 @@
             saveState();
             navigateBack();
             activeMode = 'view';
+            pendingImportComponent = null;  // Clear any pending import
             render(true);
         }
 
@@ -606,31 +622,27 @@
             const headerContainer = document.getElementById('frozenHeader');
             if (!headerContainer) return;
             
-            // Pending import mode gets custom header
+            // Check if we're in a nested level
+            const isNested = window.navigationStack.length > 0;
+            
+            // Pending import mode gets simplified header showing only "IMPORT: [name]"
+            // With back button ONLY when in nested levels
             if (pendingImportComponent) {
-                headerContainer.innerHTML = `
-                    <div style="
-                        height: var(--card-height);
-                        background: var(--bg-3);
-                        border-bottom: var(--border-width) solid var(--border-color);
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                    ">
-                        <div style="
-                            font-size: 14px;
-                            font-weight: 700;
-                            color: var(--color-10);
-                            text-transform: uppercase;
-                        ">IMPORT: ${pendingImportComponent.state.name}</div>
-                    </div>
-                `;
+                // Update header title to show import name
+                const originalTitle = state.header.title;
+                state.header.title = `IMPORT: ${pendingImportComponent.state.name}`;
+                
+                // Render import mode header with conditional back button
+                GT50Lib.Header.renderBuild(headerContainer, state.header, render, navigateBackBuildMode, navigateHomeBuildMode, switchMode, activeMode, openDataWindow, openSettingsWindow, openNewWindow, true, isNested);
+                
+                // Restore original title
+                state.header.title = originalTitle;
                 return;
             }
             
             if (activeMode === 'build') {
                 // In build mode, use special navigation functions for back/home
-                GT50Lib.Header.renderBuild(headerContainer, state.header, render, navigateBackBuildMode, navigateHomeBuildMode, switchMode, activeMode, openDataWindow, openSettingsWindow, openNewWindow);
+                GT50Lib.Header.renderBuild(headerContainer, state.header, render, navigateBackBuildMode, navigateHomeBuildMode, switchMode, activeMode, openDataWindow, openSettingsWindow, openNewWindow, false, false);
             } else {
                 GT50Lib.Header.renderView(headerContainer, state.header, render, navigateBack, navigateHome, switchMode, activeMode, openDataWindow, openSettingsWindow, openNewWindow);
             }
@@ -695,29 +707,42 @@
                     },
                     // onInsert callback - Add component and auto-trigger import
                     () => {
+                        console.log('INSERT button pressed for import:', pendingImportComponent.state.name);
                         const currentComponents = getCurrentComponents();
                         currentComponents.splice(selectedInsertionPoint, 0, pendingImportComponent);
                         
                         // Auto-trigger the import transformation
                         const importId = pendingImportComponent.state.selectedImportId;
+                        console.log('Import ID:', importId);
+                        
                         if (importId) {
                             const parseResult = window.GT50.Imports.parseImportData(importId);
+                            console.log('Parse result:', parseResult);
                             
-                            if (parseResult.success) {
+                            if (parseResult.success && parseResult.data) {
+                                console.log('Transforming import to nest...');
                                 // Transform the import component to nest
                                 pendingImportComponent.type = 'nest';
                                 
-                                if (parseResult.data) {
-                                    pendingImportComponent.state = {
-                                        name: pendingImportComponent.state.name,
-                                        tabs: parseResult.data.tabs,
-                                        tabComponents: parseResult.data.tabComponents,
-                                        color: 'GRAY',
-                                        autoSortByLastUpdated: false,
-                                        showSummary: false
-                                    };
-                                }
+                                // Start with proper nest default state
+                                const nestState = GT50Lib.Nest.defaultState();
+                                
+                                // Override with import name and data
+                                nestState.name = pendingImportComponent.state.name;
+                                nestState.tabs = parseResult.data.tabs;
+                                nestState.tabComponents = parseResult.data.tabComponents;
+                                nestState.color = 'GRAY';
+                                nestState.autoSortByLastUpdated = false;
+                                nestState.showSummary = false;
+                                
+                                // Replace the entire state
+                                pendingImportComponent.state = nestState;
+                                console.log('Transform complete! Type:', pendingImportComponent.type);
+                            } else {
+                                console.error('Parse failed or no data:', parseResult);
                             }
+                        } else {
+                            console.error('No importId found!');
                         }
                         
                         // Clear pending state and return to view
@@ -1027,9 +1052,32 @@ function renderNestEditWindow() {
                 openEditNest.state,
                 render,  // onChange
                 () => {
-                    // onClose - close without saving
+                    // onClose - close without saving, restore from backup
+                    
+                    // Restore from backup if it exists
+                    if (openEditNest.state.editWindow._backup) {
+                        const backup = openEditNest.state.editWindow._backup;
+                        openEditNest.state.name = backup.name;
+                        openEditNest.state.color = backup.color;
+                        openEditNest.state.autoSortByLastUpdated = backup.autoSortByLastUpdated;
+                        openEditNest.state.showSummary = backup.showSummary;
+                        openEditNest.state.summaryDisplayMode = backup.summaryDisplayMode;
+                        openEditNest.state.summaryShowChildNestProgress = backup.summaryShowChildNestProgress;
+                        openEditNest.state.summaryChildNestProgressMode = backup.summaryChildNestProgressMode;
+                    }
+                    
+                    // Clear temp values and backup
+                    delete openEditNest.state.editWindow.tempName;
+                    delete openEditNest.state.editWindow.tempColorIndex;
+                    delete openEditNest.state.editWindow.tempType;
+                    delete openEditNest.state.editWindow._backup;
+                    delete openEditNest.state.editWindow._animateColorIndex;
+                    
                     openEditNest.state.editWindow.isOpen = false;
                     delete openEditNest.state._pendingTypeChange;
+                    
+                    // Always return to view mode when canceling
+                    activeMode = 'view';
                     
                     // Check if home button was pressed  
                     if (openEditNest.state.editWindow._navigateHomeAfterClose) {
@@ -1039,7 +1087,6 @@ function renderNestEditWindow() {
                         window.navigationStack = [];
                         state.header.isMain = true;
                         state.header.title = 'GT50 TESTER';
-                        activeMode = 'view';
                         selectedInsertionPoint = getCurrentComponents().length;
                         
                         render(true);
@@ -1051,13 +1098,57 @@ function renderNestEditWindow() {
                 },
                 () => {
                     // onSaveAndClose - save changes and close (no navigation)
+                    
+                    // Apply temp values to actual state
+                    if (openEditNest.state.editWindow.tempName !== undefined) {
+                        openEditNest.state.name = openEditNest.state.editWindow.tempName;
+                    }
+                    if (openEditNest.state.editWindow.tempColorIndex !== undefined) {
+                        const colors = GT50Lib.CreateNew.colors;
+                        if (colors && colors[openEditNest.state.editWindow.tempColorIndex]) {
+                            openEditNest.state.color = colors[openEditNest.state.editWindow.tempColorIndex].name;
+                        }
+                    }
+                    
+                    // Clear temp values and backup
+                    delete openEditNest.state.editWindow.tempName;
+                    delete openEditNest.state.editWindow.tempColorIndex;
+                    delete openEditNest.state.editWindow.tempType;
+                    delete openEditNest.state.editWindow._backup;
+                    delete openEditNest.state.editWindow._animateColorIndex;
+                    
                     openEditNest.state.editWindow.isOpen = false;
+                    
+                    // Return to view mode
+                    activeMode = 'view';
+                    
                     saveState();
                     render();
                 },
                 () => {
                     // onSaveAndOpen - save changes and navigate into nest in BUILD mode
+                    
+                    // Apply temp values to actual state
+                    if (openEditNest.state.editWindow.tempName !== undefined) {
+                        openEditNest.state.name = openEditNest.state.editWindow.tempName;
+                    }
+                    if (openEditNest.state.editWindow.tempColorIndex !== undefined) {
+                        const colors = GT50Lib.CreateNew.colors;
+                        if (colors && colors[openEditNest.state.editWindow.tempColorIndex]) {
+                            openEditNest.state.color = colors[openEditNest.state.editWindow.tempColorIndex].name;
+                        }
+                    }
+                    
+                    // Clear temp values and backup
+                    delete openEditNest.state.editWindow.tempName;
+                    delete openEditNest.state.editWindow.tempColorIndex;
+                    delete openEditNest.state.editWindow.tempType;
+                    delete openEditNest.state.editWindow._backup;
+                    delete openEditNest.state.editWindow._animateColorIndex;
+                    
+                    // Mark that we came from edit window so back button can restore it
                     openEditNest.state.editWindow.isOpen = false;
+                    openEditNest.state.editWindow._returnToEditOnBack = true;
                     activeMode = 'build';  // Switch to build mode before navigating
                     saveState();
                     navigateInto(openEditNest.id);
@@ -1072,6 +1163,15 @@ function renderNestEditWindow() {
     
         function render(skipScrollRestore = false) {
             const currentScroll = window.scrollY;
+            
+            // Toggle import-mode class on body for global styling
+            if (pendingImportComponent) {
+                console.log('✓ IMPORT MODE ACTIVE - Adding body.import-mode class');
+                document.body.classList.add('import-mode');
+            } else {
+                console.log('○ Normal mode - Removing body.import-mode class');
+                document.body.classList.remove('import-mode');
+            }
             
             renderHeader();
             renderTabs();
@@ -1103,10 +1203,13 @@ function renderNestEditWindow() {
             const container = document.getElementById('cards-main');
             container.innerHTML = '';
             
-            // Pending import mode - show existing components with insert selector
+            // Pending import mode - BOTH root and nested levels
             if (pendingImportComponent) {
                 const currentComponents = getCurrentComponents();
                 const depth = window.navigationStack.length;
+                const isRoot = window.navigationStack.length === 0;
+                
+                console.log(`🔧 RENDERING IMPORT MODE - Depth: ${depth}, IsRoot: ${isRoot}, Components: ${currentComponents.length}`);
                 
                 const layoutWrapper = document.createElement('div');
                 layoutWrapper.style.cssText = 'display: flex; gap: var(--margin); align-items: flex-start; width: 100%;';
@@ -1115,13 +1218,13 @@ function renderNestEditWindow() {
                 const cardsContainer = document.createElement('div');
                 cardsContainer.style.cssText = 'flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden;';
                 
-                // Render Insert selector - include pending card in count (+1)
+                // Render Insert selector at ALL levels (always +1 for preview card)
                 GT50Lib.Insert.render(selectorContainer, currentComponents.length + 1, selectedInsertionPoint, (index) => {
                     selectedInsertionPoint = index;
                     render();
                 });
                 
-                // Render existing components WITH the pending import card at selected position
+                // Render components WITH pending import preview at ALL levels (for context)
                 let componentsWithPreview = [...currentComponents];
                 componentsWithPreview.splice(selectedInsertionPoint, 0, pendingImportComponent);
                 
@@ -1152,13 +1255,13 @@ function renderNestEditWindow() {
                             </div>
                         `;
                     } else {
-                        // Render existing cards as read-only (no editing)
+                        // Render existing cards WITHOUT move/delete buttons
                         if (component.type === 'divider') {
                             GT50Lib.Divider.renderBuild(wrapper, component.state, render, null, null, false);
                         } else if (component.type === 'nest') {
-                            GT50Lib.Nest.renderBuild(wrapper, component.state, depth, null, render, null, null, false);
+                            GT50Lib.Nest.renderBuild(wrapper, component.state, depth, () => navigateInto(component.id), render, null, null, false);
                         } else if (component.type === 'cycle') {
-                            GT50Lib.Cycle.renderBuild(wrapper, component.state, depth, null, render, null, null, false);
+                            GT50Lib.Cycle.renderBuild(wrapper, component.state, depth, () => navigateInto(component.id), render, null, null, false);
                         } else if (component.type === 'import') {
                             GT50Lib.Import.renderBuild(wrapper, component.state, depth, null, render, null, null, false);
                         } else if (component.type === 'list') {
@@ -1505,7 +1608,7 @@ if (GT50Lib.Search) {
         function switchMode() {
     activeMode = activeMode === 'build' ? 'view' : 'build';
     
-    // When switching to view mode, remove all import components
+    // When switching to view mode, remove all import components and clear pending import
     if (activeMode === 'view') {
         const components = getCurrentComponents();
         const filtered = components.filter(c => c.type !== 'import');
@@ -1513,6 +1616,9 @@ if (GT50Lib.Search) {
         // Replace the array contents
         components.length = 0;
         components.push(...filtered);
+        
+        // Clear any pending import component
+        pendingImportComponent = null;
         
         // Reset selector to bottom when entering View mode
         selectedInsertionPoint = getCurrentComponents().length;

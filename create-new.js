@@ -92,6 +92,31 @@
         
        // ===== CREATE ENTRY HELPER =====
 createEntry: function(state, nextId, currentComponents) {
+    // SPECIAL CASE: Import selected - create import component
+    if (state.selectedImport) {
+        console.log('CreateNew.createEntry: Creating import component for', state.selectedImport);
+        
+        const importObj = window.GT50.Imports.get(state.selectedImport);
+        if (!importObj) {
+            console.error('Import not found:', state.selectedImport);
+            return null;
+        }
+        
+        // Create import-type entry
+        const newEntry = {
+            id: nextId,
+            type: 'import',
+            state: GT50Lib.Import.defaultState()
+        };
+        
+        // Set the name and store the import ID for later parsing
+        newEntry.state.name = importObj.name;
+        newEntry.state.selectedImportId = state.selectedImport;
+        
+        return newEntry;
+    }
+    
+    // NORMAL CASE: Creating nest/cycle
     if (!state.name || state.name.trim() === '') return null;
     
     // Safety check: ensure currentColorIndex is valid, default to 0 (GRAY) if not
@@ -1589,8 +1614,8 @@ createEntry: function(state, nextId, currentComponents) {
                     const importId = card.getAttribute('data-import');
                     card.onclick = () => {
                         state.selectedImport = importId;
-                        // Trigger preview mode by calling onCreate with special flag
-                        onCreate('preview');
+                        // Call onCreate to create the import component
+                        onCreate();
                     };
                     card.onmouseover = () => card.style.filter = 'brightness(1.1)';
                     card.onmouseout = () => card.style.filter = 'brightness(1)';

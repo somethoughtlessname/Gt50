@@ -74,7 +74,96 @@
         },
         
         // ===== BUILD MODE RENDERER =====
-        renderBuild: function(container, state, onChange, onBack, onHome, onToggleMode, activeMode, onDataOpen, onSettingsOpen, onNewOpen) {
+        renderBuild: function(container, state, onChange, onBack, onHome, onToggleMode, activeMode, onDataOpen, onSettingsOpen, onNewOpen, isImportMode, isNested) {
+            // IMPORT MODE - Shows back button ONLY when in nested levels
+            if (isImportMode) {
+                if (isNested) {
+                    // NESTED IMPORT MODE - Back button + Title
+                    container.innerHTML = `
+                        <div style="
+                            height: var(--card-height);
+                            background: var(--bg-3);
+                            border-bottom: var(--border-width) solid var(--border-color);
+                            display: flex;
+                            align-items: center;
+                        ">
+                            <div data-action="back" style="
+                                width: var(--square-section);
+                                min-width: var(--square-section);
+                                height: 100%;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                background: var(--color-1);
+                                padding: 0;
+                                font-size: 18px;
+                                border-right: var(--border-width) solid var(--border-color);
+                                cursor: pointer;
+                                color: var(--color-10);
+                                transition: filter 0.2s;
+                            ">◀</div>
+                            <div style="
+                                flex: 1;
+                                height: 100%;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                padding: 0 var(--margin);
+                                background: var(--color-5-3);
+                            ">
+                                <div style="
+                                    width: 100%;
+                                    color: var(--color-10);
+                                    font-size: 14px;
+                                    font-weight: 700;
+                                    font-family: inherit;
+                                    text-align: center;
+                                ">${state.title || 'IMPORT MODE'}</div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Add back button listener
+                    const backBtn = container.querySelector('[data-action="back"]');
+                    if (backBtn && onBack) {
+                        backBtn.onclick = () => onBack();
+                        backBtn.onmouseover = () => backBtn.style.filter = 'brightness(1.2)';
+                        backBtn.onmouseout = () => backBtn.style.filter = 'brightness(1)';
+                    }
+                } else {
+                    // ROOT IMPORT MODE - Just title, no buttons
+                    container.innerHTML = `
+                        <div style="
+                            height: var(--card-height);
+                            background: var(--bg-3);
+                            border-bottom: var(--border-width) solid var(--border-color);
+                            display: flex;
+                            align-items: center;
+                        ">
+                            <div style="
+                                flex: 1;
+                                height: 100%;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                padding: 0 var(--margin);
+                                background: var(--color-5-3);
+                            ">
+                                <div style="
+                                    width: 100%;
+                                    color: var(--color-10);
+                                    font-size: 14px;
+                                    font-weight: 700;
+                                    font-family: inherit;
+                                    text-align: center;
+                                ">${state.title || 'IMPORT MODE'}</div>
+                            </div>
+                        </div>
+                    `;
+                }
+                return;
+            }
+            
             if (state.isMain) {
                 // ===== MAIN WINDOW HEADER =====
                 const modeButtonText = activeMode === 'build' ? 'VIEW' : 'EDIT';

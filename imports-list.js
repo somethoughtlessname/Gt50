@@ -7,6 +7,7 @@ window.GT50ImportsList = [
     'import-example-rpg.js',
     'game-stray.js',
     'game-thelongdark.js',
+'game-hogwarts.js',
     // Add more import files here:
 ];
 

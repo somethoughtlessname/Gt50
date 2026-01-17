@@ -1,419 +1,133 @@
 (function() {
     // Static injector ID
-    const INJECTOR_ID = '0021';
+    const INJECTOR_ID = '0023';
     
-    // ===== IMPORT COMPONENT (Nest Variation) =====
-    // Enables importing pre-configured nest structures with complete component hierarchies
-    // Once populated, transforms into a regular nest component
+    // ===== IMPORT.JS FORMAT ADAPTER =====
+    // Generates ready-to-use JavaScript import files
+    // Export → Save as .js → Add to Imports-list.js → Done!
     
-    window.GT50Lib = window.GT50Lib || {};
-    
-    window.GT50Lib.Import = {
-        // ===== STATE FACTORY =====
-        defaultState: function() {
-            return { 
-                name: '',
-                components: [],
-                tabs: null,
-                tabComponents: null,
-                selectedImportId: null,  // Stores the ID of the import selected from Create New
-                importWindow: {
-                    isOpen: false,
-                    header: {
-                        isMain: false,
-                        title: 'IMPORT NEST DATA'
-                    }
-                }
-            };
+    const ImportJSFormat = {
+        // ===== FORMAT INFO =====
+        getFormatName: function() {
+            return 'IMPORT.JS';
         },
         
-        // ===== BUILD MODE RENDERER =====
-        renderBuild: function(container, state, depth, onNavigate, onChange, onMove, onDelete, isDeletePending) {
-            const bgColor = 'var(--color-5-3)';  // Distinct from regular nest
-            const iconBg = 'var(--blur)';
-            const placeholder = 'IMPORT (tap to configure)';
-            
-            container.innerHTML = `
-                <div style="
-                    background: ${bgColor};
-                    border: var(--border-width) solid var(--border-color);
-                    border-radius: 8px;
-                    height: var(--card-height);
-                    display: flex;
-                    align-items: center;
-                    overflow: hidden;
-                    margin-bottom: var(--margin);
-                ">
-                    <div data-action="open-import" style="
-                        width: var(--square-section);
-                        min-width: var(--square-section);
-                        height: 100%;
-                        background: ${iconBg};
-                        border-right: var(--border-width) solid var(--border-color);
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        cursor: pointer;
-                        transition: filter 0.2s;
-                    ">
-                        <div style="
-                            position: relative;
-                            width: 20px;
-                            height: 20px;
-                            border: var(--border-width) solid var(--font-color-3);
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                        ">
-                            <div style="
-                                width: 0;
-                                height: 0;
-                                border-left: 5px solid transparent;
-                                border-right: 5px solid transparent;
-                                border-top: 8px solid var(--font-color-3);
-                            "></div>
-                        </div>
-                    </div>
-                    <div style="
-                        flex: 1;
-                        background: ${bgColor};
-                        height: 100%;
-                        display: flex;
-                        align-items: center;
-                        overflow: hidden;
-                    ">
-                        <input 
-                            data-field="name"
-                            type="text" 
-                            value="${state.name || ''}" 
-                            placeholder="${placeholder}"
-                            disabled
-                            style="
-                                width: 100%;
-                                background: transparent;
-                                border: none;
-                                padding: 0 var(--text-padding-small);
-                                font-size: 16px;
-                                font-weight: 600;
-                                color: var(--color-7);
-                                outline: none;
-                                font-family: inherit;
-                                opacity: 0.7;
-                            ">
-                    </div>
-                    <div style="
-                        display: flex;
-                        height: 100%;
-                        border-left: var(--border-width) solid var(--border-color);
-                    ">
-                        <button data-action="move-up" style="
-                            width: var(--square-section);
-                            height: 100%;
-                            background: ${bgColor};
-                            border: none;
-                            border-right: var(--border-width) solid var(--border-color);
-                            color: var(--font-color-3);
-                            cursor: pointer;
-                            font-family: inherit;
-                            font-size: var(--up-sub-size);
-                            font-weight: var(--up-sub-weight);
-                            transition: filter 0.2s;
-                        ">▲</button>
-                        <button data-action="move-down" style="
-                            width: var(--square-section);
-                            height: 100%;
-                            background: ${bgColor};
-                            border: none;
-                            border-right: var(--border-width) solid var(--border-color);
-                            color: var(--font-color-3);
-                            cursor: pointer;
-                            font-family: inherit;
-                            font-size: var(--down-sub-size);
-                            font-weight: var(--down-sub-weight);
-                            transition: filter 0.2s;
-                        ">▼</button>
-                        <button data-action="delete" style="
-                            width: var(--square-section);
-                            height: 100%;
-                            background: ${isDeletePending ? 'var(--color-10)' : bgColor};
-                            border: none;
-                            color: ${isDeletePending ? 'var(--color-1)' : 'var(--font-color-3)'};
-                            cursor: pointer;
-                            font-family: inherit;
-                            font-size: var(--delete-sub-size);
-                            font-weight: var(--delete-sub-weight);
-                            transition: filter 0.2s;
-                        ">×</button>
-                    </div>
-                </div>
-            `;
-            
-            // ===== EVENT LISTENERS =====
-            const openBtn = container.querySelector('[data-action="open-import"]');
-            if (openBtn) {
-                openBtn.onclick = () => {
-                    state.importWindow.isOpen = true;
-                    if (onChange) onChange();
-                };
-                openBtn.onmouseover = () => openBtn.style.filter = 'brightness(1.2)';
-                openBtn.onmouseout = () => openBtn.style.filter = 'brightness(1)';
-            }
-            
-            const moveUpBtn = container.querySelector('[data-action="move-up"]');
-            if (moveUpBtn && onMove) {
-                moveUpBtn.onclick = () => onMove(-1);
-                moveUpBtn.onmouseover = () => moveUpBtn.style.filter = 'brightness(1.2)';
-                moveUpBtn.onmouseout = () => moveUpBtn.style.filter = 'brightness(1)';
-            }
-            
-            const moveDownBtn = container.querySelector('[data-action="move-down"]');
-            if (moveDownBtn && onMove) {
-                moveDownBtn.onclick = () => onMove(1);
-                moveDownBtn.onmouseover = () => moveDownBtn.style.filter = 'brightness(1.2)';
-                moveDownBtn.onmouseout = () => moveDownBtn.style.filter = 'brightness(1)';
-            }
-            
-            const deleteBtn = container.querySelector('[data-action="delete"]');
-            if (deleteBtn && onDelete) {
-                deleteBtn.onclick = onDelete;
-                if (!isDeletePending) {
-                    deleteBtn.onmouseover = () => deleteBtn.style.filter = 'brightness(1.2)';
-                    deleteBtn.onmouseout = () => deleteBtn.style.filter = 'brightness(1)';
-                }
-            }
+        getDescription: function() {
+            return 'Ready-to-use import file (save as .js)';
         },
         
-        // ===== RENDER IMPORT WINDOW =====
-        renderImportWindow: function(container, componentRef, onChange) {
-            if (!componentRef.state.importWindow.isOpen) {
-                container.innerHTML = '';
-                container.style.display = 'none';
-                return;
+        getVersion: function() {
+            return '1.0.0';
+        },
+        
+        getFileExtension: function() {
+            return 'js';
+        },
+        
+        // ===== SERIALIZE (JSON → Import.js format) =====
+        serialize: function(jsonData) {
+            // Extract name and create safe ID
+            const nestName = jsonData.name || 'Import';
+            const safeId = nestName.toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')  // Replace non-alphanumeric with hyphens
+                .replace(/^-+|-+$/g, '');      // Remove leading/trailing hyphens
+            
+            // Create description from first tab or default
+            let description = 'Imported structure';
+            if (jsonData.data && jsonData.data.tabs && jsonData.data.tabs.tabs) {
+                const tabNames = jsonData.data.tabs.tabs.map(t => t.label || t.name).join(', ');
+                if (tabNames) {
+                    description = `Includes: ${tabNames}`;
+                }
             }
             
-            container.style.display = 'block';
-            container.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: var(--bg-2);
-                z-index: 2000;
-                display: flex;
-                flex-direction: column;
-            `;
+            // Serialize the export data as JSON string (readable format)
+            const exportDataString = JSON.stringify(jsonData, null, 2);
             
-            container.innerHTML = `
-                <div style="
-                    height: var(--card-height);
-                    background: var(--bg-3);
-                    border-bottom: var(--border-width) solid var(--border-color);
-                    display: flex;
-                    align-items: center;
-                    flex-shrink: 0;
-                ">
-                    <div data-action="close" style="
-                        width: var(--square-section);
-                        min-width: var(--square-section);
-                        height: 100%;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        background: var(--bg-4);
-                        padding: 0;
-                        font-size: 18px;
-                        border-right: var(--border-width) solid var(--border-color);
-                        cursor: pointer;
-                        color: var(--color-10);
-                    ">◀</div>
-                    <div style="
-                        flex: 1;
-                        height: 100%;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        font-size: 16px;
-                        font-weight: 700;
-                        letter-spacing: 1px;
-                        color: var(--font-color-3);
-                    ">${componentRef.state.importWindow.header.title}</div>
-                    <div style="
-                        width: var(--square-section);
-                        min-width: var(--square-section);
-                        height: 100%;
-                        background: var(--bg-4);
-                        border-left: var(--border-width) solid var(--border-color);
-                    "></div>
-                </div>
+            // Generate the complete import file
+            const output = [];
+            output.push('// ===== GT50 IMPORT FILE =====');
+            output.push(`// Generated: ${new Date().toISOString()}`);
+            output.push(`// Name: ${nestName}`);
+            output.push('//');
+            output.push('// INSTALLATION:');
+            output.push('// 1. Save this file as: import/[filename].js');
+            output.push('// 2. Add the filename to Imports-list.js');
+            output.push('// 3. Reload GT50');
+            output.push('// 4. Find it in Create New → Import tab');
+            output.push('');
+            output.push('(function() {');
+            output.push('    // Wait for registry to be available');
+            output.push('    if (!window.GT50 || !window.GT50.Imports) {');
+            output.push('        console.error(\'Import registry not available\');');
+            output.push('        return;');
+            output.push('    }');
+            output.push('    ');
+            output.push('    // Export data in JSON format');
+            output.push('    const exportedData = `' + exportDataString + '`;');
+            output.push('    ');
+            output.push('    // Register the import');
+            output.push('    window.GT50.Imports.register({');
+            output.push(`        id: '${safeId}',`);
+            output.push(`        name: '${nestName}',`);
+            output.push(`        description: '${description}',`);
+            output.push('        data: exportedData');
+            output.push('    });');
+            output.push('    ');
+            output.push(`    console.log('✓ Import registered: ${nestName}');`);
+            output.push('})();');
+            output.push('');
+            
+            return output.join('\n');
+        },
+        
+        // ===== DESERIALIZE (Import.js → JSON format) =====
+        deserialize: function(formatData) {
+            // Extract the JSON data from between backticks
+            const match = formatData.match(/const exportedData = `([\s\S]*?)`;/);
+            if (!match || !match[1]) {
+                throw new Error('Could not extract export data from import file');
+            }
+            
+            const jsonString = match[1];
+            return JSON.parse(jsonString);
+        },
+        
+        // ===== VALIDATE =====
+        validate: function(formatData) {
+            try {
+                // Check if it looks like an import file
+                if (!formatData.includes('window.GT50.Imports.register')) {
+                    return { valid: false, error: 'Not a GT50 import file' };
+                }
                 
-                <div style="
-                    flex: 1;
-                    display: flex;
-                    flex-direction: column;
-                    padding: var(--margin);
-                    overflow-y: auto;
-                ">
-                    <textarea 
-                        id="import-textarea" 
-                        placeholder="Paste nest data here (any GT50 format will be auto-detected)..."
-                        style="
-                            width: 100%;
-                            flex: 1;
-                            background: var(--bg-3);
-                            border: var(--border-width) solid var(--border-color);
-                            border-radius: 8px;
-                            color: var(--color-10);
-                            padding: 12px;
-                            font-family: 'Courier New', monospace;
-                            font-size: 11px;
-                            line-height: 1.4;
-                            resize: none;
-                            margin-bottom: var(--margin);
-                            outline: none;
-                        "></textarea>
-                    
-                    <button id="import-btn" style="
-                        height: var(--card-height);
-                        background: var(--accent);
-                        border: var(--border-width) solid var(--border-color);
-                        border-radius: 8px;
-                        color: var(--color-10);
-                        font-size: 14px;
-                        font-weight: 700;
-                        cursor: pointer;
-                        transition: filter 0.2s;
-                        font-family: inherit;
-                        margin-bottom: var(--margin);
-                    ">IMPORT NEST DATA</button>
-                    
-                    <div id="import-status" style="
-                        text-align: center;
-                        font-size: 12px;
-                        color: var(--color-10);
-                        min-height: 20px;
-                        margin-bottom: var(--margin);
-                    "></div>
-                    
-                    <div style="
-                        background: var(--bg-4);
-                        border: var(--border-width) solid var(--border-color);
-                        border-radius: 8px;
-                        padding: 12px;
-                        font-size: 11px;
-                        color: var(--color-7);
-                        line-height: 1.5;
-                    ">
-                        <div style="font-weight: 700; margin-bottom: 8px; color: var(--color-10);">📋 INSTRUCTIONS:</div>
-                        <div>• Paste data exported from any GT50 nest component</div>
-                        <div>• All formats are supported (GT50, JSON, compressed)</div>
-                        <div>• Can import nest components or workspace data directly</div>
-                        <div>• Imported data will transform this card into a nest component</div>
-                    </div>
-                </div>
-            `;
-            
-            // ===== EVENT LISTENERS =====
-            const closeBtn = container.querySelector('[data-action="close"]');
-            if (closeBtn) {
-                closeBtn.onclick = () => {
-                    componentRef.state.importWindow.isOpen = false;
-                    if (onChange) onChange();
-                };
-                closeBtn.onmouseover = () => closeBtn.style.filter = 'brightness(1.2)';
-                closeBtn.onmouseout = () => closeBtn.style.filter = 'brightness(1)';
-            }
-            
-            const importBtn = document.getElementById('import-btn');
-            const textarea = document.getElementById('import-textarea');
-            const status = document.getElementById('import-status');
-            
-            // Auto-populate textarea if selectedImportId is set
-            if (textarea && componentRef.state.selectedImportId) {
-                const importObj = window.GT50.Imports.get(componentRef.state.selectedImportId);
-                if (importObj && importObj.data) {
-                    // Convert data to string if it's an object
-                    let dataStr = importObj.data;
-                    if (typeof dataStr === 'object') {
-                        dataStr = JSON.stringify(dataStr);
-                    }
-                    textarea.value = dataStr;
-                    
-                    // Update status to show it's ready
-                    if (status) {
-                        status.textContent = `✓ Import ready: ${importObj.name}`;
-                        status.style.color = 'var(--accent)';
-                    }
+                // Try to extract and parse the data
+                const match = formatData.match(/const exportedData = `([\s\S]*?)`;/);
+                if (!match || !match[1]) {
+                    return { valid: false, error: 'Could not extract export data' };
                 }
-            }
-            
-            if (importBtn && textarea && status) {
-                importBtn.onclick = () => {
-                    const text = textarea.value;
-                    if (!text.trim()) {
-                        status.textContent = '❌ Error: No data to import';
-                        status.style.color = 'var(--color-1)';
-                        return;
-                    }
-                    
-                    try {
-                        // Use existing impex.importData() function
-                        const result = window.GT50Lib.ImpEx.importData(text);
-                        
-                        if (!result.success) {
-                            status.textContent = `❌ Import failed: ${result.error}`;
-                            status.style.color = 'var(--color-1)';
-                            return;
-                        }
-                        
-                        // Try to find a nest component in the imported data
-                        let nestFound = null;
-                        if (result.data && result.data.tabComponents) {
-                            for (const tab of result.data.tabComponents) {
-                                for (const component of tab) {
-                                    if (component.type === 'nest') {
-                                        nestFound = component;
-                                        break;
-                                    }
-                                }
-                                if (nestFound) break;
-                            }
-                        }
-                        
-                        // TRANSFORM: Change the component type from 'import' to 'nest'
-                        componentRef.type = 'nest';
-                        
-                        if (nestFound) {
-                            // If we found a nest component, use its state
-                            componentRef.state = nestFound.state;
-                        } else {
-                            // If no nest found, treat the imported workspace data as nest contents
-                            componentRef.state = {
-                                name: 'Imported Nest',
-                                tabs: result.data.tabs,
-                                tabComponents: result.data.tabComponents
-                            };
-                        }
-                        
-                        const formatMsg = result.detectedFormat ? ` (${result.detectedFormat} format)` : '';
-                        status.textContent = `✓ Import successful${formatMsg}!`;
-                        status.style.color = 'var(--accent)';
-                        
-                        // Close window immediately
-                        setTimeout(() => {
-                            if (onChange) onChange();
-                        }, 800);
-                        
-                    } catch (error) {
-                        status.textContent = `❌ Import error: ${error.message}`;
-                        status.style.color = 'var(--color-1)';
-                    }
-                };
-                importBtn.onmouseover = () => importBtn.style.filter = 'brightness(1.2)';
-                importBtn.onmouseout = () => importBtn.style.filter = 'brightness(1)';
+                
+                const parsed = JSON.parse(match[1]);
+                
+                // Validate structure
+                if (!parsed.version || !parsed.data || !parsed.data.tabs || !parsed.data.tabComponents) {
+                    return { valid: false, error: 'Invalid data structure in import file' };
+                }
+                
+                return { valid: true };
+            } catch (error) {
+                return { valid: false, error: error.message };
             }
         }
     };
+    
+    // ===== REGISTER FORMAT =====
+    if (window.GT50Lib && window.GT50Lib.ImpEx) {
+        window.GT50Lib.ImpEx.registerFormat(ImportJSFormat);
+        console.log('✓ IMPORT.JS format adapter registered');
+    } else {
+        console.error('Cannot register IMPORT.JS format: ImpEx not available');
+    }
     
     // ===== INJECT RIGHT SECTION (for plugin UI) =====
     setTimeout(() => {
@@ -422,7 +136,7 @@
             const cards = container.children;
             for (let card of cards) {
                 const filename = card.querySelector('div:last-child');
-                if (filename && filename.textContent === 'comp-import.js') {
+                if (filename && filename.textContent === 'format-import.js') {
                     const rightSection = document.createElement('div');
                     rightSection.style.cssText = `
                         width: 60px;
