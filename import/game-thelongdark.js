@@ -1183,7 +1183,7 @@
     window.GT50.Imports.register({
         id: 'the-long-dark-wintermute',
         name: 'The Long Dark - Wintermute',
-        description: 'Survive a freezing, silent wilderness after a global power failure.',
+        description: 'Survive the frozen Canadian wilderness after a mysterious global disaster.',
         data: exportedData
     });
     
