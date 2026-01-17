@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GT50 PWA Diagnostics</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #243342;
+            color: #e4e4e7;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            padding: 40px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: #3b82f6;
+        }
+
+        .status-box {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .status-box h2 {
+            color: #3b82f6;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+
+        .check-item {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .check-item.pass {
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid rgb(34, 197, 94);
+        }
+
+        .check-item.fail {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgb(239, 68, 68);
+        }
+
+        .check-item.pending {
+            background: rgba(251, 191, 36, 0.2);
+            border: 1px solid rgb(251, 191, 36);
+        }
+
+        .icon {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .icon.pass { color: rgb(34, 197, 94); }
+        .icon.fail { color: rgb(239, 68, 68); }
+        .icon.pending { color: rgb(251, 191, 36); }
+
+        .details {
+            font-family: monospace;
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-top: 5px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        button:hover {
+            background: #2563eb;
+        }
+
+        .fix-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 2px solid rgb(239, 68, 68);
+            border-radius: 12px;
+        }
+
+        .fix-section h3 {
+            color: rgb(239, 68, 68);
+            margin-bottom: 15px;
+        }
+
+        .fix-section ol {
+            margin-left: 20px;
+        }
+
+        .fix-section li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            color: #3b82f6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>GT50 PWA Diagnostics</h1>
+        
+        <div class="status-box">
+            <h2>System Checks</h2>
+            <div id="checks"></div>
+        </div>
+
+        <div class="status-box">
+            <h2>Detailed Information</h2>
+            <div id="details"></div>
+        </div>
+
+        <div id="fixes"></div>
+
+        <button onclick="location.reload()">Re-run Diagnostics</button>
+    </div>
+
+    <script>
+        const checks = document.getElementById('checks');
+        const details = document.getElementById('details');
+        const fixes = document.getElementById('fixes');
+        const issues = [];
+
+        function addCheck(status, message, detail = '') {
+            const div = document.createElement('div');
+            div.className = `check-item ${status}`;
+            
+            const icon = document.createElement('span');
+            icon.className = `icon ${status}`;
+            icon.textContent = status === 'pass' ? '✓' : status === 'fail' ? '✗' : '⚠';
+            
+            const text = document.createElement('span');
+            text.textContent = message;
+            
+            div.appendChild(icon);
+            div.appendChild(text);
+            
+            if (detail) {
+                const detailDiv = document.createElement('div');
+                detailDiv.className = 'details';
+                detailDiv.textContent = detail;
+                div.appendChild(detailDiv);
+            }
+            
+            checks.appendChild(div);
+            
+            if (status === 'fail') {
+                issues.push(message);
+            }
+        }
+
+        async function runDiagnostics() {
+            // Check 1: HTTPS
+            if (location.protocol === 'https:' || location.hostname === 'localhost') {
+                addCheck('pass', 'HTTPS or localhost detected', `Protocol: ${location.protocol}`);
+            } else {
+                addCheck('fail', 'Not using HTTPS - PWA requires HTTPS', `Current: ${location.protocol}`);
+            }
+
+            // Check 2: Service Worker Support
+            if ('serviceWorker' in navigator) {
+                addCheck('pass', 'Browser supports Service Workers');
+            } else {
+                addCheck('fail', 'Browser does NOT support Service Workers');
+            }
+
+            // Check 3: Service Worker Registration
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registration = await navigator.serviceWorker.getRegistration();
+                    if (registration) {
+                        addCheck('pass', 'Service Worker is registered', `Scope: ${registration.scope}`);
+                        
+                        if (registration.active) {
+                            addCheck('pass', 'Service Worker is active', `State: ${registration.active.state}`);
+                        } else {
+                            addCheck('fail', 'Service Worker is NOT active');
+                        }
+                    } else {
+                        addCheck('fail', 'Service Worker is NOT registered', 'Check if sw.js exists in root folder');
+                    }
+                } catch (error) {
+                    addCheck('fail', 'Error checking Service Worker', error.message);
+                }
+            }
+
+            // Check 4: Manifest
+            try {
+                const response = await fetch('pwa/manifest.json');
+                if (response.ok) {
+                    const manifest = await response.json();
+                    addCheck('pass', 'Manifest file found and valid', `Name: ${manifest.name || 'N/A'}`);
+                    
+                    // Check manifest fields
+                    if (manifest.name && manifest.short_name) {
+                        addCheck('pass', 'Manifest has required name fields');
+                    } else {
+                        addCheck('fail', 'Manifest missing name or short_name');
+                    }
+
+                    if (manifest.icons && manifest.icons.length > 0) {
+                        addCheck('pass', `Manifest has ${manifest.icons.length} icons defined`);
+                        
+                        // Check if icons exist
+                        let iconChecksPassed = 0;
+                        for (const icon of manifest.icons) {
+                            try {
+                                const iconPath = `pwa/${icon.src}`;
+                                const iconResponse = await fetch(iconPath, { method: 'HEAD' });
+                                if (iconResponse.ok) {
+                                    iconChecksPassed++;
+                                }
+                            } catch (e) {
+                                // Icon doesn't exist
+                            }
+                        }
+                        
+                        if (iconChecksPassed === manifest.icons.length) {
+                            addCheck('pass', `All ${iconChecksPassed} icon files exist`);
+                        } else {
+                            addCheck('fail', `Only ${iconChecksPassed}/${manifest.icons.length} icons found`, 'Check pwa/icons/ folder');
+                        }
+                    } else {
+                        addCheck('fail', 'Manifest has no icons');
+                    }
+
+                    if (manifest.start_url) {
+                        addCheck('pass', 'Manifest has start_url', `URL: ${manifest.start_url}`);
+                    } else {
+                        addCheck('fail', 'Manifest missing start_url');
+                    }
+
+                    if (manifest.display) {
+                        addCheck('pass', `Display mode: ${manifest.display}`);
+                    }
+                } else {
+                    addCheck('fail', 'Manifest file not found (404)', 'Check pwa/manifest.json exists');
+                }
+            } catch (error) {
+                addCheck('fail', 'Error loading manifest', error.message);
+            }
+
+            // Check 5: Install Prompt
+            if (window.matchMedia('(display-mode: standalone)').matches) {
+                addCheck('pass', 'App is already installed!');
+            } else {
+                addCheck('pending', 'App is not installed yet', 'Install prompt may appear after criteria are met');
+            }
+
+            // Add browser info
+            const detailsDiv = document.createElement('div');
+            detailsDiv.className = 'details';
+            detailsDiv.innerHTML = `
+                <strong>Browser Information:</strong><br>
+                User Agent: ${navigator.userAgent}<br>
+                Current URL: ${location.href}<br>
+                Service Worker API: ${('serviceWorker' in navigator) ? 'Available' : 'Not Available'}
+            `;
+            details.appendChild(detailsDiv);
+
+            // Show fixes if there are issues
+            if (issues.length > 0) {
+                const fixDiv = document.createElement('div');
+                fixDiv.className = 'fix-section';
+                fixDiv.innerHTML = `
+                    <h3>🔧 Issues Found - How to Fix:</h3>
+                    <ol>
+                        ${issues.includes('Service Worker is NOT registered') ? 
+                            '<li>Make sure <code>sw.js</code> is in your root folder (same level as index.html)</li>' : ''}
+                        ${issues.includes('Manifest file not found (404)') ? 
+                            '<li>Make sure <code>manifest.json</code> is in the <code>/pwa/</code> folder</li>' : ''}
+                        ${issues.filter(i => i.includes('icons')).length > 0 ? 
+                            '<li>Make sure all 10 icon files are in <code>/pwa/icons/</code> folder</li>' : ''}
+                        ${issues.includes('Not using HTTPS - PWA requires HTTPS') ? 
+                            '<li>PWAs require HTTPS. GitHub Pages should provide this automatically at <code>https://somethoughtlessname.github.io/Gt50/</code></li>' : ''}
+                        <li>After fixing issues, <strong>hard refresh</strong> the page (Ctrl+Shift+R on Windows, Cmd+Shift+R on Mac)</li>
+                        <li>Clear browser cache if problems persist</li>
+                        <li>Try opening in <strong>Chrome or Edge</strong> for best PWA support</li>
+                    </ol>
+                    <p style="margin-top: 15px;"><strong>Note:</strong> Even if everything is correct, some browsers (especially Safari) don't show an automatic install prompt. Look for "Add to Home Screen" in the browser menu instead.</p>
+                `;
+                fixes.appendChild(fixDiv);
+            } else {
+                const successDiv = document.createElement('div');
+                successDiv.className = 'status-box';
+                successDiv.style.border = '2px solid rgb(34, 197, 94)';
+                successDiv.innerHTML = `
+                    <h2 style="color: rgb(34, 197, 94);">✓ All Checks Passed!</h2>
+                    <p style="margin-top: 10px;">Your PWA is configured correctly. The install prompt should appear:</p>
+                    <ul style="margin: 15px 0 15px 20px; line-height: 1.8;">
+                        <li><strong>Desktop Chrome/Edge:</strong> Look for install icon (⊕) in the address bar</li>
+                        <li><strong>Mobile Chrome:</strong> Tap menu (⋮) → "Add to Home Screen" or "Install App"</li>
+                        <li><strong>Mobile Safari:</strong> Tap share icon → "Add to Home Screen"</li>
+                    </ul>
+                    <p style="opacity: 0.8; margin-top: 10px;"><em>Note: Automatic install prompts may not appear if you've dismissed them before or if the browser requires more engagement with the site first.</em></p>
+                `;
+                fixes.appendChild(successDiv);
+            }
+        }
+
+        runDiagnostics();
+    </script>
+</body>
+</html>
