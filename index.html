@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#243342">
@@ -49,6 +49,12 @@
             padding-top: calc((var(--card-height) * 2) + 4px);
             padding-bottom: calc((var(--card-height) * 1.5) + 4px);
             min-height: 100vh;
+            
+            /* Support for iPhone notch and fullscreen mode */
+            padding-top: max(calc((var(--card-height) * 2) + 4px), env(safe-area-inset-top));
+            padding-bottom: max(calc((var(--card-height) * 1.5) + 4px), env(safe-area-inset-bottom));
+            padding-left: max(4px, env(safe-area-inset-left));
+            padding-right: max(4px, env(safe-area-inset-right));
         }
 
         #frozenHeader {
