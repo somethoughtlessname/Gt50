@@ -2113,11 +2113,11 @@
                     text-transform: uppercase;
                     font-family: inherit;
                     transition: filter 0.2s;
-                ">Cancel</button>
+                ">Cancel and Close</button>
                 <button data-action="save" style="
                     flex: 1;
                     height: 100%;
-                    background: ${canSave ? 'var(--color-4)' : 'var(--color-9)'};
+                    background: ${canSave ? 'var(--color-6)' : 'var(--color-9)'};
                     border: none;
                     border-right: var(--border-width) solid var(--border-color);
                     display: flex;
@@ -2131,7 +2131,7 @@
                     font-family: inherit;
                     transition: filter 0.2s;
                     opacity: ${canSave ? '1' : '0.5'};
-                ">Save</button>
+                ">Save and Close</button>
                 <button data-action="save-and-open" style="
                     flex: 1;
                     height: 100%;
@@ -2141,7 +2141,7 @@
                     flex-direction: column;
                     align-items: center;
                     justify-content: center;
-                    font-size: 11px;
+                    font-size: 14px;
                     font-weight: 700;
                     color: var(--color-10);
                     cursor: ${canSave ? 'pointer' : 'not-allowed'};
@@ -2152,7 +2152,7 @@
                     line-height: 1.2;
                 ">
                     <div>Save</div>
-                    <div>and Open</div>
+                    <div>and Edit</div>
                 </button>
             `;
             
