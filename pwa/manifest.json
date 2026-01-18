@@ -3,10 +3,11 @@
   "short_name": "GT50",
   "description": "Modular card-based productivity and tracking dashboard",
   "start_url": "../index.html",
+  "scope": "../",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#243342",
   "theme_color": "#243342",
-  "orientation": "portrait-primary",
   "icons": [
     {
       "src": "icons/icon-72.png",
