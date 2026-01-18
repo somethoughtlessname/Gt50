@@ -190,7 +190,12 @@
         // Completely disable long-press to prevent Chrome PWA context menu
         
         // Disable context menu (right-click and long-press menu)
+        // BUT allow it on inputs/textareas for paste functionality
         document.addEventListener('contextmenu', (e) => {
+            // Allow context menu on input and textarea elements
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                return true; // Allow default context menu for paste
+            }
             e.preventDefault();
             return false;
         }, false);
