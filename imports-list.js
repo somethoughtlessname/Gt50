@@ -8,6 +8,7 @@ window.GT50ImportsList = [
     'game-stray.js',
     'game-thelongdark.js',
 'game-hogwarts.js',
+'game-splitfiction.js',
     // Add more import files here:
 ];
 

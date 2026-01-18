@@ -613,8 +613,6 @@
             const moreBtn = container.querySelector('[data-action="more"]');
             const exportBtn = container.querySelector('[data-action="export"]');
             
-            let longPressTimer = null;
-            
             // Auto-close after 5 seconds - store in state to persist across renders
             const startAutoClose = () => {
                 if (state.actionState._autoCloseTimer) {
@@ -637,31 +635,80 @@
                 }
             };
             
-            // Long press detection
-            const startPress = (e) => {
-                if (state.actionState.isOpen) return; // Don't start timer if already open
+            // Horizontal swipe detection
+            let touchStartX = 0;
+            let touchStartY = 0;
+            let touchCurrentX = 0;
+            let touchCurrentY = 0;
+            let swipeDetected = false;
+            let scrollDetected = false;
+            
+            const startSwipe = (e) => {
+                if (state.actionState.isOpen) return; // Don't start if already open
                 
-                longPressTimer = setTimeout(() => {
-                    if (closeAllActions) closeAllActions(); // Close all other panels first
-                    state.actionState.isOpen = true;
-                    if (render) render();
-                }, 500);
+                touchStartX = e.touches ? e.touches[0].clientX : e.clientX;
+                touchStartY = e.touches ? e.touches[0].clientY : e.clientY;
+                touchCurrentX = touchStartX;
+                touchCurrentY = touchStartY;
+                swipeDetected = false;
+                scrollDetected = false;
             };
             
-            const endPress = () => {
-                if (longPressTimer) {
-                    clearTimeout(longPressTimer);
-                    longPressTimer = null;
+            const moveSwipe = (e) => {
+                if (state.actionState.isOpen) return;
+                if (scrollDetected) return;
+                
+                touchCurrentX = e.touches ? e.touches[0].clientX : e.clientX;
+                touchCurrentY = e.touches ? e.touches[0].clientY : e.clientY;
+                
+                const deltaX = Math.abs(touchCurrentX - touchStartX);
+                const deltaY = Math.abs(touchCurrentY - touchStartY);
+                
+                // Check once we have meaningful movement
+                if (deltaX > 5 || deltaY > 5) {
+                    // Strict horizontal: vertical movement must be < 30% of horizontal
+                    if (deltaY > deltaX * 0.3) {
+                        // Too much vertical - this is a scroll
+                        scrollDetected = true;
+                    } else if (deltaX > 30) {
+                        // Enough horizontal, minimal vertical - this is a swipe
+                        swipeDetected = true;
+                        if (e.preventDefault) e.preventDefault();
+                    }
                 }
             };
             
-            // Attach long press to the card
-            card.addEventListener('mousedown', startPress);
-            card.addEventListener('mouseup', endPress);
-            card.addEventListener('mouseleave', endPress);
-            card.addEventListener('touchstart', startPress);
-            card.addEventListener('touchend', endPress);
-            card.addEventListener('touchcancel', endPress);
+            const endSwipe = () => {
+                if (scrollDetected) {
+                    scrollDetected = false;
+                    return;
+                }
+                
+                const deltaX = touchCurrentX - touchStartX;
+                const deltaY = Math.abs(touchCurrentY - touchStartY);
+                const absDeltaX = Math.abs(deltaX);
+                
+                const threshold = 50;
+                
+                // Only trigger if horizontal and minimal vertical
+                if (swipeDetected && absDeltaX > threshold && deltaY < absDeltaX * 0.3) {
+                    if (closeAllActions) closeAllActions(); // Close all other panels first
+                    state.actionState.isOpen = true;
+                    if (render) render();
+                }
+                
+                swipeDetected = false;
+                scrollDetected = false;
+            };
+            
+            // Attach swipe detection to the card
+            card.addEventListener('touchstart', startSwipe, { passive: true });
+            card.addEventListener('touchmove', moveSwipe);
+            card.addEventListener('touchend', endSwipe);
+            card.addEventListener('touchcancel', () => {
+                swipeDetected = false;
+                scrollDetected = false;
+            });
             
             // Click on overlay background (outside action buttons) closes overlay
             if (actionOverlay && isOpen) {

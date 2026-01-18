@@ -33,6 +33,8 @@
             -webkit-user-select: none;
             -webkit-touch-callout: none;
             -webkit-tap-highlight-color: transparent;
+            /* Disable long-press gestures entirely */
+            touch-action: manipulation;
         }
 
         input,
@@ -182,6 +184,51 @@
 <script src="comp-summary.js"></script>    
     
     <script>
+        // ==========================================
+        // LONG-PRESS PREVENTION
+        // ==========================================
+        // Completely disable long-press to prevent Chrome PWA context menu
+        
+        // Disable context menu (right-click and long-press menu)
+        document.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            return false;
+        }, false);
+        
+        // Additional touch event prevention for long-press
+        let touchTimer = null;
+        
+        document.addEventListener('touchstart', (e) => {
+            // Clear any existing timer
+            if (touchTimer) {
+                clearTimeout(touchTimer);
+                touchTimer = null;
+            }
+            
+            // Set a timer slightly shorter than browser's long-press detection
+            touchTimer = setTimeout(() => {
+                touchTimer = null;
+            }, 450); // Slightly before Chrome's ~500ms trigger
+        }, { passive: true });
+        
+        document.addEventListener('touchend', () => {
+            if (touchTimer) {
+                clearTimeout(touchTimer);
+                touchTimer = null;
+            }
+        }, { passive: true });
+        
+        document.addEventListener('touchmove', () => {
+            if (touchTimer) {
+                clearTimeout(touchTimer);
+                touchTimer = null;
+            }
+        }, { passive: true });
+        
+        // ==========================================
+        // STATE MANAGEMENT
+        // ==========================================
+        
         // State management
         let state = {
             header: null,

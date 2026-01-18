@@ -414,52 +414,86 @@
                 // ===== EVENT LISTENERS =====
                 const newBtn = container.querySelector('[data-action="open-create-new"]');
                 if (newBtn && onNewOpen) {
-                    let pressTimer = null;
-                    let wasLongPress = false;
+                    // Horizontal swipe detection variables
+                    let touchStartX = 0;
+                    let touchStartY = 0;
+                    let touchCurrentX = 0;
+                    let touchCurrentY = 0;
+                    let swipeDetected = false;
+                    let scrollDetected = false;
                     
-                    // Mouse/touch start - begin timer
-                    const startPress = (e) => {
-                        wasLongPress = false;
-                        pressTimer = setTimeout(() => {
-                            // Long press detected - toggle edit button visibility
-                            wasLongPress = true;
-                            GT50Lib.Header.editSectionVisible = !GT50Lib.Header.editSectionVisible;
-                            pressTimer = null;
-                            if (onChange) onChange();
-                        }, 500); // 500ms long press threshold
+                    // Touch start
+                    const handleTouchStart = (e) => {
+                        touchStartX = e.touches[0].clientX;
+                        touchStartY = e.touches[0].clientY;
+                        touchCurrentX = touchStartX;
+                        touchCurrentY = touchStartY;
+                        swipeDetected = false;
+                        scrollDetected = false;
                     };
                     
-                    // Mouse/touch end - cancel timer or execute normal click
-                    const endPress = (e) => {
-                        if (pressTimer) {
-                            // Timer still running - it was a short press
-                            clearTimeout(pressTimer);
-                            pressTimer = null;
-                            if (!wasLongPress) {
-                                onNewOpen();
+                    // Touch move - detect horizontal swipe
+                    const handleTouchMove = (e) => {
+                        if (scrollDetected) return;
+                        
+                        touchCurrentX = e.touches[0].clientX;
+                        touchCurrentY = e.touches[0].clientY;
+                        
+                        const deltaX = Math.abs(touchCurrentX - touchStartX);
+                        const deltaY = Math.abs(touchCurrentY - touchStartY);
+                        
+                        // Check once we have meaningful movement
+                        if (deltaX > 5 || deltaY > 5) {
+                            // Strict horizontal: vertical movement must be < 30% of horizontal
+                            if (deltaY > deltaX * 0.3) {
+                                // Too much vertical - this is a scroll
+                                scrollDetected = true;
+                            } else if (deltaX > 30) {
+                                // Enough horizontal, minimal vertical - this is a swipe
+                                swipeDetected = true;
+                                e.preventDefault();
                             }
                         }
-                        // If pressTimer is null, long press already fired, don't open window
                     };
                     
-                    // Cancel on move (prevents accidental triggers)
-                    const cancelPress = () => {
-                        if (pressTimer) {
-                            clearTimeout(pressTimer);
-                            pressTimer = null;
+                    // Touch end - execute action
+                    const handleTouchEnd = (e) => {
+                        if (scrollDetected) {
+                            scrollDetected = false;
+                            return;
                         }
-                        wasLongPress = false;
+                        
+                        const deltaX = touchCurrentX - touchStartX;
+                        const deltaY = Math.abs(touchCurrentY - touchStartY);
+                        const absDeltaX = Math.abs(deltaX);
+                        
+                        const threshold = 50;
+                        
+                        // Horizontal swipe = toggle edit button visibility
+                        if (swipeDetected && absDeltaX > threshold && deltaY < absDeltaX * 0.3) {
+                            GT50Lib.Header.editSectionVisible = !GT50Lib.Header.editSectionVisible;
+                            if (onChange) onChange();
+                        } else if (!swipeDetected) {
+                            // Regular tap = open new window
+                            onNewOpen();
+                        }
+                        
+                        swipeDetected = false;
+                        scrollDetected = false;
                     };
                     
-                    // Attach listeners for both mouse and touch
-                    newBtn.addEventListener('mousedown', startPress);
-                    newBtn.addEventListener('touchstart', startPress, { passive: true });
+                    // Regular click for mouse users
+                    newBtn.addEventListener('click', (e) => {
+                        // Only handle mouse clicks, not touch events
+                        if (e.pointerType !== 'touch' && !e.touches) {
+                            onNewOpen();
+                        }
+                    });
                     
-                    newBtn.addEventListener('mouseup', endPress);
-                    newBtn.addEventListener('touchend', endPress);
-                    
-                    newBtn.addEventListener('mouseleave', cancelPress);
-                    newBtn.addEventListener('touchcancel', cancelPress);
+                    // Touch event listeners
+                    newBtn.addEventListener('touchstart', handleTouchStart, { passive: true });
+                    newBtn.addEventListener('touchmove', handleTouchMove);
+                    newBtn.addEventListener('touchend', handleTouchEnd);
                     
                     // Hover effects
                     newBtn.onmouseover = () => newBtn.style.filter = 'brightness(1.2)';
