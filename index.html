@@ -422,6 +422,7 @@
             state.impex.isOpen = false;
             state.settings.isOpen = false;
             state.createNew.isOpen = false;
+            state.createNew.selectedImport = null;  // CRITICAL: Clear any stale import selection
             state.cardInfo.isOpen = false; // Close card info window on startup
             delete state.createNew.editingEntryId; // Clear any stale editing ID
             
@@ -597,6 +598,12 @@
                     activeMode = 'view';
                 }
                 // Don't clear pendingImportComponent here - let home/cancel handle that
+                
+                // If we were editing an entry from Create New, reopen the window
+                if (state.createNew.editingEntryId !== undefined) {
+                    state.createNew.isOpen = true;
+                    activeMode = 'view';  // Return to view mode for Create New window
+                }
             } else {
                 const currentNest = getCurrentNest();
                 if (currentNest) {
@@ -648,6 +655,24 @@
             activeMode = 'view';
             pendingImportComponent = null;  // Clear any pending import when going home
             
+            // Finalize any draft entry from Create New
+            if (state.createNew.editingEntryId !== undefined) {
+                delete state.createNew.editingEntryId;
+                state.createNew.name = '';
+                state.createNew.selectedTemplate = 'custom';
+                state.createNew.selectedImport = null;
+                state.createNew.currentColorIndex = 4;
+                state.createNew.cycleMode = false;
+                state.createNew.autoSortByLastUpdated = false;
+                state.createNew.summaryState = {
+                    showSummary: false,
+                    summaryIncludeChildren: false,
+                    summaryDisplayMode: null,
+                    summaryShowChildNestProgress: false,
+                    summaryChildNestProgressMode: 'first-tab'
+                };
+            }
+            
             selectedInsertionPoint = getCurrentComponents().length;
             
             render(true);
@@ -688,12 +713,54 @@
         }
 
         function navigateHomeBuildMode() {
-            // In Build mode, home button saves and returns to previous view mode
-            saveState();
-            navigateBack();
+            // In Build mode, home button should finalize and return to main view
+            resetAllTabsToFirst(state.tabComponents);
+            if (state.tabs && state.tabs.tabs && state.tabs.tabs.length > 0) {
+                state.tabs.activeViewTab = 0;
+                state.tabs.selectedBuildTab = 0;
+            }
+            
+            window.navigationStack = [];
+            scrollStack = [];
+            
+            if (deleteTimeout) {
+                clearTimeout(deleteTimeout);
+                deleteTimeout = null;
+            }
+            pendingDeleteId = null;
+            
+            if (GT50Lib.Utils && GT50Lib.Utils.closeAllDropdowns) {
+                GT50Lib.Utils.closeAllDropdowns(state.tabComponents);
+            }
+            
+            state.header.isMain = true;
+            state.header.title = 'GT50 TESTER';
             activeMode = 'view';
-            pendingImportComponent = null;  // Clear any pending import
+            pendingImportComponent = null;
+            
+            // Finalize any draft entry from Create New
+            if (state.createNew.editingEntryId !== undefined) {
+                delete state.createNew.editingEntryId;
+                state.createNew.name = '';
+                state.createNew.selectedTemplate = 'custom';
+                state.createNew.selectedImport = null;
+                state.createNew.currentColorIndex = 4;
+                state.createNew.cycleMode = false;
+                state.createNew.autoSortByLastUpdated = false;
+                state.createNew.summaryState = {
+                    showSummary: false,
+                    summaryIncludeChildren: false,
+                    summaryDisplayMode: null,
+                    summaryShowChildNestProgress: false,
+                    summaryChildNestProgressMode: 'first-tab'
+                };
+            }
+            
+            selectedInsertionPoint = getCurrentComponents().length;
+            
+            saveState();
             render(true);
+            window.scrollTo(0, 0);
         }
 
         function renderHeader() {
@@ -825,6 +892,7 @@
                         
                         // Clear pending state and return to view
                         pendingImportComponent = null;
+                        state.createNew.selectedImport = null;  // CRITICAL: Clear import selection
                         activeMode = 'view';
                         saveState();
                         render();
@@ -832,6 +900,7 @@
                     // onCancel callback
                     () => {
                         pendingImportComponent = null;
+                        state.createNew.selectedImport = null;  // CRITICAL: Clear import selection
                         activeMode = 'view';
                         render();
                     }
@@ -983,6 +1052,43 @@
                 (mode) => {
                     // onCreate callback
                     const currentComponents = getCurrentComponents();
+                    
+                    // Check if we're editing an existing entry
+                    if (state.createNew.editingEntryId !== undefined) {
+                        // EDITING MODE: Update the existing entry instead of creating new
+                        const existingEntry = currentComponents.find(c => c.id === state.createNew.editingEntryId);
+                        
+                        if (existingEntry) {
+                            // Update entry properties from current Create New state
+                            existingEntry.state.name = state.createNew.name.trim();
+                            
+                            // Update color
+                            const colorIndex = state.createNew.currentColorIndex;
+                            if (GT50Lib.CreateNew.colors && GT50Lib.CreateNew.colors[colorIndex]) {
+                                existingEntry.state.color = GT50Lib.CreateNew.colors[colorIndex].name;
+                            }
+                            
+                            // Update other settings
+                            existingEntry.state.autoSortByLastUpdated = state.createNew.autoSortByLastUpdated || false;
+                            if (state.createNew.summaryState) {
+                                existingEntry.state.showSummary = state.createNew.summaryState.showSummary || false;
+                                existingEntry.state.summaryIncludeChildren = state.createNew.summaryState.summaryIncludeChildren || false;
+                                existingEntry.state.summaryDisplayMode = state.createNew.summaryState.summaryDisplayMode || null;
+                                existingEntry.state.summaryShowChildNestProgress = state.createNew.summaryState.summaryShowChildNestProgress || false;
+                                existingEntry.state.summaryChildNestProgressMode = state.createNew.summaryState.summaryChildNestProgressMode || 'first-tab';
+                            }
+                            
+                            // Close window and navigate back into the entry
+                            // KEEP editingEntryId so user can come back again
+                            state.createNew.isOpen = false;
+                            activeMode = 'build';
+                            saveState();
+                            navigateInto(existingEntry.id);
+                            return;
+                        }
+                    }
+                    
+                    // NORMAL MODE: Create new entry
                     const newEntry = GT50Lib.CreateNew.createEntry(
                         state.createNew,
                         nextId,
@@ -1011,14 +1117,14 @@
                             // Normal nest/cycle creation - add and navigate
                             nextId++;
                             currentComponents.unshift(newEntry);
-                            state.createNew.isOpen = false;
                             
-                            state.createNew.name = '';
-                            state.createNew.selectedTemplate = 'custom';
+                            // PRESERVE Create New state for back navigation
+                            // Mark this entry as being edited so we can restore the window on back
+                            state.createNew.editingEntryId = newEntry.id;
+                            state.createNew.isOpen = false;  // Close window temporarily
+                            // DON'T clear state - keep name, color, template, etc. for restore
+                            // BUT clear selectedImport to prevent import conflicts
                             state.createNew.selectedImport = null;
-                            state.createNew.currentColorIndex = 4;
-                            state.createNew.cycleMode = false;
-                            delete state.createNew.editingEntryId;
                             
                             activeMode = 'build';
                             saveState();
@@ -1697,6 +1803,24 @@ if (GT50Lib.Search) {
         
         // Clear any pending import component
         pendingImportComponent = null;
+        
+        // Finalize any draft entry from Create New when returning to view at main level
+        if (window.navigationStack.length === 0 && state.createNew.editingEntryId !== undefined) {
+            delete state.createNew.editingEntryId;
+            state.createNew.name = '';
+            state.createNew.selectedTemplate = 'custom';
+            state.createNew.selectedImport = null;
+            state.createNew.currentColorIndex = 4;
+            state.createNew.cycleMode = false;
+            state.createNew.autoSortByLastUpdated = false;
+            state.createNew.summaryState = {
+                showSummary: false,
+                summaryIncludeChildren: false,
+                summaryDisplayMode: null,
+                summaryShowChildNestProgress: false,
+                summaryChildNestProgressMode: 'first-tab'
+            };
+        }
         
         // Reset selector to bottom when entering View mode
         selectedInsertionPoint = getCurrentComponents().length;

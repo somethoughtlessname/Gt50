@@ -2104,6 +2104,7 @@
                     border: none;
                     border-right: var(--border-width) solid var(--border-color);
                     display: flex;
+                    flex-direction: column;
                     align-items: center;
                     justify-content: center;
                     font-size: 14px;
@@ -2113,7 +2114,11 @@
                     text-transform: uppercase;
                     font-family: inherit;
                     transition: filter 0.2s;
-                ">Cancel and Close</button>
+                    line-height: 1.2;
+                ">
+                    <div>Cancel</div>
+                    <div>and Close</div>
+                </button>
                 <button data-action="save" style="
                     flex: 1;
                     height: 100%;
@@ -2121,6 +2126,7 @@
                     border: none;
                     border-right: var(--border-width) solid var(--border-color);
                     display: flex;
+                    flex-direction: column;
                     align-items: center;
                     justify-content: center;
                     font-size: 14px;
@@ -2131,7 +2137,11 @@
                     font-family: inherit;
                     transition: filter 0.2s;
                     opacity: ${canSave ? '1' : '0.5'};
-                ">Save and Close</button>
+                    line-height: 1.2;
+                ">
+                    <div>Save</div>
+                    <div>and Close</div>
+                </button>
                 <button data-action="save-and-open" style="
                     flex: 1;
                     height: 100%;

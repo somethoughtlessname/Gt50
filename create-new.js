@@ -190,7 +190,8 @@ createEntry: function(state, nextId, currentComponents) {
             // ===== CRITICAL FIX: Reset to defaults when transitioning from closed->open =====
             // Index.html sets currentColorIndex to 4 (BLUE) on close, we need to override it
             const justOpened = (this._lastOpenState === false || this._lastOpenState === undefined);
-            if (justOpened && !state.editMode) {
+            // Only reset if this is a fresh open (not returning to edit an entry)
+            if (justOpened && !state.editMode && state.editingEntryId === undefined) {
     console.log('CreateNew: Window just opened, resetting to defaults');
     state.name = '';
     state.selectedTemplate = 'custom';
@@ -205,6 +206,11 @@ createEntry: function(state, nextId, currentComponents) {
                     summaryShowChildNestProgress: false,
                     summaryChildNestProgressMode: 'first-tab'
                 };
+                // Reset to Templates tab when window first opens
+                if (state.tabs) {
+                    state.tabs.activeViewTab = 0;
+                    state.tabs.selectedBuildTab = 0;
+                }
             }
             this._lastOpenState = true;
             
@@ -241,8 +247,8 @@ createEntry: function(state, nextId, currentComponents) {
                 tab.color = 'var(--color-5-2)';
             });
             
-            // Check if we're in edit mode
-            const isEditMode = state.editMode === true;
+            // Check if we're in edit mode (either editMode or editingEntryId)
+            const isEditMode = state.editMode === true || state.editingEntryId !== undefined;
             
             console.log('CreateNew window should be visible');
             
