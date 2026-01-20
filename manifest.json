@@ -1,0 +1,8 @@
+{
+  "name": "GT50",
+  "short_name": "GT50",
+  "start_url": "/Gt50/",
+  "display": "standalone",
+  "background_color": "#243342",
+  "theme_color": "#243342"
+}

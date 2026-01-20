@@ -212,6 +212,8 @@
             
             // Create export package in same format as full export
             // Return RAW package, not serialized, so it can be serialized in any format
+            const showSummary = cleanedNest.showSummary !== undefined ? cleanedNest.showSummary : false;
+            const summaryMode = cleanedNest.summaryChildNestProgressMode;
             const exportPackage = {
                 version: "1.0",
                 timestamp: new Date().toISOString(),
@@ -220,7 +222,13 @@
                 name: nestName || cleanedNest.name || "Nest",
                 data: {
                     tabs: cleanedNest.tabs,
-                    tabComponents: cleanedNest.tabComponents
+                    tabComponents: cleanedNest.tabComponents,
+                    // Include nest-level properties with defaults
+                    color: cleanedNest.color || 'GRAY',
+                    autoSortByLastUpdated: cleanedNest.autoSortByLastUpdated !== undefined ? cleanedNest.autoSortByLastUpdated : false,
+                    showSummary: showSummary,
+                    summaryShowChildNestProgress: cleanedNest.summaryShowChildNestProgress !== undefined ? cleanedNest.summaryShowChildNestProgress : false,
+                    summaryChildNestProgressMode: showSummary ? (summaryMode || 'first-tab') : '0'
                 }
             };
             
@@ -749,6 +757,16 @@
                     // Update app state
                     appState.tabs = result.data.tabs;
                     appState.tabComponents = result.data.tabComponents;
+                    
+                    // If importing nest data with nest-level properties, restore them with defaults
+                    appState.color = result.data.color !== undefined ? result.data.color : 'GRAY';
+                    appState.autoSortByLastUpdated = result.data.autoSortByLastUpdated !== undefined ? result.data.autoSortByLastUpdated : false;
+                    const showSummary = result.data.showSummary !== undefined ? result.data.showSummary : false;
+                    appState.showSummary = showSummary;
+                    appState.summaryShowChildNestProgress = result.data.summaryShowChildNestProgress !== undefined ? result.data.summaryShowChildNestProgress : false;
+                    // If summaryChildNestProgressMode is '0' or null, treat as null
+                    const summaryMode = result.data.summaryChildNestProgressMode;
+                    appState.summaryChildNestProgressMode = (summaryMode === '0' || summaryMode === null) ? null : (summaryMode || 'first-tab');
                     
                     // Update global state
                     if (typeof window !== 'undefined') {

@@ -436,6 +436,11 @@
                 state.tabs.selectedBuildTab = 0;
             }
             resetAllTabsToFirst(state.tabComponents);
+            
+            // Initialize global settings for component access
+            window.GT50GlobalSettings = {
+                tierDropdownCheckboxes: state.settings.tierDropdownCheckboxes || false
+            };
         }
         
         function saveState() {
@@ -979,6 +984,11 @@
         function renderSettings() {
     const settingsContainer = document.getElementById('settingsWindow');
     if (!settingsContainer) return;
+    
+    // Expose settings globally so components can access them
+    window.GT50GlobalSettings = {
+        tierDropdownCheckboxes: state.settings.tierDropdownCheckboxes || false
+    };
     
     GT50Lib.Settings.render(settingsContainer, state.settings, render, closeSettingsWindow, state.cardInfo);
 }

@@ -1785,7 +1785,7 @@
                                 <div data-action="set-first-tab-mode" style="
                                     flex: 1;
                                     height: 100%;
-                                    background: ${state.summaryChildNestProgressMode === 'first-tab' ? summaryColor : 'var(--color-10)'};
+                                    background: ${(!state.summaryChildNestProgressMode || state.summaryChildNestProgressMode === 'first-tab') ? summaryColor : 'var(--color-10)'};
                                     display: flex;
                                     flex-direction: column;
                                     align-items: center;
@@ -1798,14 +1798,14 @@
                                     <div style="
                                         font-size: 9px;
                                         font-weight: 700;
-                                        color: ${state.summaryChildNestProgressMode === 'first-tab' ? 'var(--color-10)' : summaryColor};
+                                        color: ${(!state.summaryChildNestProgressMode || state.summaryChildNestProgressMode === 'first-tab') ? 'var(--color-10)' : summaryColor};
                                         text-transform: uppercase;
                                         text-align: center;
                                     ">First Tab</div>
                                     <div style="
                                         font-size: 7px;
                                         font-weight: 700;
-                                        color: ${state.summaryChildNestProgressMode === 'first-tab' ? 'var(--color-10)' : summaryColor};
+                                        color: ${(!state.summaryChildNestProgressMode || state.summaryChildNestProgressMode === 'first-tab') ? 'var(--color-10)' : summaryColor};
                                         opacity: 0.7;
                                         margin-top: 2px;
                                         text-align: center;

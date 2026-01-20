@@ -701,7 +701,12 @@ const itemDropdownColor = cardColor;
         renderView: function(container, state, onChange, tabColor) {
             const tierCount = state.tiers.length;
             const hasDropdownText = state.dropdownText && state.dropdownText.trim() !== '';
-            const showDropdown = hasDropdownText;
+            
+            // Check if checkbox dropdown is enabled globally
+            const checkboxDropdownEnabled = window.GT50GlobalSettings && window.GT50GlobalSettings.tierDropdownCheckboxes;
+            
+            // Show checkbox dropdown if enabled, otherwise show text dropdown
+            const showDropdown = checkboxDropdownEnabled || hasDropdownText;
             
             // ===== TIER CALCULATION =====
             // Calculate which tier we're currently in
@@ -734,7 +739,132 @@ const itemDropdownColor = cardColor;
             // ===== TIER CIRCLES =====
             let circles = '';
             for (let i = 0; i < tierCount; i++) {
-                circles += `<span style="color: ${i < currentTierIndex ? 'var(--color-10)' : 'var(--color-9)'}">●</span>`;
+                const color = i < currentTierIndex ? 'var(--color-10)' : 'var(--bg-5)';
+                circles += `<span style="color: ${color}">●</span>`;
+            }
+            
+            // ===== CHECKBOX DROPDOWN HTML =====
+            let checkboxDropdownHTML = '';
+            if (state.open && checkboxDropdownEnabled) {
+                let tierItems = '';
+                let cumulativeForCheckbox = 0;
+                const cardColor = tabColor || 'var(--color-4)'; // Use tab color or default to green
+                
+                state.tiers.forEach((tier, idx) => {
+                    const tierAmount = parseInt(tier.amount) || 0;
+                    const tierCompleted = state.current >= cumulativeForCheckbox + tierAmount;
+                    const tierClass = tierCompleted ? 'completed' : 'uncompleted';
+                    const bgColor = tierCompleted ? cardColor : 'var(--bg-4)';
+                    const checkboxBg = tierCompleted ? cardColor : 'var(--color-10)';
+                    const checkboxColor = tierCompleted ? 'var(--color-10)' : cardColor;
+                    const checkmark = tierCompleted ? '✓' : '';
+                    
+                    tierItems += `
+                        <div data-action="toggle-tier" data-idx="${idx}" style="
+                            background: ${bgColor};
+                            border: var(--border-width) solid var(--border-color);
+                            border-radius: 8px;
+                            height: 32px;
+                            display: flex;
+                            align-items: center;
+                            margin-bottom: var(--margin);
+                            overflow: hidden;
+                            cursor: pointer;
+                            position: relative;
+                        ">
+                            <div style="
+                                position: absolute;
+                                left: 0;
+                                top: 0;
+                                width: 32px;
+                                height: 100%;
+                                background: ${checkboxBg};
+                                border-right: var(--border-width) solid var(--border-color);
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                color: ${checkboxColor};
+                                font-size: 16px;
+                                font-weight: 700;
+                                z-index: 1;
+                            ">${checkmark}</div>
+                            <div style="
+                                width: 100%;
+                                padding: 0 12px;
+                                font-size: 14px;
+                                font-weight: 600;
+                                color: var(--color-10);
+                                text-align: center;
+                            ">${tier.name || `Tier ${idx + 1}`}</div>
+                        </div>
+                    `;
+                    
+                    cumulativeForCheckbox += tierAmount;
+                });
+                
+                checkboxDropdownHTML = `
+                    <div style="
+                        background: var(--bg-2);
+                        border-radius: 0 0 8px 8px;
+                        display: block;
+                        padding: var(--margin);
+                        border: var(--border-width) solid var(--border-color);
+                        border-top: none;
+                        margin-bottom: var(--margin);
+                    ">${tierItems}</div>
+                `;
+            }
+            
+            // ===== TEXT DROPDOWN HTML =====
+            let textDropdownHTML = '';
+            if (state.open && hasDropdownText && !checkboxDropdownEnabled) {
+                textDropdownHTML = `
+                    <div style="
+                        background: var(--bg-2);
+                        border-radius: 0 0 8px 8px;
+                        display: block;
+                        padding: var(--margin);
+                        border: var(--border-width) solid var(--border-color);
+                        border-top: none;
+                        margin-bottom: var(--margin);
+                    ">
+                        <div style="
+                            background: var(--bg-3);
+                            border: var(--border-width) solid var(--border-color);
+                            border-radius: 8px;
+                            height: 32px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            overflow: hidden;
+                        ">
+                            <div style="
+                                flex: 1;
+                                background: var(--bg-4);
+                                height: 100%;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                padding: 0 var(--text-padding-small);
+                                font-size: 10px;
+                                font-weight: 600;
+                                color: var(--color-10);
+                                overflow: hidden;
+                            ">
+                                <div style="
+                                    display: -webkit-box;
+                                    -webkit-line-clamp: 2;
+                                    -webkit-box-orient: vertical;
+                                    overflow: hidden;
+                                    text-overflow: ellipsis;
+                                    line-height: 1.2;
+                                    word-break: break-word;
+                                    text-align: center;
+                                ">${state.dropdownText}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
             }
             
             // ===== MAIN CARD =====
@@ -787,7 +917,7 @@ const itemDropdownColor = cardColor;
                             flex-direction: column;
                             align-items: center;
                             justify-content: center;
-                            gap: 2px;
+                            gap: 3px;
                         ">
                             <div style="
                                 font-size: 8px;
@@ -795,7 +925,7 @@ const itemDropdownColor = cardColor;
                                 letter-spacing: 1px;
                             ">${circles}</div>
                             <div style="
-                                font-size: 9px;
+                                font-size: 12px;
                                 font-weight: 600;
                                 color: var(--color-10);
                                 line-height: 0.8;
@@ -803,7 +933,7 @@ const itemDropdownColor = cardColor;
                             <div style="
                                 font-size: 8px;
                                 font-weight: 700;
-                                color: #d1d5db;
+                                color: var(--color-10);
                                 line-height: 1;
                             ">${displayCurrent}/${displayTotal}</div>
                         </div>
@@ -822,51 +952,8 @@ const itemDropdownColor = cardColor;
                         cursor: pointer;
                     ">+</div>
                 </div>
-                ${state.open && showDropdown ? `<div style="
-                    background: var(--bg-2);
-                    border-radius: 0 0 8px 8px;
-                    display: block;
-                    padding: var(--margin);
-                    border: var(--border-width) solid var(--border-color);
-                    border-top: none;
-                    margin-bottom: var(--margin);
-                ">
-                    <div style="
-                        background: var(--bg-3);
-                        border: var(--border-width) solid var(--border-color);
-                        border-radius: 8px;
-                        height: 32px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        overflow: hidden;
-                    ">
-                        <div style="
-                            flex: 1;
-                            background: var(--bg-4);
-                            height: 100%;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            padding: 0 var(--text-padding-small);
-                            font-size: 10px;
-                            font-weight: 600;
-                            color: var(--color-10);
-                            overflow: hidden;
-                        ">
-                            <div style="
-                                display: -webkit-box;
-                                -webkit-line-clamp: 2;
-                                -webkit-box-orient: vertical;
-                                overflow: hidden;
-                                text-overflow: ellipsis;
-                                line-height: 1.2;
-                                word-break: break-word;
-                                text-align: center;
-                            ">${state.dropdownText}</div>
-                        </div>
-                    </div>
-                </div>` : ''}
+                ${checkboxDropdownHTML}
+                ${textDropdownHTML}
             `;
             
             // ===== EVENT LISTENERS =====
@@ -902,6 +989,41 @@ const itemDropdownColor = cardColor;
                         onChange();
                     };
                 }
+            }
+            
+            // Checkbox tier toggle handlers
+            if (checkboxDropdownEnabled) {
+                container.querySelectorAll('[data-action="toggle-tier"]').forEach(btn => {
+                    const idx = parseInt(btn.dataset.idx);
+                    btn.onclick = () => {
+                        // Calculate cumulative amount up to and including this tier
+                        let targetAmount = 0;
+                        for (let i = 0; i <= idx; i++) {
+                            targetAmount += parseInt(state.tiers[i].amount) || 0;
+                        }
+                        
+                        // Calculate cumulative amount up to but NOT including this tier
+                        let previousAmount = 0;
+                        for (let i = 0; i < idx; i++) {
+                            previousAmount += parseInt(state.tiers[i].amount) || 0;
+                        }
+                        
+                        // If tier is already completed, uncomplete it
+                        if (state.current >= targetAmount) {
+                            state.current = previousAmount;
+                        } else {
+                            // Otherwise, complete this tier (and all previous ones)
+                            state.current = targetAmount;
+                        }
+                        
+                        // Trigger timestamp update for sort-filter
+                        if (window.GT50Lib && window.GT50Lib.SortFilter && window.GT50Lib.SortFilter.onComponentChanged) {
+                            window.GT50Lib.SortFilter.onComponentChanged(container);
+                        }
+                        
+                        onChange();
+                    };
+                });
             }
         }
     };
