@@ -10,7 +10,7 @@
             /* ========================================= */
             --margin: 4px;
             --card-height: 45px;
-            --square-section: 28px;
+            --square-section: 27px;
             --half-square: 14px;
             --border-width: 3px;
             --border-color: #000000;
