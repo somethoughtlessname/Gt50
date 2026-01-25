@@ -651,9 +651,11 @@
     window.GT50.Imports.register({
         id: 'lego-harry-potter-collection',
         name: 'LEGO Harry Potter Collection',
-        description: 'Includes: Main, Side Quests, Collectibles',
+        description: 'Relive the entire cinematic saga with charming plastic brick humor.',
         data: exportedData
     });
     
     console.log('✓ Import registered: LEGO Harry Potter Collection');
 })();
+
+
