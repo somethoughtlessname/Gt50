@@ -314,6 +314,8 @@
                 return {
                     success: true,
                     data: parsed.data,
+                    type: parsed.type,  // Include type (e.g., "nest")
+                    name: parsed.name,  // Include name from export
                     detectedFormat: detectedFormatName // Include detected format in result
                 };
                 

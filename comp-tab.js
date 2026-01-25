@@ -22,7 +22,7 @@
         ],
         
         // Build mode renderer
-        renderBuild: function(container, state, onChange) {
+        renderBuild: function(container, state, onChange, externalArrays) {
             const count = state.tabs.length;
             
             container.innerHTML = '';
@@ -72,7 +72,7 @@
                 container.appendChild(deleteBtn);
                 
                 // Position control
-                container.appendChild(this.createPositionControl(state, onChange));
+                container.appendChild(this.createPositionControl(state, onChange, externalArrays));
                 
                 // Tabs
                 for (let i = 0; i < count; i++) {
@@ -108,7 +108,7 @@
                 container.appendChild(deleteBtn);
                 
                 // Position control (full height)
-                container.appendChild(this.createPositionControl(state, onChange));
+                container.appendChild(this.createPositionControl(state, onChange, externalArrays));
                 
                 // Tabs wrapper
                 const wrapper = document.createElement('div');
@@ -366,7 +366,7 @@
         },
         
         // Helper: Create position control
-        createPositionControl: function(state, onChange) {
+        createPositionControl: function(state, onChange, externalArrays) {
             const control = document.createElement('div');
             control.style.cssText = `
                 width: calc(var(--square-section) * 2);
@@ -396,7 +396,7 @@
             leftBtn.textContent = '◀';
             leftBtn.onmouseover = () => leftBtn.style.filter = 'brightness(1.2)';
             leftBtn.onmouseout = () => leftBtn.style.filter = 'brightness(1)';
-            leftBtn.onclick = () => this.moveTab(state, -1, onChange);
+            leftBtn.onclick = () => this.moveTab(state, -1, onChange, externalArrays);
             
             const rightBtn = document.createElement('div');
             rightBtn.style.cssText = `
@@ -414,7 +414,7 @@
             rightBtn.textContent = '▶';
             rightBtn.onmouseover = () => rightBtn.style.filter = 'brightness(1.2)';
             rightBtn.onmouseout = () => rightBtn.style.filter = 'brightness(1)';
-            rightBtn.onclick = () => this.moveTab(state, 1, onChange);
+            rightBtn.onclick = () => this.moveTab(state, 1, onChange, externalArrays);
             
             control.appendChild(leftBtn);
             control.appendChild(rightBtn);
@@ -552,11 +552,19 @@
             }
         },
         
-        moveTab: function(state, direction, onChange) {
+        moveTab: function(state, direction, onChange, externalArrays) {
             const newIndex = state.selectedBuildTab + direction;
             if (newIndex >= 0 && newIndex < state.tabs.length) {
+                // Swap tab metadata
                 [state.tabs[state.selectedBuildTab], state.tabs[newIndex]] = 
                 [state.tabs[newIndex], state.tabs[state.selectedBuildTab]];
+                
+                // Swap external arrays if provided (e.g., tabComponents)
+                if (externalArrays && Array.isArray(externalArrays)) {
+                    [externalArrays[state.selectedBuildTab], externalArrays[newIndex]] = 
+                    [externalArrays[newIndex], externalArrays[state.selectedBuildTab]];
+                }
+                
                 state.selectedBuildTab = newIndex;
                 onChange();
             }

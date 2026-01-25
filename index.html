@@ -45,6 +45,7 @@
     
 html {
     overflow-x: hidden;
+    scroll-behavior: auto !important;
 }
         body {
             background: #243342;
@@ -568,8 +569,12 @@ html {
             
             selectedInsertionPoint = getCurrentComponents().length;
             
-            render(true);
+            // Scroll to top and force browser to complete scroll before rendering
             window.scrollTo(0, 0);
+            // Force reflow to ensure scroll completes
+            void document.body.offsetHeight;
+            
+            render(true);
         }
 
         function navigateBack() {
@@ -628,14 +633,15 @@ html {
             
             selectedInsertionPoint = getCurrentComponents().length;
             
-            render(true);
+            // Restore scroll position and force browser to complete scroll before rendering
+            const scrollPos = scrollStack.pop();
+            if (scrollPos !== undefined) {
+                window.scrollTo(0, scrollPos);
+                // Force reflow to ensure scroll completes
+                void document.body.offsetHeight;
+            }
             
-            setTimeout(() => {
-                const scrollPos = scrollStack.pop();
-                if (scrollPos !== undefined) {
-                    window.scrollTo(0, scrollPos);
-                }
-            }, 10);
+            render(true);
         }
 
         function navigateHome() {
@@ -683,8 +689,11 @@ html {
             
             selectedInsertionPoint = getCurrentComponents().length;
             
-            render(true);
+            // Scroll to top and force browser to complete scroll before rendering
             window.scrollTo(0, 0);
+            void document.body.offsetHeight;
+            
+            render(true);
         }
 
         function openDataWindow() {
@@ -721,7 +730,16 @@ html {
         }
 
         function navigateHomeBuildMode() {
-            // In Build mode, home button should finalize and return to main view
+            // In Build mode, home button behaves like "Save and Close"
+            // Save changes and return to view mode at root
+            
+            // CRITICAL: Clear _returnToEditOnBack flag before clearing navigation stack
+            // This prevents the edit window from reopening when backing out from view mode
+            const currentNest = getCurrentNest();
+            if (currentNest && currentNest.state.editWindow && currentNest.state.editWindow._returnToEditOnBack) {
+                delete currentNest.state.editWindow._returnToEditOnBack;
+            }
+            
             resetAllTabsToFirst(state.tabComponents);
             if (state.tabs && state.tabs.tabs && state.tabs.tabs.length > 0) {
                 state.tabs.activeViewTab = 0;
@@ -743,7 +761,7 @@ html {
             
             state.header.isMain = true;
             state.header.title = 'GT50 TESTER';
-            activeMode = 'view';
+            activeMode = 'view';  // Return to view mode (like Save and Close)
             pendingImportComponent = null;
             
             // Finalize any draft entry from Create New
@@ -766,7 +784,7 @@ html {
             
             selectedInsertionPoint = getCurrentComponents().length;
             
-            saveState();
+            saveState();  // Save changes
             render(true);
             window.scrollTo(0, 0);
         }
@@ -839,7 +857,7 @@ html {
             }
             
             if (activeMode === 'build') {
-                GT50Lib.Tabs.renderBuild(tabsContainer, currentContext.tabs, render);
+                GT50Lib.Tabs.renderBuild(tabsContainer, currentContext.tabs, render, currentContext.tabComponents);
             } else {
                 GT50Lib.Tabs.renderView(tabsContainer, currentContext.tabs, render);
             }
@@ -1180,6 +1198,15 @@ function renderNestEditWindow() {
     
     const openEditNest = findOpenEditNest(state.tabComponents);
     
+    // Check if tempType differs from actual type and set pending change
+    if (openEditNest && openEditNest.state.editWindow && openEditNest.state.editWindow.tempType) {
+        const currentType = openEditNest.type;
+        const desiredType = openEditNest.state.editWindow.tempType;
+        if (currentType !== desiredType) {
+            openEditNest.state._pendingTypeChange = desiredType;
+        }
+    }
+    
     // Handle pending type conversions FIRST, before any rendering
     if (openEditNest && openEditNest.state._pendingTypeChange) {
         const newType = openEditNest.state._pendingTypeChange;
@@ -1229,19 +1256,112 @@ function renderNestEditWindow() {
                 openEditNest.state,
                 render,  // onChange
                 () => {
-                    // onClose - close without saving
+                    // onClose - close without saving, restore from backup
+                    
+                    // Restore from backup if it exists
+                    if (openEditNest.state.editWindow._backup) {
+                        const backup = openEditNest.state.editWindow._backup;
+                        openEditNest.state.name = backup.name;
+                        openEditNest.state.color = backup.color;
+                        openEditNest.state.autoSortByLastUpdated = backup.autoSortByLastUpdated;
+                        openEditNest.state.showSummary = backup.showSummary;
+                        openEditNest.state.summaryDisplayMode = backup.summaryDisplayMode;
+                        openEditNest.state.summaryShowChildNestProgress = backup.summaryShowChildNestProgress;
+                        openEditNest.state.summaryChildNestProgressMode = backup.summaryChildNestProgressMode;
+                        // Cycle-specific backup restoration
+                        if (backup.resetInterval !== undefined) openEditNest.state.resetInterval = backup.resetInterval;
+                        if (backup.resetHour !== undefined) openEditNest.state.resetHour = backup.resetHour;
+                        if (backup.resetDay !== undefined) openEditNest.state.resetDay = backup.resetDay;
+                        if (backup.resetTime !== undefined) openEditNest.state.resetTime = backup.resetTime;
+                    }
+                    
+                    // Clear temp values and backup
+                    delete openEditNest.state.editWindow.tempName;
+                    delete openEditNest.state.editWindow.tempColorIndex;
+                    delete openEditNest.state.editWindow.tempType;
+                    delete openEditNest.state.editWindow._backup;
+                    delete openEditNest.state.editWindow._animateColorIndex;
+                    
                     openEditNest.state.editWindow.isOpen = false;
                     delete openEditNest.state._pendingTypeChange;
+                    
+                    // Always return to view mode when canceling
+                    activeMode = 'view';
+                    
+                    // Check if home button was pressed  
+                    if (openEditNest.state.editWindow._navigateHomeAfterClose) {
+                        delete openEditNest.state.editWindow._navigateHomeAfterClose;
+                        
+                        // FORCE COMPLETE NAVIGATION TO ROOT
+                        window.navigationStack = [];
+                        state.header.isMain = true;
+                        state.header.title = 'GT50 TESTER';
+                        selectedInsertionPoint = getCurrentComponents().length;
+                        
+                        render(true);
+                        window.scrollTo(0, 0);
+                        return;
+                    }
+                    
                     render();
                 },
                 () => {
-                    // onSaveAndClose - for Cycle, just use same as old onSave for now
+                    // onSaveAndClose - save changes and close (no navigation)
+                    
+                    // Apply temp values to actual state
+                    if (openEditNest.state.editWindow.tempName !== undefined) {
+                        openEditNest.state.name = openEditNest.state.editWindow.tempName;
+                    }
+                    if (openEditNest.state.editWindow.tempColorIndex !== undefined) {
+                        const colors = GT50Lib.CreateNew.colors;
+                        if (colors && colors[openEditNest.state.editWindow.tempColorIndex]) {
+                            openEditNest.state.color = colors[openEditNest.state.editWindow.tempColorIndex].name;
+                        }
+                    }
+                    
+                    // Clear temp values and backup
+                    delete openEditNest.state.editWindow.tempName;
+                    delete openEditNest.state.editWindow.tempColorIndex;
+                    delete openEditNest.state.editWindow.tempType;
+                    delete openEditNest.state.editWindow._backup;
+                    delete openEditNest.state.editWindow._animateColorIndex;
+                    
                     openEditNest.state.editWindow.isOpen = false;
-                    activeMode = 'build';
+                    
+                    // Return to view mode
+                    activeMode = 'view';
+                    
+                    saveState();
+                    render();
+                },
+                () => {
+                    // onSaveAndOpen - save changes and navigate into cycle in BUILD mode
+                    
+                    // Apply temp values to actual state
+                    if (openEditNest.state.editWindow.tempName !== undefined) {
+                        openEditNest.state.name = openEditNest.state.editWindow.tempName;
+                    }
+                    if (openEditNest.state.editWindow.tempColorIndex !== undefined) {
+                        const colors = GT50Lib.CreateNew.colors;
+                        if (colors && colors[openEditNest.state.editWindow.tempColorIndex]) {
+                            openEditNest.state.color = colors[openEditNest.state.editWindow.tempColorIndex].name;
+                        }
+                    }
+                    
+                    // Clear temp values and backup
+                    delete openEditNest.state.editWindow.tempName;
+                    delete openEditNest.state.editWindow.tempColorIndex;
+                    delete openEditNest.state.editWindow.tempType;
+                    delete openEditNest.state.editWindow._backup;
+                    delete openEditNest.state.editWindow._animateColorIndex;
+                    
+                    // Mark that we came from edit window so back button can restore it
+                    openEditNest.state.editWindow.isOpen = false;
+                    openEditNest.state.editWindow._returnToEditOnBack = true;
+                    activeMode = 'build';  // Switch to build mode before navigating
                     saveState();
                     navigateInto(openEditNest.id);
-                },
-                null  // onSaveAndOpen - not implemented for Cycle yet
+                }
             );
         } else {
             GT50Lib.Nest.renderEditWindow(
@@ -1603,8 +1723,8 @@ function renderNestEditWindow() {
             
             const currentNest = getCurrentNest();
 if (currentNest && currentNest.type === 'cycle') {
-    GT50Lib.Cycle.renderBuildControlCard(container, currentNest.state, render);
     GT50Lib.Cycle.renderCountdownCard(container, currentNest.state, render);
+    GT50Lib.Cycle.renderBuildControlCard(container, currentNest.state, render);
 }
 
 const layoutWrapper = document.createElement('div');  // ← This existing line stays
@@ -1741,6 +1861,10 @@ components.forEach((component, componentIndex) => {
         parentChildProgressMode
     );
 } else if (component.type === 'cycle') {
+    // Get parent nest's setting for showing child nest progress
+    const parentShowsChildProgress = currentNest && currentNest.state && currentNest.state.summaryShowChildNestProgress;
+    const parentChildProgressMode = currentNest && currentNest.state && currentNest.state.summaryChildNestProgressMode;
+    
     GT50Lib.Cycle.renderView(
         componentWrapper, 
         component.state, 
@@ -1749,7 +1873,9 @@ components.forEach((component, componentIndex) => {
         (dir) => moveComponent(component.id, dir),
         () => deleteComponent(component.id),
         render,
-        closeAllNestActions
+        closeAllNestActions,
+        parentShowsChildProgress,
+        parentChildProgressMode
     );
                 } else if (component.type !== 'import') {
                     if (component.type === 'list') {

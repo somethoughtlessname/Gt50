@@ -15,11 +15,14 @@
                 resetTime: '00:00',
                 resetDay: 1,
                 resetHour: 0,
+                resetHourDisplay: 12,  // 1-12 for display
+                resetPeriod: 'AM',     // AM or PM
+                hourlyMode: 'topOfHour', // 'topOfHour', 'setToNow', 'topOfNextMinute'
+                hourlyMinute: 0,       // Stores the minute for setToNow/topOfNextMinute modes
                 customMonths: 0,
                 customDays: 0,
                 customHours: 0,
                 customMinutes: 0,
-                customDropdownOpen: false,
                 showCountdown: true,
                 countdownColor: 'var(--color-5)'
             };
@@ -47,8 +50,17 @@
                     shouldReset = true;
                 }
             } else if (state.resetInterval === 'hourly') {
-                const hoursSince = Math.floor((now - lastReset) / (1000 * 60 * 60));
-                if (hoursSince >= 1) shouldReset = true;
+                if (state.hourlyMode === 'topOfHour') {
+                    // Reset at the top of each hour (XX:00:00)
+                    const currentMinute = now.getMinutes();
+                    const lastResetHour = lastReset.getHours();
+                    const currentHour = now.getHours();
+                    if (currentHour !== lastResetHour && currentMinute >= 0) shouldReset = true;
+                } else if (state.hourlyMode === 'setToNow' || state.hourlyMode === 'topOfNextMinute') {
+                    // Reset exactly 1 hour after lastReset
+                    const hoursSince = Math.floor((now - lastReset) / (1000 * 60 * 60));
+                    if (hoursSince >= 1) shouldReset = true;
+                }
             } else if (state.resetInterval === 'daily') {
                 const [hours, minutes] = state.resetTime.split(':').map(Number);
                 const todayReset = new Date(now);
@@ -63,8 +75,17 @@
             } else if (state.resetInterval === 'monthly') {
                 const currentDate = now.getDate();
                 const currentMonth = now.getMonth();
+                const currentYear = now.getFullYear();
                 const lastResetMonth = lastReset.getMonth();
-                if (currentMonth !== lastResetMonth && currentDate >= state.resetDay) shouldReset = true;
+                
+                // Get the last day of current month
+                const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+                
+                // Adjust reset day if it doesn't exist in this month
+                // E.g., if resetDay is 31 but current month is Feb (28/29 days), use last day of Feb
+                const adjustedResetDay = Math.min(state.resetDay, lastDayOfMonth);
+                
+                if (currentMonth !== lastResetMonth && currentDate >= adjustedResetDay) shouldReset = true;
             }
             
             if (shouldReset) {
@@ -141,8 +162,19 @@
                 const lastReset = new Date(state.lastReset);
                 nextReset = new Date(lastReset.getTime() + totalMs);
             } else if (state.resetInterval === 'hourly') {
-                const lastReset = new Date(state.lastReset);
-                nextReset = new Date(lastReset.getTime() + (60 * 60 * 1000));
+                if (state.hourlyMode === 'topOfHour') {
+                    // Next reset is at top of next hour
+                    nextReset.setMinutes(0, 0, 0);
+                    if (nextReset <= now) nextReset.setHours(nextReset.getHours() + 1);
+                } else if (state.hourlyMode === 'topOfNextMinute') {
+                    // Next reset is 1 hour after lastReset (which is set to next minute boundary)
+                    const lastReset = new Date(state.lastReset);
+                    nextReset = new Date(lastReset.getTime() + (60 * 60 * 1000));
+                } else if (state.hourlyMode === 'setToNow') {
+                    // Next reset preserves seconds from when SET TO NOW was tapped
+                    const lastReset = new Date(state.lastReset);
+                    nextReset = new Date(lastReset.getTime() + (60 * 60 * 1000));
+                }
             } else if (state.resetInterval === 'daily') {
                 const [hours, minutes] = state.resetTime.split(':').map(Number);
                 nextReset.setHours(hours, minutes, 0, 0);
@@ -152,9 +184,24 @@
                 nextReset.setDate(now.getDate() + (daysUntil === 0 ? 7 : daysUntil));
                 nextReset.setHours(0, 0, 0, 0);
             } else if (state.resetInterval === 'monthly') {
-                nextReset.setDate(state.resetDay);
+                const currentYear = now.getFullYear();
+                const currentMonth = now.getMonth();
+                
+                // Get the last day of current month
+                let lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+                let adjustedResetDay = Math.min(state.resetDay, lastDayOfMonth);
+                
+                nextReset.setDate(adjustedResetDay);
                 nextReset.setHours(0, 0, 0, 0);
-                if (nextReset <= now) nextReset.setMonth(nextReset.getMonth() + 1);
+                
+                // If we've already passed this month's reset day, move to next month
+                if (nextReset <= now) {
+                    nextReset.setMonth(nextReset.getMonth() + 1);
+                    // Recalculate for next month's days
+                    lastDayOfMonth = new Date(nextReset.getFullYear(), nextReset.getMonth() + 1, 0).getDate();
+                    adjustedResetDay = Math.min(state.resetDay, lastDayOfMonth);
+                    nextReset.setDate(adjustedResetDay);
+                }
             }
             
             const diff = nextReset - now;
@@ -179,29 +226,35 @@
         renderBuild: function(container, state, depth, onNavigate, onChange, onMove, onDelete, isDeletePending) {
             this.checkAndReset(state);
             
-            // Use nest's build renderer
+            // Use nest's build renderer with correct signature
             GT50Lib.Nest.renderBuild(container, state, depth, onNavigate, onChange, onMove, onDelete, isDeletePending);
             
-            // Replace the icon with cycle icon
+            // Replace the icon with cycle icon (⟳ circular arrow)
             const iconSection = container.querySelector('div > div[data-action="open"]');
             if (iconSection) {
-                iconSection.textContent = '⟳';
+                const existingIcon = iconSection.querySelector('div');
+                if (existingIcon) {
+                    existingIcon.innerHTML = `
+                        <svg viewBox="0 0 24 24" style="width: 20px; height: 20px;">
+                            <path d="M12 6v3l4-4-4-4v3c-4.42 0-8 3.58-8 8 0 1.57.46 3.03 1.24 4.26L6.7 14.8c-.45-.83-.7-1.79-.7-2.8 0-3.31 2.69-6 6-6zm6.76 1.74L17.3 9.2c.44.84.7 1.79.7 2.8 0 3.31-2.69 6-6 6v-3l-4 4 4 4v-3c4.42 0 8-3.58 8-8 0-1.57-.46-3.03-1.24-4.26z" fill="var(--font-color-3)"/>
+                        </svg>
+                    `;
+                }
             }
         },
         
         // ===== VIEW MODE RENDERER =====
-        // Completely identical to Nest - NO modifications at all
-        renderView: function(container, state, depth, onNavigate, onMove, onDelete, render, closeAllActions) {
+        // Delegates to Nest with correct signature - passes through ALL parameters including swipe actions
+        renderView: function(container, state, depth, onNavigate, onMove, onDelete, render, closeAllActions, parentShowsChildProgress, parentChildProgressMode) {
             this.checkAndReset(state);
             
-            // Just delegate to Nest - do NOT modify anything
-            // Cycles look EXACTLY like Nests in view mode
-            GT50Lib.Nest.renderView(container, state, depth, onNavigate, onMove, onDelete, render, closeAllActions);
+            // Pass all parameters through to Nest to enable swipe menu and all features
+            GT50Lib.Nest.renderView(container, state, depth, onNavigate, onMove, onDelete, render, closeAllActions, parentShowsChildProgress, parentChildProgressMode);
         },
         
         // ===== EDIT WINDOW RENDERER =====
         // Delegates to Nest but ensures tempType is set to 'cycle'
-        renderEditWindow: function(container, state, onChange, onClose, onSave) {
+        renderEditWindow: function(container, state, onChange, onClose, onSaveAndClose, onSaveAndOpen) {
             // Initialize editWindow if it doesn't exist
             if (!state.editWindow) {
                 state.editWindow = { isOpen: false };
@@ -216,8 +269,8 @@
                 }
             }
             
-            // Just call nest's edit window - it handles everything
-            GT50Lib.Nest.renderEditWindow(container, state, onChange, onClose, onSave);
+            // Call nest's edit window with correct signature
+            GT50Lib.Nest.renderEditWindow(container, state, onChange, onClose, onSaveAndClose, onSaveAndOpen);
         },
         
         // ===== BUILD MODE CONTROL CARD =====
@@ -226,19 +279,17 @@
             this.checkAndReset(state);
             
             const bgColor = 'var(--color-5-2)';
-            const wrapper = document.createElement('div');
-            wrapper.style.cssText = 'margin-bottom: var(--margin);';
             
             const mainCard = document.createElement('div');
             mainCard.style.cssText = `
                 background: ${bgColor};
                 border: var(--border-width) solid var(--border-color);
-                border-radius: ${state.customDropdownOpen ? '8px 8px 0 0' : '8px'};
+                border-radius: 8px;
                 height: var(--card-height);
                 display: flex;
                 flex-direction: column;
                 overflow: hidden;
-                margin-bottom: ${state.customDropdownOpen ? '0' : '0'};
+                margin-bottom: var(--margin);
             `;
             
             mainCard.innerHTML = `
@@ -329,118 +380,296 @@
                 </div>
             `;
             
-            wrapper.appendChild(mainCard);
-            
-            // Add custom dropdown if open
-            if (state.customDropdownOpen) {
-                const dropdown = document.createElement('div');
-                dropdown.style.cssText = `
-                    background: var(--bg-2);
-                    border: var(--border-width) solid var(--border-color);
-                    border-top: none;
-                    border-radius: 0 0 8px 8px;
-                    height: var(--card-height);
-                    display: flex;
-                    overflow: hidden;
-                `;
-                
-                dropdown.innerHTML = `
-                    <div style="
-                        flex: 1;
-                        background: var(--bg-4);
-                        border-right: var(--border-width) solid var(--border-color);
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        justify-content: center;
-                    ">
-                        <div style="font-size: 7px; font-weight: 600; color: var(--color-10);">MONTHS</div>
-                        <input type="tel" data-custom="months" value="${state.customMonths || 0}" 
-                            pattern="[0-9]*" inputmode="numeric"
-                            style="width: 100%; background: transparent; border: none; color: var(--color-10); text-align: center; font-size: 12px; font-weight: 700; outline: none; font-family: inherit;">
-                    </div>
-                    <div style="
-                        flex: 1;
-                        background: var(--bg-4);
-                        border-right: var(--border-width) solid var(--border-color);
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        justify-content: center;
-                    ">
-                        <div style="font-size: 7px; font-weight: 600; color: var(--color-10);">DAYS</div>
-                        <input type="tel" data-custom="days" value="${state.customDays || 0}" 
-                            pattern="[0-9]*" inputmode="numeric"
-                            style="width: 100%; background: transparent; border: none; color: var(--color-10); text-align: center; font-size: 12px; font-weight: 700; outline: none; font-family: inherit;">
-                    </div>
-                    <div style="
-                        flex: 1;
-                        background: var(--bg-4);
-                        border-right: var(--border-width) solid var(--border-color);
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        justify-content: center;
-                    ">
-                        <div style="font-size: 7px; font-weight: 600; color: var(--color-10);">HOURS</div>
-                        <input type="tel" data-custom="hours" value="${state.customHours || 0}" 
-                            pattern="[0-9]*" inputmode="numeric"
-                            style="width: 100%; background: transparent; border: none; color: var(--color-10); text-align: center; font-size: 12px; font-weight: 700; outline: none; font-family: inherit;">
-                    </div>
-                    <div style="
-                        flex: 1;
-                        background: var(--bg-4);
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        justify-content: center;
-                    ">
-                        <div style="font-size: 7px; font-weight: 600; color: var(--color-10);">MINUTES</div>
-                        <input type="tel" data-custom="minutes" value="${state.customMinutes || 0}" 
-                            pattern="[0-9]*" inputmode="numeric"
-                            style="width: 100%; background: transparent; border: none; color: var(--color-10); text-align: center; font-size: 12px; font-weight: 700; outline: none; font-family: inherit;">
-                    </div>
-                `;
-                
-                wrapper.appendChild(dropdown);
-            }
+            container.appendChild(mainCard);
             
             // Add interval button event listeners
             mainCard.querySelectorAll('[data-interval]').forEach(btn => {
                 const interval = btn.dataset.interval;
                 btn.onclick = () => {
                     state.resetInterval = interval;
-                    if (interval === 'custom') {
-                        state.customDropdownOpen = !state.customDropdownOpen;
-                    } else {
-                        state.customDropdownOpen = false;
-                    }
                     onChange();
                 };
                 btn.onmouseover = () => btn.style.filter = 'brightness(1.1)';
                 btn.onmouseout = () => btn.style.filter = 'brightness(1)';
             });
             
-            // Add custom input event listeners if dropdown exists
-            if (state.customDropdownOpen) {
-                const dropdown = wrapper.querySelector('div:last-child');
-                dropdown.querySelectorAll('[data-custom]').forEach(input => {
+            // Add custom interval card if selected
+            if (state.resetInterval === 'custom') {
+                const customCard = document.createElement('div');
+                customCard.style.cssText = `
+                    background: ${bgColor};
+                    border: var(--border-width) solid var(--border-color);
+                    border-radius: 8px;
+                    height: var(--card-height);
+                    display: flex;
+                    flex-direction: column;
+                    overflow: hidden;
+                    margin-bottom: var(--margin);
+                `;
+                
+                customCard.innerHTML = `
+                    <div style="
+                        flex: 1;
+                        background: var(--color-10);
+                        border-bottom: var(--border-width) solid var(--border-color);
+                        display: flex;
+                    ">
+                        <div style="
+                            flex: 1;
+                            border-right: var(--border-width) solid var(--border-color);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 7px;
+                            font-weight: 700;
+                            color: #000000;
+                        ">MONTHS</div>
+                        <div style="
+                            flex: 1;
+                            border-right: var(--border-width) solid var(--border-color);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 7px;
+                            font-weight: 700;
+                            color: #000000;
+                        ">DAYS</div>
+                        <div style="
+                            flex: 1;
+                            border-right: var(--border-width) solid var(--border-color);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 7px;
+                            font-weight: 700;
+                            color: #000000;
+                        ">HOURS</div>
+                        <div style="
+                            flex: 1;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 7px;
+                            font-weight: 700;
+                            color: #000000;
+                        ">MINUTES</div>
+                    </div>
+                    <div style="
+                        flex: 1;
+                        display: flex;
+                    ">
+                        <div data-action="reset-custom" style="
+                            flex: 1;
+                            background: var(--color-10);
+                            border-right: var(--border-width) solid var(--border-color);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 9px;
+                            font-weight: 700;
+                            color: #000000;
+                            cursor: pointer;
+                            transition: filter 0.2s;
+                        ">RESET</div>
+                        <div style="
+                            flex: 1;
+                            background: var(--bg-4);
+                            border-right: var(--border-width) solid var(--border-color);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        ">
+                            <input type="tel" data-custom="months" value="${state.customMonths || 0}" 
+                                pattern="[0-9]*" inputmode="numeric"
+                                style="width: 100%; background: transparent; border: none; color: var(--color-10); text-align: center; font-size: 12px; font-weight: 700; outline: none; font-family: inherit;">
+                        </div>
+                        <div style="
+                            flex: 1;
+                            background: var(--bg-4);
+                            border-right: var(--border-width) solid var(--border-color);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        ">
+                            <input type="tel" data-custom="days" value="${state.customDays || 0}" 
+                                pattern="[0-9]*" inputmode="numeric"
+                                style="width: 100%; background: transparent; border: none; color: var(--color-10); text-align: center; font-size: 12px; font-weight: 700; outline: none; font-family: inherit;">
+                        </div>
+                        <div style="
+                            flex: 1;
+                            background: var(--bg-4);
+                            border-right: var(--border-width) solid var(--border-color);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        ">
+                            <input type="tel" data-custom="hours" value="${state.customHours || 0}" 
+                                pattern="[0-9]*" inputmode="numeric"
+                                style="width: 100%; background: transparent; border: none; color: var(--color-10); text-align: center; font-size: 12px; font-weight: 700; outline: none; font-family: inherit;">
+                        </div>
+                        <div style="
+                            flex: 1;
+                            background: var(--bg-4);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        ">
+                            <input type="tel" data-custom="minutes" value="${state.customMinutes || 0}" 
+                                pattern="[0-9]*" inputmode="numeric"
+                                style="width: 100%; background: transparent; border: none; color: var(--color-10); text-align: center; font-size: 12px; font-weight: 700; outline: none; font-family: inherit;">
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(customCard);
+                
+                // Add reset button handler
+                const resetBtn = customCard.querySelector('[data-action="reset-custom"]');
+                resetBtn.onclick = () => {
+                    state.customMonths = 0;
+                    state.customDays = 0;
+                    state.customHours = 0;
+                    state.customMinutes = 0;
+                    onChange();
+                };
+                resetBtn.onmouseover = () => resetBtn.style.filter = 'brightness(1.1)';
+                resetBtn.onmouseout = () => resetBtn.style.filter = 'brightness(1)';
+                
+                // Add custom input event listeners - use onblur to prevent keyboard closing
+                customCard.querySelectorAll('[data-custom]').forEach(input => {
                     const field = input.dataset.custom;
+                    
+                    // Update value as user types but don't trigger full onChange
                     input.oninput = (e) => {
                         const value = parseInt(e.target.value) || 0;
                         if (field === 'months') state.customMonths = value;
                         else if (field === 'days') state.customDays = value;
                         else if (field === 'hours') state.customHours = value;
                         else if (field === 'minutes') state.customMinutes = value;
+                    };
+                    
+                    // Only trigger onChange when input loses focus
+                    input.onblur = () => {
                         onChange();
                     };
                 });
             }
             
-            container.appendChild(wrapper);
-            
             // Add time/day/month specific controls based on interval
+            if (state.resetInterval === 'hourly') {
+                const hourlyCard = document.createElement('div');
+                hourlyCard.style.cssText = `
+                    background: ${bgColor};
+                    border: var(--border-width) solid var(--border-color);
+                    border-radius: 8px;
+                    height: var(--card-height);
+                    display: flex;
+                    flex-direction: column;
+                    overflow: hidden;
+                    margin-bottom: var(--margin);
+                `;
+                
+                hourlyCard.innerHTML = `
+                    <div style="
+                        flex: 1;
+                        background: var(--color-10);
+                        border-bottom: var(--border-width) solid var(--border-color);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 10px;
+                        font-weight: 700;
+                        color: #000000;
+                    ">MODE</div>
+                    <div style="
+                        flex: 1;
+                        display: flex;
+                    ">
+                        <div data-hourly-mode="topOfHour" style="
+                            flex: 1;
+                            height: 100%;
+                            background: ${state.hourlyMode === 'topOfHour' ? 'var(--color-10)' : bgColor};
+                            border-right: var(--border-width) solid var(--border-color);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 9px;
+                            font-weight: 700;
+                            color: ${state.hourlyMode === 'topOfHour' ? '#000000' : 'var(--color-10)'};
+                            cursor: pointer;
+                            transition: filter 0.2s;
+                        ">TOP OF HOUR</div>
+                        <div data-hourly-mode="setToNow" style="
+                            flex: 1;
+                            height: 100%;
+                            background: ${state.hourlyMode === 'setToNow' ? 'var(--color-10)' : bgColor};
+                            border-right: var(--border-width) solid var(--border-color);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 9px;
+                            font-weight: 700;
+                            color: ${state.hourlyMode === 'setToNow' ? '#000000' : 'var(--color-10)'};
+                            cursor: pointer;
+                            transition: filter 0.2s;
+                        ">SET TO NOW</div>
+                        <div data-hourly-mode="topOfNextMinute" style="
+                            flex: 1;
+                            height: 100%;
+                            background: ${state.hourlyMode === 'topOfNextMinute' ? 'var(--color-10)' : bgColor};
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 7px;
+                            font-weight: 700;
+                            color: ${state.hourlyMode === 'topOfNextMinute' ? '#000000' : 'var(--color-10)'};
+                            cursor: pointer;
+                            transition: filter 0.2s;
+                        ">TOP OF NEXT MINUTE</div>
+                    </div>
+                `;
+                
+                container.appendChild(hourlyCard);
+                
+                hourlyCard.querySelectorAll('[data-hourly-mode]').forEach(btn => {
+                    btn.onclick = () => {
+                        const mode = btn.dataset.hourlyMode;
+                        state.hourlyMode = mode;
+                        
+                        const now = new Date();
+                        if (mode === 'topOfHour') {
+                            state.hourlyMinute = 0;
+                        } else if (mode === 'setToNow') {
+                            state.hourlyMinute = now.getMinutes();
+                            // Reset the timer countdown to start from now (preserves seconds)
+                            state.lastReset = Date.now();
+                        } else if (mode === 'topOfNextMinute') {
+                            // Calculate next minute boundary
+                            const nextMinute = new Date(now);
+                            nextMinute.setSeconds(0, 0);
+                            nextMinute.setMinutes(nextMinute.getMinutes() + 1);
+                            
+                            state.hourlyMinute = nextMinute.getMinutes();
+                            // Set lastReset to the next minute boundary
+                            // This makes countdown show 1h 0m XXs (where XX = seconds until next minute)
+                            state.lastReset = nextMinute.getTime();
+                        }
+                        
+                        onChange();
+                    };
+                    btn.onmouseover = () => btn.style.filter = 'brightness(1.1)';
+                    btn.onmouseout = () => btn.style.filter = 'brightness(1)';
+                });
+            }
+            
             if (state.resetInterval === 'daily') {
+                // Initialize hour and period from resetTime if needed
+                if (state.resetHourDisplay === undefined || state.resetPeriod === undefined) {
+                    const [hours] = state.resetTime.split(':').map(Number);
+                    state.resetPeriod = hours >= 12 ? 'PM' : 'AM';
+                    state.resetHourDisplay = hours === 0 ? 12 : (hours > 12 ? hours - 12 : hours);
+                }
+                
                 const timeCard = document.createElement('div');
                 timeCard.style.cssText = `
                     background: ${bgColor};
@@ -448,20 +677,16 @@
                     border-radius: 8px;
                     height: var(--card-height);
                     display: flex;
-                    align-items: center;
+                    flex-direction: column;
                     overflow: hidden;
                     margin-bottom: var(--margin);
                 `;
                 
                 timeCard.innerHTML = `
                     <div style="
-                        width: var(--square-section);
-                        min-width: var(--square-section);
-                        max-width: var(--square-section);
-                        flex-shrink: 0;
-                        height: 100%;
+                        flex: 1;
                         background: var(--color-10);
-                        border-right: var(--border-width) solid var(--border-color);
+                        border-bottom: var(--border-width) solid var(--border-color);
                         display: flex;
                         align-items: center;
                         justify-content: center;
@@ -469,26 +694,94 @@
                         font-weight: 700;
                         color: #000000;
                     ">TIME</div>
-                    <input type="time" value="${state.resetTime}" style="
+                    <div style="
                         flex: 1;
-                        background: transparent;
-                        border: none;
-                        color: var(--color-10);
-                        font-size: 14px;
-                        font-weight: 600;
-                        padding: 0 16px;
-                        outline: none;
-                        font-family: inherit;
+                        display: flex;
                     ">
+                        <div data-period="AM" style="
+                            width: var(--square-section);
+                            min-width: var(--square-section);
+                            max-width: var(--square-section);
+                            flex-shrink: 0;
+                            height: 100%;
+                            background: ${state.resetPeriod === 'AM' ? 'var(--color-10)' : bgColor};
+                            border-right: var(--border-width) solid var(--border-color);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 10px;
+                            font-weight: 700;
+                            color: ${state.resetPeriod === 'AM' ? '#000000' : 'var(--color-10)'};
+                            cursor: pointer;
+                            transition: filter 0.2s;
+                        ">AM</div>
+                        <div data-period="PM" style="
+                            width: var(--square-section);
+                            min-width: var(--square-section);
+                            max-width: var(--square-section);
+                            flex-shrink: 0;
+                            height: 100%;
+                            background: ${state.resetPeriod === 'PM' ? 'var(--color-10)' : bgColor};
+                            border-right: var(--border-width) solid var(--border-color);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 10px;
+                            font-weight: 700;
+                            color: ${state.resetPeriod === 'PM' ? '#000000' : 'var(--color-10)'};
+                            cursor: pointer;
+                            transition: filter 0.2s;
+                        ">PM</div>
+                        ${[1,2,3,4,5,6,7,8,9,10,11,12].map((hour, i) => `
+                            <div data-hour="${hour}" style="
+                                flex: 1;
+                                height: 100%;
+                                background: ${state.resetHourDisplay === hour ? 'var(--color-10)' : bgColor};
+                                ${i < 11 ? 'border-right: var(--border-width) solid var(--border-color);' : ''}
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-size: 10px;
+                                font-weight: 700;
+                                color: ${state.resetHourDisplay === hour ? '#000000' : 'var(--color-10)'};
+                                cursor: pointer;
+                                transition: filter 0.2s;
+                            ">${hour}</div>
+                        `).join('')}
+                    </div>
                 `;
                 
                 container.appendChild(timeCard);
                 
-                const timeInput = timeCard.querySelector('input[type="time"]');
-                timeInput.oninput = (e) => {
-                    state.resetTime = e.target.value;
-                    onChange();
-                };
+                // Period buttons (AM/PM)
+                timeCard.querySelectorAll('[data-period]').forEach(btn => {
+                    btn.onclick = () => {
+                        state.resetPeriod = btn.dataset.period;
+                        // Update resetTime
+                        let hour24 = state.resetHourDisplay;
+                        if (state.resetPeriod === 'PM' && hour24 !== 12) hour24 += 12;
+                        if (state.resetPeriod === 'AM' && hour24 === 12) hour24 = 0;
+                        state.resetTime = `${hour24.toString().padStart(2, '0')}:00`;
+                        onChange();
+                    };
+                    btn.onmouseover = () => btn.style.filter = 'brightness(1.1)';
+                    btn.onmouseout = () => btn.style.filter = 'brightness(1)';
+                });
+                
+                // Hour buttons (1-12)
+                timeCard.querySelectorAll('[data-hour]').forEach(btn => {
+                    btn.onclick = () => {
+                        state.resetHourDisplay = parseInt(btn.dataset.hour);
+                        // Update resetTime
+                        let hour24 = state.resetHourDisplay;
+                        if (state.resetPeriod === 'PM' && hour24 !== 12) hour24 += 12;
+                        if (state.resetPeriod === 'AM' && hour24 === 12) hour24 = 0;
+                        state.resetTime = `${hour24.toString().padStart(2, '0')}:00`;
+                        onChange();
+                    };
+                    btn.onmouseover = () => btn.style.filter = 'brightness(1.1)';
+                    btn.onmouseout = () => btn.style.filter = 'brightness(1)';
+                });
             }
             
             if (state.resetInterval === 'weekly') {
@@ -558,49 +851,69 @@
                     border-radius: 8px;
                     height: var(--card-height);
                     display: flex;
-                    align-items: center;
+                    flex-direction: column;
                     overflow: hidden;
                     margin-bottom: var(--margin);
                 `;
                 
-                monthCard.innerHTML = `
-                    <div style="
-                        width: var(--square-section);
-                        min-width: var(--square-section);
-                        max-width: var(--square-section);
-                        flex-shrink: 0;
+                // Generate first row (1-15)
+                const row1 = Array.from({length: 15}, (_, i) => i + 1).map((day, i) => `
+                    <div data-day="${day}" style="
+                        flex: 1;
                         height: 100%;
-                        background: var(--color-10);
-                        border-right: var(--border-width) solid var(--border-color);
+                        background: ${state.resetDay === day ? 'var(--color-10)' : bgColor};
+                        ${i < 14 ? 'border-right: var(--border-width) solid var(--border-color);' : ''}
                         display: flex;
                         align-items: center;
                         justify-content: center;
                         font-size: 10px;
                         font-weight: 700;
-                        color: #000000;
-                    ">DAY</div>
-                    <input type="number" min="1" max="31" value="${state.resetDay}" style="
+                        color: ${state.resetDay === day ? '#000000' : 'var(--color-10)'};
+                        cursor: pointer;
+                        transition: filter 0.2s;
+                    ">${day}</div>
+                `).join('');
+                
+                // Generate second row (16-31)
+                const row2 = Array.from({length: 16}, (_, i) => i + 16).map((day, i) => `
+                    <div data-day="${day}" style="
                         flex: 1;
-                        background: transparent;
-                        border: none;
-                        color: var(--color-10);
-                        font-size: 14px;
-                        font-weight: 600;
-                        padding: 0 16px;
-                        outline: none;
-                        font-family: inherit;
-                    ">
+                        height: 100%;
+                        background: ${state.resetDay === day ? 'var(--color-10)' : bgColor};
+                        ${i < 15 ? 'border-right: var(--border-width) solid var(--border-color);' : ''}
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 10px;
+                        font-weight: 700;
+                        color: ${state.resetDay === day ? '#000000' : 'var(--color-10)'};
+                        cursor: pointer;
+                        transition: filter 0.2s;
+                    ">${day}</div>
+                `).join('');
+                
+                monthCard.innerHTML = `
+                    <div style="
+                        flex: 1;
+                        display: flex;
+                        border-bottom: var(--border-width) solid var(--border-color);
+                    ">${row1}</div>
+                    <div style="
+                        flex: 1;
+                        display: flex;
+                    ">${row2}</div>
                 `;
                 
                 container.appendChild(monthCard);
                 
-                const dayInput = monthCard.querySelector('input[type="number"]');
-                dayInput.oninput = (e) => {
-                    let value = parseInt(e.target.value) || 1;
-                    value = Math.max(1, Math.min(31, value));
-                    state.resetDay = value;
-                    onChange();
-                };
+                monthCard.querySelectorAll('[data-day]').forEach(btn => {
+                    btn.onclick = () => {
+                        state.resetDay = parseInt(btn.dataset.day);
+                        onChange();
+                    };
+                    btn.onmouseover = () => btn.style.filter = 'brightness(1.1)';
+                    btn.onmouseout = () => btn.style.filter = 'brightness(1)';
+                });
             }
         },
         

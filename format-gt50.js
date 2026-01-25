@@ -930,10 +930,15 @@
         
         unescape: function(str) {
             if (typeof str !== 'string') return str;
-            return str
-                .replace(/\\n/g, '\n')
-                .replace(/\\\|/g, '|')
-                .replace(/\\\\/g, '\\');
+            // Process escape sequences properly
+            return str.replace(/\\(.)/g, function(match, char) {
+                switch(char) {
+                    case 'n': return '\n';
+                    case '|': return '|';
+                    case '\\': return '\\';
+                    default: return char; // For any other escaped char (like \,), return just the char
+                }
+            });
         }
     };
     

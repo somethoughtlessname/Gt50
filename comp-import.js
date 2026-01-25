@@ -16,7 +16,6 @@
                 components: [],
                 tabs: null,
                 tabComponents: null,
-                selectedImportId: null,  // Stores the ID of the import selected from Create New
                 importWindow: {
                     isOpen: false,
                     header: {
@@ -328,25 +327,6 @@
             const textarea = document.getElementById('import-textarea');
             const status = document.getElementById('import-status');
             
-            // Auto-populate textarea if selectedImportId is set
-            if (textarea && componentRef.state.selectedImportId) {
-                const importObj = window.GT50.Imports.get(componentRef.state.selectedImportId);
-                if (importObj && importObj.data) {
-                    // Convert data to string if it's an object
-                    let dataStr = importObj.data;
-                    if (typeof dataStr === 'object') {
-                        dataStr = JSON.stringify(dataStr);
-                    }
-                    textarea.value = dataStr;
-                    
-                    // Update status to show it's ready
-                    if (status) {
-                        status.textContent = `✓ Import ready: ${importObj.name}`;
-                        status.style.color = 'var(--accent)';
-                    }
-                }
-            }
-            
             if (importBtn && textarea && status) {
                 importBtn.onclick = () => {
                     const text = textarea.value;
@@ -388,10 +368,18 @@
                             componentRef.state = nestFound.state;
                         } else {
                             // If no nest found, treat the imported workspace data as nest contents
+                            // Use the actual name from the import, or default to 'Imported Nest'
+                            const importedName = result.name || 'Imported Nest';
                             componentRef.state = {
-                                name: 'Imported Nest',
+                                name: importedName,
                                 tabs: result.data.tabs,
-                                tabComponents: result.data.tabComponents
+                                tabComponents: result.data.tabComponents,
+                                // Include other nest properties if they exist in the import
+                                color: result.data.color,
+                                autoSortByLastUpdated: result.data.autoSortByLastUpdated,
+                                showSummary: result.data.showSummary,
+                                summaryShowChildNestProgress: result.data.summaryShowChildNestProgress,
+                                summaryChildNestProgressMode: result.data.summaryChildNestProgressMode
                             };
                         }
                         

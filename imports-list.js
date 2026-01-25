@@ -4,11 +4,13 @@
 // Just add the filename (must be in /import/ folder)
 
 window.GT50ImportsList = [
-    'import-example-rpg.js',
+'game-thelongdark.js',
     'game-stray.js',
-    'game-thelongdark.js',
+'game-legoharrypottercollection.js',
 'game-hogwarts.js',
-'game-splitfiction.js',
+'game-infamous2.js',
+'game-gta5.js',
+'game-spiderman2.js',
     // Add more import files here:
 ];
 

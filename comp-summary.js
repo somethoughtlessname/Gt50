@@ -205,21 +205,11 @@
                 displayText = `${Math.round(summary.percentage)}%`;
             }
             
-            // Calculate sticky position dynamically based on tabs visibility
-            const frozenTabs = document.getElementById('frozenTabs');
-            const hasTabs = frozenTabs && frozenTabs.offsetHeight > 0;
-            const stickyTop = hasTabs ? 78 : 30; // 78px when tabs present, 30px without
-            
             const summaryDiv = document.createElement('div');
             summaryDiv.style.cssText = `
-                position: sticky;
-                top: ${stickyTop}px;
                 margin-bottom: var(--margin);
-                z-index: 1000;
+                position: relative;
             `;
-            
-            // Generate unique ID for this summary bar
-            const summaryId = `summary-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
             
             summaryDiv.innerHTML = `
                 <!-- Base card at 0% opacity (invisible, maintains spacing) -->
@@ -248,12 +238,12 @@
                 </div>
                 
                 <!-- Overlay dropdown-sized card at full opacity -->
-                <div id="${summaryId}" style="
+                <div style="
                     position: absolute;
                     top: 50%;
-                    left: -7px;
-                    right: -7px;
-                    width: calc(100% + 14px);
+                    left: 0;
+                    right: 0;
+                    width: 100%;
                     transform: translateY(-50%);
                     z-index: 10;
                     background: var(--bg-2);
@@ -261,7 +251,6 @@
                     border-radius: 8px;
                     height: 22.5px;
                     overflow: hidden;
-                    transform-origin: center center;
                 ">
                     <div style="
                         background: var(--bg-4);
@@ -298,77 +287,6 @@
             `;
             
             container.appendChild(summaryDiv);
-            
-            // Set up sticky transformation behavior
-            this.setupStickyTransform(summaryDiv, summaryId, stickyTop);
-        },
-        
-        // ===== SETUP STICKY TRANSFORMATION =====
-        setupStickyTransform: function(summaryBar, overlayId, stickyTop) {
-            const summaryOverlay = document.getElementById(overlayId);
-            if (!summaryOverlay) return;
-            
-            let ticking = false;
-            
-            const checkTransform = () => {
-                const rect = summaryBar.getBoundingClientRect();
-                const barTop = rect.top;
-                
-                // Calculate header bottom dynamically (accounts for tabs if present)
-                const frozenTabs = document.getElementById('frozenTabs');
-                const hasTabs = frozenTabs && frozenTabs.offsetHeight > 0;
-                
-                // Header + border = 48px, Tabs + border = 48px
-                const headerBottom = hasTabs ? 96 : 48;
-                
-                const TRANSFORM_START = headerBottom + 5;
-                const TRANSFORM_END = stickyTop;
-                const TRANSFORM_RANGE = TRANSFORM_START - TRANSFORM_END;
-                
-                // Calculate transformation progress (0 = not started, 1 = fully transformed)
-                let progress = 0;
-                
-                if (barTop >= TRANSFORM_START) {
-                    progress = 0;
-                } else if (barTop <= TRANSFORM_END) {
-                    progress = 1;
-                } else {
-                    progress = (TRANSFORM_START - barTop) / TRANSFORM_RANGE;
-                }
-                
-                // Element is set to full width in HTML: calc(100% + 14px)
-                // At progress 0: scale to match normal width
-                // At progress 1: scale to 1 (full expanded width)
-                
-                // Calculate the scale needed
-                // Full width = containerWidth + 14px
-                // Normal width = containerWidth
-                // Scale at 0% = containerWidth / (containerWidth + 14)
-                const container = summaryBar.getBoundingClientRect().width;
-                const normalScale = container / (container + 14);
-                
-                // Interpolate scale from normalScale to 1
-                const scale = normalScale + (1 - normalScale) * progress;
-                
-                // Border radius: 8px -> 0px
-                const borderRadius = 8 * (1 - progress);
-                
-                // Apply transform (no layout reflow!)
-                summaryOverlay.style.borderRadius = `${borderRadius}px`;
-                summaryOverlay.style.transform = `translateY(-50%) scaleX(${scale})`;
-                
-                ticking = false;
-            };
-            
-            const onScroll = () => {
-                if (!ticking) {
-                    requestAnimationFrame(checkTransform);
-                    ticking = true;
-                }
-            };
-            
-            window.addEventListener('scroll', onScroll, { passive: true });
-            checkTransform(); // Initial check
         },
         
         // ===== RENDER TAB TRACKING BARS =====
@@ -405,21 +323,11 @@
             // Don't render if no tabs have trackable cards
             if (tabProgressData.length === 0) return;
             
-            // Calculate sticky position dynamically based on tabs visibility
-            const frozenTabs = document.getElementById('frozenTabs');
-            const hasTabs = frozenTabs && frozenTabs.offsetHeight > 0;
-            const stickyTop = hasTabs ? 78 : 30; // 78px when tabs present, 30px without
-            
-            // Generate unique ID for the overlay
-            const summaryId = `summary-tabs-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-            
             const summaryDiv = document.createElement('div');
             summaryDiv.className = 'summary-tab-bars';
             summaryDiv.style.cssText = `
-                position: sticky;
-                top: ${stickyTop}px;
                 margin-bottom: var(--margin);
-                z-index: 1000;
+                position: relative;
             `;
             
             summaryDiv.innerHTML = `
@@ -465,12 +373,12 @@
                 "></div>
                 
                 <!-- Overlay card with tab bars -->
-                <div id="${summaryId}" style="
+                <div style="
                     position: absolute;
                     top: 50%;
-                    left: -7px;
-                    right: -7px;
-                    width: calc(100% + 14px);
+                    left: 0;
+                    right: 0;
+                    width: 100%;
                     transform: translateY(-50%);
                     z-index: 10;
                     background: var(--bg-2);
@@ -478,7 +386,6 @@
                     border-radius: 8px;
                     height: 22.5px;
                     overflow: hidden;
-                    transform-origin: center center;
                 ">
                     <div style="
                         height: 100%;
@@ -551,9 +458,7 @@
                     }
                 });
             }, 0);
-            
-            // Set up sticky transformation behavior
-            this.setupStickyTransform(summaryDiv, summaryId, stickyTop);
         }
+        
     };
 })();
