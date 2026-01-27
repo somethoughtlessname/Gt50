@@ -210,7 +210,7 @@
         },
         
         // ===== VIEW MODE RENDERER =====
-        renderView: function(container, state, onChange) {
+        renderView: function(container, state, onChange, tabColor) {
             const hasDropdownText = state.dropdownText && state.dropdownText.trim() !== '';
             const showDropdown = hasDropdownText;
             
@@ -278,9 +278,10 @@
                         <div style="
                             font-size: 18px;
                             font-weight: 700;
-                            color: var(--color-10);
+                            color: ${tabColor || 'var(--color-10)'};
                             line-height: 1;
                             margin-top: 2px;
+                            ${tabColor ? 'filter: brightness(1.2);' : ''}
                         ">${state.value}</div>
                     </div>
                     <div data-action="increment" style="

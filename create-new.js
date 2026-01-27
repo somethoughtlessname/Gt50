@@ -273,7 +273,7 @@ createEntry: function(state, nextId, currentComponents) {
             // Check if we should animate color selection
             const shouldAnimateColor = state._animateColorIndex !== undefined;
             
-            // ===== NAME SECTION (FIRST IN BOTH TABS) =====
+            // ===== NAME SECTION (SECOND IN ALL TABS) =====
             const nameSection = `
                 <!-- Name Divider -->
                 <div class="divider" style="
@@ -340,7 +340,7 @@ createEntry: function(state, nextId, currentComponents) {
                 </div>
             `;
             
-            // ===== COLOR SECTION (SHARED BETWEEN TABS) =====
+            // ===== COLOR SECTION (THIRD IN ALL TABS) =====
             const colorSection = `
                 <style>
                     /* ========================================
@@ -430,9 +430,82 @@ createEntry: function(state, nextId, currentComponents) {
                 </div>
             `;
             
+            // ===== TYPE TOGGLE SECTION (FIRST IN ALL TABS) =====
+            const typeToggleSection = `
+                <!-- Card Type Toggle -->
+                <div style="
+                    background: var(--color-10);
+                    border: var(--border-width) solid var(--border-color);
+                    border-radius: 8px;
+                    height: var(--card-height);
+                    display: flex;
+                    align-items: center;
+                    overflow: hidden;
+                    margin-bottom: var(--margin);
+                ">
+                    <div data-action="toggle-nest" style="
+                        flex: 1;
+                        height: 100%;
+                        background: ${!state.cycleMode ? 'var(--color-5-2)' : 'var(--color-10)'};
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        cursor: pointer;
+                        border-right: var(--border-width) solid var(--border-color);
+                        transition: filter 0.2s;
+                        padding: 4px;
+                    ">
+                        <div style="
+                            font-size: 12px;
+                            font-weight: 700;
+                            color: ${!state.cycleMode ? 'var(--color-10)' : 'var(--color-5)'};
+                            text-transform: uppercase;
+                        ">Nest</div>
+                        <div style="
+                            font-size: 7px;
+                            font-weight: 700;
+                            color: ${!state.cycleMode ? 'var(--color-10)' : 'var(--color-5)'};
+                            opacity: 0.7;
+                            margin-top: 2px;
+                            text-align: center;
+                            line-height: 1.2;
+                        ">Container for organizing cards</div>
+                    </div>
+                    <div data-action="toggle-cycle" style="
+                        flex: 1;
+                        height: 100%;
+                        background: ${state.cycleMode ? 'var(--color-5-2)' : 'var(--color-10)'};
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        cursor: pointer;
+                        transition: filter 0.2s;
+                        padding: 4px;
+                    ">
+                        <div style="
+                            font-size: 12px;
+                            font-weight: 700;
+                            color: ${state.cycleMode ? 'var(--color-10)' : 'var(--color-5)'};
+                            text-transform: uppercase;
+                        ">Cycle</div>
+                        <div style="
+                            font-size: 7px;
+                            font-weight: 700;
+                            color: ${state.cycleMode ? 'var(--color-10)' : 'var(--color-5)'};
+                            opacity: 0.7;
+                            margin-top: 2px;
+                            text-align: center;
+                            line-height: 1.2;
+                        ">Scheduled reset container</div>
+                    </div>
+                </div>
+            `;
+            
             // ===== SETTINGS TAB CONTENT =====
-            const settingsTabHTML = nameSection + colorSection + `
-                <!-- Summary Settings Divider -->
+            const settingsTabHTML = typeToggleSection + nameSection + colorSection + `
+                <!-- Summary Divider -->
                 <div class="divider" style="
                     height: var(--card-height);
                     background: transparent;
@@ -464,7 +537,7 @@ createEntry: function(state, nextId, currentComponents) {
                         letter-spacing: 0.5px;
                         position: relative;
                         z-index: 2;
-                    ">SUMMARY SETTINGS</div>
+                    ">SUMMARY</div>
                 </div>
                 
                 <!-- Activate Summary Card -->
@@ -500,7 +573,6 @@ createEntry: function(state, nextId, currentComponents) {
                         align-items: center;
                         justify-content: center;
                         cursor: pointer;
-                        padding-right: 55px;
                     ">
                         <div style="
                             font-size: 12px;
@@ -715,7 +787,6 @@ createEntry: function(state, nextId, currentComponents) {
                         align-items: center;
                         justify-content: center;
                         cursor: pointer;
-                        padding-right: 55px;
                     ">
                         <div style="
                             font-size: 12px;
@@ -930,7 +1001,6 @@ createEntry: function(state, nextId, currentComponents) {
                         align-items: center;
                         justify-content: center;
                         cursor: pointer;
-                        padding-right: 55px;
                     ">
                         <div style="
                             font-size: 12px;
@@ -995,87 +1065,10 @@ createEntry: function(state, nextId, currentComponents) {
                         ">No additional settings</div>
                     </div>
                 ` : ''}
-                
-                <!-- Card Type Divider -->
-                <div class="divider" style="
-                    height: var(--card-height);
-                    background: transparent;
-                    border: var(--border-width) solid rgba(0, 0, 0, 0.0);
-                    border-radius: 8px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    margin-bottom: var(--margin);
-                    position: relative;
-                ">
-                    <div style="
-                        position: absolute;
-                        top: 50%;
-                        left: calc(var(--border-width) * -1);
-                        right: calc(var(--border-width) * -1);
-                        height: var(--border-width);
-                        background: var(--border-color);
-                        transform: translateY(-50%);
-                        z-index: 1;
-                    "></div>
-                    <div style="
-                        background: var(--bg-2);
-                        padding: 0 12px;
-                        font-size: 12px;
-                        font-weight: 700;
-                        color: var(--font-color-3);
-                        text-transform: uppercase;
-                        letter-spacing: 0.5px;
-                        position: relative;
-                        z-index: 2;
-                    ">CARD TYPE</div>
-                </div>
-                
-                <!-- Card Type Toggle -->
-                <div style="
-                    background: var(--color-10);
-                    border: var(--border-width) solid var(--border-color);
-                    border-radius: 8px;
-                    height: var(--card-height);
-                    display: flex;
-                    align-items: center;
-                    overflow: hidden;
-                    margin-bottom: var(--margin);
-                ">
-                    <div data-action="toggle-nest" style="
-                        flex: 1;
-                        height: 100%;
-                        background: ${!state.cycleMode ? 'var(--color-5-2)' : 'var(--color-10)'};
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        font-size: 14px;
-                        font-weight: 700;
-                        color: ${!state.cycleMode ? 'var(--color-10)' : 'var(--color-5)'};
-                        cursor: pointer;
-                        text-transform: uppercase;
-                        border-right: var(--border-width) solid var(--border-color);
-                        transition: filter 0.2s;
-                    ">Nest</div>
-                    <div data-action="toggle-cycle" style="
-                        flex: 1;
-                        height: 100%;
-                        background: ${state.cycleMode ? 'var(--color-5-2)' : 'var(--color-10)'};
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        font-size: 14px;
-                        font-weight: 700;
-                        color: ${state.cycleMode ? 'var(--color-10)' : 'var(--color-5)'};
-                        cursor: pointer;
-                        text-transform: uppercase;
-                        transition: filter 0.2s;
-                    ">Cycle</div>
-                </div>
             `;
             
             // ===== TEMPLATES TAB CONTENT =====
-            const templatesTabHTML = nameSection + colorSection + (hasTemplates ? `
+            const templatesTabHTML = typeToggleSection + nameSection + colorSection + (hasTemplates ? `
                 <!-- Templates Section -->
                 <div class="divider" style="
                     height: var(--card-height);
@@ -1179,11 +1172,11 @@ createEntry: function(state, nextId, currentComponents) {
             `);
             
             // ===== IMPORT TAB CONTENT =====
-            const imports = (window.GT50 && window.GT50.Imports) ? window.GT50.Imports.getAll().sort((a, b) => a.name.localeCompare(b.name)) : [];
+            const imports = (window.GT50 && window.GT50.Imports) ? window.GT50.Imports.getAll() : [];
             const hasImports = imports && imports.length > 0;
             const importsLoading = window.GT50ImportsLoading === true;
             
-            const importTabHTML = nameSection + colorSection + (hasImports ? `
+            const importTabHTML = typeToggleSection + nameSection + colorSection + (hasImports ? `
                 <!-- Import Section -->
                 <div class="divider" style="
                     height: var(--card-height);
@@ -1284,7 +1277,7 @@ createEntry: function(state, nextId, currentComponents) {
                     flex: 1;
                     overflow-y: auto;
                     padding: var(--margin);
-                    padding-top: 4px;
+                    padding-top: calc(var(--card-height) + var(--margin) + var(--margin));
                     padding-bottom: calc(var(--card-height) + var(--margin));
                 "></div>
                 
@@ -1400,28 +1393,29 @@ createEntry: function(state, nextId, currentComponents) {
                 btn.onmouseout = () => btn.style.filter = 'brightness(1)';
             });
             
+            // Type toggle handlers (SHARED - works in all tabs)
+            const nestBtn = contentContainer.querySelector('[data-action="toggle-nest"]');
+            if (nestBtn) {
+                nestBtn.onclick = () => {
+                    state.cycleMode = false;
+                    onChange();
+                };
+                nestBtn.onmouseover = () => nestBtn.style.filter = 'brightness(1.2)';
+                nestBtn.onmouseout = () => nestBtn.style.filter = 'brightness(1)';
+            }
+            
+            const cycleBtn = contentContainer.querySelector('[data-action="toggle-cycle"]');
+            if (cycleBtn) {
+                cycleBtn.onclick = () => {
+                    state.cycleMode = true;
+                    onChange();
+                };
+                cycleBtn.onmouseover = () => cycleBtn.style.filter = 'brightness(1.2)';
+                cycleBtn.onmouseout = () => cycleBtn.style.filter = 'brightness(1)';
+            }
+            
             // Settings tab listeners
             if (activeTab === 'settings') {
-                const nestBtn = contentContainer.querySelector('[data-action="toggle-nest"]');
-                if (nestBtn) {
-                    nestBtn.onclick = () => {
-                        state.cycleMode = false;
-                        onChange();
-                    };
-                    nestBtn.onmouseover = () => nestBtn.style.filter = 'brightness(1.2)';
-                    nestBtn.onmouseout = () => nestBtn.style.filter = 'brightness(1)';
-                }
-                
-                const cycleBtn = contentContainer.querySelector('[data-action="toggle-cycle"]');
-                if (cycleBtn) {
-                    cycleBtn.onclick = () => {
-                        state.cycleMode = true;
-                        onChange();
-                    };
-                    cycleBtn.onmouseover = () => cycleBtn.style.filter = 'brightness(1.2)';
-                    cycleBtn.onmouseout = () => cycleBtn.style.filter = 'brightness(1)';
-                }
-                
                 // Auto sort toggle
                 const autoSortBtn = contentContainer.querySelector('[data-action="toggle-auto-sort"]');
                 if (autoSortBtn) {

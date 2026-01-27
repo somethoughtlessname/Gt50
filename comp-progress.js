@@ -292,7 +292,7 @@
                             left: 0;
                             height: 100%;
                             width: ${percent}%;
-                            background: ${isCompleted ? '#d4af37' : (tabColor || 'var(--primary)')};
+                            background: ${isCompleted ? '#d4af37' : (tabColor || 'var(--color-5)')};
                             transition: width 0.3s ease;
                         "></div>
                         <div style="

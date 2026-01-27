@@ -505,7 +505,7 @@ const itemDropdownColor = cardColor;
                 checkboxColor = 'var(--color-10)';
                 state.manuallyChecked = false;
             } else if (thresholdMet) {
-    checkboxBg = tabColor || 'var(--accent)';
+    checkboxBg = tabColor || 'var(--color-5)';
                 checkboxSymbol = '✓';
                 checkboxFontSize = 'var(--check-size)';
                 checkboxPadding = 'var(--check-position)';
@@ -516,13 +516,13 @@ const itemDropdownColor = cardColor;
                 checkboxSymbol = '✓';
                 checkboxFontSize = 'var(--check-size)';
                 checkboxPadding = 'var(--check-position)';
-                checkboxColor = tabColor || 'var(--accent)';
+                checkboxColor = tabColor || 'var(--color-5)';
             } else if (completed > 0) {
                 checkboxBg = 'var(--color-10)';
                 checkboxSymbol = '*';
-                checkboxFontSize = 'var(--asterisk-size)';
-                checkboxPadding = 'var(--asterisk-position)';
-                checkboxColor = tabColor || 'var(--accent)';
+                checkboxFontSize = '30px';
+                checkboxPadding = '15px';
+                checkboxColor = tabColor || 'var(--color-5)';
             } else {
                 checkboxBg = 'var(--color-10)';
                 checkboxSymbol = '';
@@ -546,9 +546,9 @@ const itemDropdownColor = cardColor;
     if (allCompleted) {
         segmentColor = '#d4af37';  // ← ALL segments gold when everything complete
     } else if (idx < requiredComplete) {
-        segmentColor = idx < completed ? (tabColor || 'var(--accent)') : 'var(--color-9)';
+        segmentColor = idx < completed ? (tabColor || 'var(--color-5)') : 'var(--color-9-3)';
     } else {
-        segmentColor = idx < completed ? '#d4af37' : 'var(--color-9)';  // ← GOLD for bonus completions beyond threshold
+        segmentColor = idx < completed ? '#d4af37' : 'var(--color-9-3)';  // ← GOLD for bonus completions beyond threshold
     }
     return `<div style="flex: 1; background: ${segmentColor}; border-radius: 2px;"></div>`;
 }).join('')}
@@ -571,15 +571,15 @@ const itemDropdownColor = cardColor;
                     <div style="
                         width: 32px;
                         height: 100%;
-                        background: ${item.completed ? (tabColor || 'var(--accent)') : 'var(--color-10)'};
+                        background: ${item.completed ? (tabColor || 'var(--color-5)') : 'var(--color-10)'};
                         border-right: var(--border-width) solid var(--border-color);
                         display: flex;
                         align-items: center;
                         justify-content: center;
-                        font-size: ${item.completed ? '14px' : 'var(--asterisk-size)'};
+                        font-size: ${item.completed ? '14px' : '30px'};
                         font-weight: var(--asterisk-weight);
-                        color: ${item.completed ? 'var(--color-10)' : (tabColor || 'var(--accent)')};
-                        padding-top: ${item.completed ? '0px' : 'var(--asterisk-position)'};
+                        color: ${item.completed ? 'var(--color-10)' : (tabColor || 'var(--color-5)')};
+                        padding-top: ${item.completed ? '0px' : '15px'};
                     ">${item.completed ? '✓' : '*'}</div>
                     <div style="
                         flex: 1;

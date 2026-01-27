@@ -397,7 +397,7 @@ const itemDropdownColor = cardColor;
                     <div style="
                         width: 32px;
                         height: 100%;
-                        background: ${item.completed ? (tabColor || 'var(--accent)') : 'var(--color-10)'};
+                        background: ${item.completed ? (tabColor || 'var(--color-5)') : 'var(--color-10)'};
                         border-right: var(--border-width) solid var(--border-color);
                         display: flex;
                         align-items: center;
@@ -435,7 +435,7 @@ const itemDropdownColor = cardColor;
                     <div data-action="toggle-all" style="
                         width: var(--square-section);
                         height: 100%;
-                        background: ${allCompleted ? (tabColor || 'var(--accent)') : 'var(--color-10)'};
+                        background: ${allCompleted ? (tabColor || 'var(--color-5)') : 'var(--color-10)'};
                         border-right: var(--border-width) solid var(--border-color);
                         display: flex;
                         align-items: center;
@@ -461,7 +461,7 @@ padding-top: var(--check-position);
     left: 0;
     height: 100%;
     width: ${allCompleted ? 0 : percentage}%;
-    background: ${tabColor || 'var(--primary)'};
+    background: ${tabColor || 'var(--color-5)'};
 "></div>
                         <div style="
                             position: relative;

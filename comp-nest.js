@@ -1011,6 +1011,76 @@
                     }
                 </style>
                 
+                <!-- Card Type Toggle -->
+                <div style="
+                    background: var(--color-10);
+                    border: var(--border-width) solid var(--border-color);
+                    border-radius: 8px;
+                    height: var(--card-height);
+                    display: flex;
+                    align-items: center;
+                    overflow: hidden;
+                    margin-bottom: var(--margin);
+                ">
+                    <div data-action="set-nest" style="
+                        flex: 1;
+                        height: 100%;
+                        background: ${state.editWindow.tempType === 'nest' ? 'var(--color-5)' : 'var(--color-10)'};
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        cursor: pointer;
+                        border-right: var(--border-width) solid var(--border-color);
+                        transition: filter 0.2s;
+                        padding: 4px;
+                    ">
+                        <div style="
+                            font-size: 12px;
+                            font-weight: 700;
+                            color: ${state.editWindow.tempType === 'nest' ? 'var(--color-10)' : 'var(--color-5)'};
+                            text-transform: uppercase;
+                        ">Nest</div>
+                        <div style="
+                            font-size: 7px;
+                            font-weight: 700;
+                            color: ${state.editWindow.tempType === 'nest' ? 'var(--color-10)' : 'var(--color-5)'};
+                            opacity: 0.7;
+                            margin-top: 2px;
+                            text-align: center;
+                            line-height: 1.2;
+                        ">Container for organizing cards</div>
+                    </div>
+                    <div data-action="set-cycle" style="
+                        flex: 1;
+                        height: 100%;
+                        background: ${state.editWindow.tempType === 'cycle' ? 'var(--color-5-2)' : 'var(--color-10)'};
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        cursor: pointer;
+                        transition: filter 0.2s;
+                        padding: 4px;
+                    ">
+                        <div style="
+                            font-size: 12px;
+                            font-weight: 700;
+                            color: ${state.editWindow.tempType === 'cycle' ? 'var(--color-10)' : 'var(--color-5-2)'};
+                            text-transform: uppercase;
+                        ">Cycle</div>
+                        <div style="
+                            font-size: 7px;
+                            font-weight: 700;
+                            color: ${state.editWindow.tempType === 'cycle' ? 'var(--color-10)' : 'var(--color-5-2)'};
+                            opacity: 0.7;
+                            margin-top: 2px;
+                            text-align: center;
+                            line-height: 1.2;
+                        ">Scheduled reset container</div>
+                    </div>
+                </div>
+                
                 <!-- Entry Name Divider -->
                 <div class="divider" style="
                     height: var(--card-height);
@@ -1134,6 +1204,7 @@
                         </div>
                     `).join('')}
                 </div>
+                
                 <!-- Summary Divider -->
                 <div class="divider" style="
                     height: var(--card-height);
@@ -1303,83 +1374,6 @@
                         ">No additional settings</div>
                     </div>
                 ` : ''}
-                
-                <!-- Change Card Type Divider -->
-                <div class="divider" style="
-                    height: var(--card-height);
-                    background: transparent;
-                    border: var(--border-width) solid rgba(0, 0, 0, 0.0);
-                    border-radius: 8px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    margin-bottom: var(--margin);
-                    position: relative;
-                ">
-                    <div style="
-                        position: absolute;
-                        top: 50%;
-                        left: calc(var(--border-width) * -1);
-                        right: calc(var(--border-width) * -1);
-                        height: var(--border-width);
-                        background: var(--border-color);
-                        transform: translateY(-50%);
-                        z-index: 1;
-                    "></div>
-                    <div style="
-                        background: var(--bg-2);
-                        padding: 0 12px;
-                        font-size: 12px;
-                        font-weight: 700;
-                        color: var(--font-color-3);
-                        text-transform: uppercase;
-                        letter-spacing: 0.5px;
-                        position: relative;
-                        z-index: 2;
-                    ">CARD TYPE</div>
-                </div>
-                
-                <!-- Card Type Toggle -->
-                <div style="
-                    background: var(--color-10);
-                    border: var(--border-width) solid var(--border-color);
-                    border-radius: 8px;
-                    height: var(--card-height);
-                    display: flex;
-                    align-items: center;
-                    overflow: hidden;
-                    margin-bottom: var(--margin);
-                ">
-                    <div data-action="set-nest" style="
-                        flex: 1;
-                        height: 100%;
-                        background: ${state.editWindow.tempType === 'nest' ? 'var(--color-5)' : 'var(--color-10)'};
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        font-size: 14px;
-                        font-weight: 700;
-                        color: ${state.editWindow.tempType === 'nest' ? 'var(--color-10)' : 'var(--color-5)'};
-                        cursor: pointer;
-                        text-transform: uppercase;
-                        border-right: var(--border-width) solid var(--border-color);
-                        transition: filter 0.2s;
-                    ">Nest</div>
-                    <div data-action="set-cycle" style="
-                        flex: 1;
-                        height: 100%;
-                        background: ${state.editWindow.tempType === 'cycle' ? 'var(--color-5-2)' : 'var(--color-10)'};
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        font-size: 14px;
-                        font-weight: 700;
-                        color: ${state.editWindow.tempType === 'cycle' ? 'var(--color-10)' : 'var(--color-5-2)'};
-                        cursor: pointer;
-                        text-transform: uppercase;
-                        transition: filter 0.2s;
-                    ">Cycle</div>
-                </div>
             `;
             // Name input handler
             const nameInput = contentContainer.querySelector('[data-field="name"]');
@@ -1431,41 +1425,6 @@
                 }
                 
                 summaryContainer.innerHTML = `
-                    <!-- Parent Nest Summary Divider -->
-                    <div class="divider" style="
-                        height: var(--card-height);
-                        background: transparent;
-                        border: var(--border-width) solid rgba(0, 0, 0, 0.0);
-                        border-radius: 8px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        margin-bottom: var(--margin);
-                        position: relative;
-                    ">
-                        <div style="
-                            position: absolute;
-                            top: 50%;
-                            left: calc(var(--border-width) * -1);
-                            right: calc(var(--border-width) * -1);
-                            height: var(--border-width);
-                            background: var(--border-color);
-                            transform: translateY(-50%);
-                            z-index: 1;
-                        "></div>
-                        <div style="
-                            background: var(--bg-2);
-                            padding: 0 12px;
-                            font-size: 12px;
-                            font-weight: 700;
-                            color: var(--font-color-3);
-                            text-transform: uppercase;
-                            letter-spacing: 0.5px;
-                            position: relative;
-                            z-index: 2;
-                        ">SUMMARY SETTINGS</div>
-                    </div>
-                    
                     <!-- Summary Activation Card -->
                     <div style="
                         background: var(--bg-2);

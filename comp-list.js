@@ -401,12 +401,12 @@
                 const isPartial = uncompleted > 0 && completed > 0;
                 
                 checkboxContent = allCompleted ? '✓' : (isPartial ? '*' : '');
-                checkboxBg = allCompleted ? (tabColor || 'var(--accent)') : (isPartial ? 'var(--color-10)' : 'var(--color-10)');
-                checkboxColor = allCompleted ? 'var(--color-10)' : (isPartial ? (tabColor || 'var(--accent)') : (tabColor || 'var(--accent)'));
+                checkboxBg = allCompleted ? (tabColor || 'var(--color-4)') : (isPartial ? 'var(--color-10)' : 'var(--color-10)');
+                checkboxColor = allCompleted ? 'var(--color-10)' : (isPartial ? (tabColor || 'var(--color-4)') : (tabColor || 'var(--color-4)'));
             } else {
                 // Single item mode - use state.completed
                 checkboxContent = state.completed ? '✓' : '';
-                checkboxBg = state.completed ? (tabColor || 'var(--accent)') : 'var(--color-10)';
+                checkboxBg = state.completed ? (tabColor || 'var(--color-4)') : 'var(--color-10)';
                 checkboxColor = 'var(--color-10)';
             }
             
@@ -426,7 +426,7 @@
                     <div style="
                         width: 32px;
                         height: 100%;
-                        background: ${item.completed ? (tabColor || 'var(--accent)') : 'var(--color-10)'};
+                        background: ${item.completed ? (tabColor || 'var(--color-4)') : 'var(--color-10)'};
                         border-right: var(--border-width) solid var(--border-color);
                         display: flex;
                         align-items: center;
@@ -472,12 +472,12 @@
                         display: flex;
                         align-items: center;
                         justify-content: center;
-                        font-size: ${isPartial ? 'var(--asterisk-size)' : 'var(--check-size)'};
+                        font-size: ${isPartial ? '30px' : 'var(--check-size)'};
                         font-weight: ${isPartial ? 'var(--asterisk-weight)' : 'var(--check-weight)'};
                         color: ${checkboxColor};
                         cursor: pointer;
                         line-height: 1;
-                        ${isPartial ? 'padding-top: var(--asterisk-position);' : 'padding-top: var(--check-position);'}
+                        ${isPartial ? 'padding-top: 15px;' : 'padding-top: var(--check-position);'}
                     ">${checkboxContent}</div>
                     <div ${showDropdown ? 'data-action="toggle-dropdown"' : ''} style="
                         flex: 1;

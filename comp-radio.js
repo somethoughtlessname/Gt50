@@ -399,7 +399,7 @@ const itemDropdownColor = cardColor;
             const hasSelection = state.selectedIndex !== null;
             
             // ===== CHECKBOX CALCULATION =====
-            const checkboxBg = hasSelection ? (tabColor || 'var(--accent)') : 'var(--color-10)';
+            const checkboxBg = hasSelection ? (tabColor || 'var(--color-4)') : 'var(--color-10)';
             const checkboxSymbol = hasSelection ? '✓' : '';
             const checkboxColor = 'var(--color-10)';
             
@@ -423,7 +423,7 @@ const itemDropdownColor = cardColor;
                         <div style="
                             width: 32px;
                             height: 100%;
-                            background: ${isSelected ? (tabColor || 'var(--accent)') : (isUnselected ? '#4a4a4a' : 'var(--color-10)')};
+                            background: ${isSelected ? (tabColor || 'var(--color-4)') : (isUnselected ? '#4a4a4a' : 'var(--color-10)')};
                             border-right: var(--border-width) solid var(--border-color);
                             display: flex;
                             align-items: center;

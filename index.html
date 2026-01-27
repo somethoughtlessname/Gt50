@@ -581,8 +581,9 @@ html {
             if (window.navigationStack.length === 0) return;
             
             // Check if the current nest was opened via "Save and Open" from edit window
-            const currentNest = getCurrentNest();
-            const shouldReturnToEdit = currentNest && currentNest.state.editWindow && currentNest.state.editWindow._returnToEditOnBack;
+            // IMPORTANT: Save this reference BEFORE popping, as we need to reopen THIS nest's edit window, not the parent's
+            const nestLeavingFrom = getCurrentNest();
+            const shouldReturnToEdit = nestLeavingFrom && nestLeavingFrom.state.editWindow && nestLeavingFrom.state.editWindow._returnToEditOnBack;
             
             const { tabs: currentTabs } = getCurrentTabs();
             if (currentTabs && currentTabs.tabs && currentTabs.tabs.length > 0) {
@@ -624,10 +625,10 @@ html {
                 }
             }
             
-            // If we should return to edit window, reopen it
+            // If we should return to edit window, reopen it on the ORIGINAL nest (the one we just left)
             if (shouldReturnToEdit) {
-                currentNest.state.editWindow.isOpen = true;
-                delete currentNest.state.editWindow._returnToEditOnBack;
+                nestLeavingFrom.state.editWindow.isOpen = true;
+                delete nestLeavingFrom.state.editWindow._returnToEditOnBack;
                 activeMode = 'view';  // Return to view mode for edit window
             }
             
@@ -1880,8 +1881,8 @@ components.forEach((component, componentIndex) => {
                 } else if (component.type !== 'import') {
                     if (component.type === 'list') {
     GT50Lib.List.renderView(componentWrapper, component.state, render, currentTabColor);
-                    } else if (component.type === 'accumulation') {
-                        GT50Lib.Accumulation.renderView(componentWrapper, component.state, render);
+                        } else if (component.type === 'accumulation') {
+    GT50Lib.Accumulation.renderView(componentWrapper, component.state, render, currentTabColor);
                     } else if (component.type === 'history') {
     GT50Lib.History.renderView(componentWrapper, component.state, render, currentTabColor);
                     } else if (component.type === 'progress') {

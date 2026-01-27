@@ -10,10 +10,11 @@
             const nestState = GT50Lib.Nest.defaultState();
             return {
                 ...nestState,
+                isCycle: true,  // Mark this as a cycle for reset detection
                 resetInterval: 'daily',
                 lastReset: Date.now(),
                 resetTime: '00:00',
-                resetDay: 1,
+                resetDay: 0,  // 0 = Sunday for weekly, will be adjusted to 1 for monthly
                 resetHour: 0,
                 resetHourDisplay: 12,  // 1-12 for display
                 resetPeriod: 'AM',     // AM or PM
@@ -51,15 +52,24 @@
                 }
             } else if (state.resetInterval === 'hourly') {
                 if (state.hourlyMode === 'topOfHour') {
-                    // Reset at the top of each hour (XX:00:00)
-                    const currentMinute = now.getMinutes();
-                    const lastResetHour = lastReset.getHours();
-                    const currentHour = now.getHours();
-                    if (currentHour !== lastResetHour && currentMinute >= 0) shouldReset = true;
-                } else if (state.hourlyMode === 'setToNow' || state.hourlyMode === 'topOfNextMinute') {
-                    // Reset exactly 1 hour after lastReset
-                    const hoursSince = Math.floor((now - lastReset) / (1000 * 60 * 60));
-                    if (hoursSince >= 1) shouldReset = true;
+                    // Reset at XX:00:00 each hour
+                    // Calculate next top-of-hour after lastReset
+                    const nextReset = new Date(lastReset);
+                    nextReset.setMinutes(0, 0, 0);
+                    nextReset.setHours(nextReset.getHours() + 1);
+                    
+                    if (now >= nextReset) shouldReset = true;
+                } else if (state.hourlyMode === 'setToNow') {
+                    // Reset exactly 1 hour after lastReset (preserves seconds)
+                    const nextReset = new Date(lastReset.getTime() + (60 * 60 * 1000));
+                    if (now >= nextReset) shouldReset = true;
+                } else if (state.hourlyMode === 'topOfNextMinute') {
+                    // Reset at XX:MM:00 each hour
+                    const nextReset = new Date(lastReset);
+                    nextReset.setMinutes(state.hourlyMinute, 0, 0);
+                    nextReset.setHours(nextReset.getHours() + 1);
+                    
+                    if (now >= nextReset) shouldReset = true;
                 }
             } else if (state.resetInterval === 'daily') {
                 const [hours, minutes] = state.resetTime.split(':').map(Number);
@@ -67,11 +77,18 @@
                 todayReset.setHours(hours, minutes, 0, 0);
                 if (lastReset < todayReset && now >= todayReset) shouldReset = true;
             } else if (state.resetInterval === 'weekly') {
-                const currentDay = now.getDay();
-                const lastResetDay = lastReset.getDay();
-                if (currentDay === state.resetDay && lastResetDay !== state.resetDay) shouldReset = true;
-                const daysSince = Math.floor((now - lastReset) / (1000 * 60 * 60 * 24));
-                if (daysSince >= 7) shouldReset = true;
+                // Reset on specific day of week
+                const nextReset = new Date(lastReset);
+                nextReset.setHours(0, 0, 0, 0);
+                
+                // Find next occurrence of the target day
+                const currentDay = nextReset.getDay();
+                let daysUntilReset = (state.resetDay - currentDay + 7) % 7;
+                if (daysUntilReset === 0) daysUntilReset = 7; // If same day, next week
+                
+                nextReset.setDate(nextReset.getDate() + daysUntilReset);
+                
+                if (now >= nextReset) shouldReset = true;
             } else if (state.resetInterval === 'monthly') {
                 const currentDate = now.getDate();
                 const currentMonth = now.getMonth();
@@ -89,63 +106,131 @@
             }
             
             if (shouldReset) {
+                console.log('🔔 RESET DETECTED! Interval:', state.resetInterval);
                 this.resetAllComponents(state);
                 state.lastReset = Date.now();
+                console.log('✓ RESET COMPLETE - lastReset updated to:', new Date(state.lastReset).toLocaleString());
                 return true;
             }
             return false;
         },
         
         resetAllComponents: function(state) {
+            console.log('🔄 RESET: Starting resetAllComponents');
             state.components = state.components || [];
             
             state.components.forEach(comp => {
+                console.log(`🔄 RESET: Processing ${comp.type} component`);
                 if (comp.type === 'list') {
-                    comp.state.isChecked = false;
-                } else if (comp.type === 'checklist') {
-                    comp.state.checks.forEach(check => check.checked = false);
-                } else if (comp.type === 'radio') {
-                    comp.state.selectedIndex = -1;
-                } else if (comp.type === 'threshold') {
-                    comp.state.currentAmount = 0;
-                } else if (comp.type === 'accumulation') {
-                    comp.state.currentAmount = 0;
-                } else if (comp.type === 'progress') {
-                    comp.state.currentProgress = 0;
-                } else if (comp.type === 'tier') {
-                    comp.state.currentTier = 0;
-                } else if (comp.type === 'nest') {
-                    if (state.isCycle) {
-                        this.resetAllComponents(comp.state);
+                    // Reset main completed state
+                    comp.state.completed = false;
+                    // Reset each item's completed state
+                    if (comp.state.items && Array.isArray(comp.state.items)) {
+                        comp.state.items.forEach(item => item.completed = false);
                     }
+                    console.log('✓ RESET: List reset complete');
+                } else if (comp.type === 'checklist') {
+                    // Reset each item's completed state
+                    if (comp.state.items && Array.isArray(comp.state.items)) {
+                        comp.state.items.forEach(item => item.completed = false);
+                    }
+                    console.log('✓ RESET: Checklist reset complete');
+                } else if (comp.type === 'radio') {
+                    console.log(`  Before: selectedIndex = ${comp.state.selectedIndex}`);
+                    comp.state.selectedIndex = null;
+                    console.log(`  After: selectedIndex = ${comp.state.selectedIndex}`);
+                    console.log('✓ RESET: Radio reset complete');
+                } else if (comp.type === 'threshold') {
+                    console.log(`  Before: number1 = ${comp.state.number1}, manuallyChecked = ${comp.state.manuallyChecked}`);
+                    // DON'T clear number1 - preserve the current progress value
+                    // Only reset the completion tracking
+                    comp.state.manuallyChecked = false;
+                    // Reset each item's completed state
+                    if (comp.state.items && Array.isArray(comp.state.items)) {
+                        comp.state.items.forEach(item => item.completed = false);
+                    }
+                    console.log(`  After: number1 = ${comp.state.number1}, manuallyChecked = ${comp.state.manuallyChecked}`);
+                    console.log('✓ RESET: Threshold reset complete');
+                } else if (comp.type === 'accumulation') {
+                    console.log(`  Before: value = ${comp.state.value}`);
+                    comp.state.value = 0;
+                    console.log(`  After: value = ${comp.state.value}`);
+                    console.log('✓ RESET: Accumulation reset complete');
+                } else if (comp.type === 'progress') {
+                    console.log(`  Before: current = ${comp.state.current}`);
+                    comp.state.current = 0;
+                    console.log(`  After: current = ${comp.state.current}`);
+                    console.log('✓ RESET: Progress reset complete');
+                } else if (comp.type === 'tier') {
+                    console.log(`  Before: current = ${comp.state.current}`);
+                    comp.state.current = 0;
+                    console.log(`  After: current = ${comp.state.current}`);
+                    console.log('✓ RESET: Tier reset complete');
+                } else if ((comp.type === 'nest' || comp.type === 'cycle') && comp.state.isCycle) {
+                    // Recursively reset nested cycles
+                    this.resetAllComponents(comp.state);
                 }
             });
             
             if (state.tabComponents && Array.isArray(state.tabComponents)) {
-                state.tabComponents.forEach(tab => {
+                console.log(`🔄 RESET: Processing ${state.tabComponents.length} tabs`);
+                state.tabComponents.forEach((tab, tabIdx) => {
+                    console.log(`🔄 RESET: Tab ${tabIdx} has ${tab.length} components`);
                     tab.forEach(comp => {
+                        console.log(`🔄 RESET: Processing ${comp.type} in tab ${tabIdx}`);
                         if (comp.type === 'list') {
-                            comp.state.isChecked = false;
-                        } else if (comp.type === 'checklist') {
-                            comp.state.checks.forEach(check => check.checked = false);
-                        } else if (comp.type === 'radio') {
-                            comp.state.selectedIndex = -1;
-                        } else if (comp.type === 'threshold') {
-                            comp.state.currentAmount = 0;
-                        } else if (comp.type === 'accumulation') {
-                            comp.state.currentAmount = 0;
-                        } else if (comp.type === 'progress') {
-                            comp.state.currentProgress = 0;
-                        } else if (comp.type === 'tier') {
-                            comp.state.currentTier = 0;
-                        } else if (comp.type === 'nest' || comp.type === 'cycle') {
-                            if (comp.state.isCycle) {
-                                this.resetAllComponents(comp.state);
+                            // Reset main completed state
+                            comp.state.completed = false;
+                            // Reset each item's completed state
+                            if (comp.state.items && Array.isArray(comp.state.items)) {
+                                comp.state.items.forEach(item => item.completed = false);
                             }
+                            console.log('✓ RESET: List in tab reset complete');
+                        } else if (comp.type === 'checklist') {
+                            // Reset each item's completed state
+                            if (comp.state.items && Array.isArray(comp.state.items)) {
+                                comp.state.items.forEach(item => item.completed = false);
+                            }
+                            console.log('✓ RESET: Checklist in tab reset complete');
+                        } else if (comp.type === 'radio') {
+                            console.log(`  Before: selectedIndex = ${comp.state.selectedIndex}`);
+                            comp.state.selectedIndex = null;
+                            console.log(`  After: selectedIndex = ${comp.state.selectedIndex}`);
+                            console.log('✓ RESET: Radio in tab reset complete');
+                        } else if (comp.type === 'threshold') {
+                            console.log(`  Before: number1 = ${comp.state.number1}, manuallyChecked = ${comp.state.manuallyChecked}`);
+                            // DON'T clear number1 - preserve the current progress value
+                            // Only reset the completion tracking
+                            comp.state.manuallyChecked = false;
+                            // Reset each item's completed state
+                            if (comp.state.items && Array.isArray(comp.state.items)) {
+                                comp.state.items.forEach(item => item.completed = false);
+                            }
+                            console.log(`  After: number1 = ${comp.state.number1}, manuallyChecked = ${comp.state.manuallyChecked}`);
+                            console.log('✓ RESET: Threshold in tab reset complete');
+                        } else if (comp.type === 'accumulation') {
+                            console.log(`  Before: value = ${comp.state.value}`);
+                            comp.state.value = 0;
+                            console.log(`  After: value = ${comp.state.value}`);
+                            console.log('✓ RESET: Accumulation in tab reset complete');
+                        } else if (comp.type === 'progress') {
+                            console.log(`  Before: current = ${comp.state.current}`);
+                            comp.state.current = 0;
+                            console.log(`  After: current = ${comp.state.current}`);
+                            console.log('✓ RESET: Progress in tab reset complete');
+                        } else if (comp.type === 'tier') {
+                            console.log(`  Before: current = ${comp.state.current}`);
+                            comp.state.current = 0;
+                            console.log(`  After: current = ${comp.state.current}`);
+                            console.log('✓ RESET: Tier in tab reset complete');
+                        } else if ((comp.type === 'nest' || comp.type === 'cycle') && comp.state.isCycle) {
+                            // Recursively reset nested cycles
+                            this.resetAllComponents(comp.state);
                         }
                     });
                 });
             }
+            console.log('🔄 RESET: resetAllComponents complete');
         },
         
         getNextResetText: function(state) {
@@ -224,7 +309,7 @@
         // ===== BUILD MODE RENDERER =====
         // Delegates to Nest but with cycle icon
         renderBuild: function(container, state, depth, onNavigate, onChange, onMove, onDelete, isDeletePending) {
-            this.checkAndReset(state);
+            // Don't check for resets in build mode - only in view mode
             
             // Use nest's build renderer with correct signature
             GT50Lib.Nest.renderBuild(container, state, depth, onNavigate, onChange, onMove, onDelete, isDeletePending);
@@ -246,7 +331,7 @@
         // ===== VIEW MODE RENDERER =====
         // Delegates to Nest with correct signature - passes through ALL parameters including swipe actions
         renderView: function(container, state, depth, onNavigate, onMove, onDelete, render, closeAllActions, parentShowsChildProgress, parentChildProgressMode) {
-            this.checkAndReset(state);
+            const didReset = this.checkAndReset(state);
             
             // Pass all parameters through to Nest to enable swipe menu and all features
             GT50Lib.Nest.renderView(container, state, depth, onNavigate, onMove, onDelete, render, closeAllActions, parentShowsChildProgress, parentChildProgressMode);
@@ -276,9 +361,9 @@
         // ===== BUILD MODE CONTROL CARD =====
         // Cycle-specific: Shows interval controls and configuration
         renderBuildControlCard: function(container, state, onChange) {
-            this.checkAndReset(state);
+            // Don't check for resets in build mode - only in view mode
             
-            const bgColor = 'var(--color-5-2)';
+            const bgColor = state.countdownColor || 'var(--color-5)';
             
             const mainCard = document.createElement('div');
             mainCard.style.cssText = `
@@ -387,6 +472,26 @@
                 const interval = btn.dataset.interval;
                 btn.onclick = () => {
                     state.resetInterval = interval;
+                    
+                    // Reset to defaults for each interval type
+                    if (interval === 'hourly') {
+                        state.hourlyMode = 'topOfHour';
+                        state.hourlyMinute = 0;
+                    } else if (interval === 'daily') {
+                        state.resetTime = '00:00';
+                        state.resetHourDisplay = 12;
+                        state.resetPeriod = 'AM';
+                    } else if (interval === 'weekly') {
+                        state.resetDay = 0; // Sunday
+                    } else if (interval === 'monthly') {
+                        state.resetDay = 1; // 1st of month
+                    } else if (interval === 'custom') {
+                        state.customMonths = 0;
+                        state.customDays = 0;
+                        state.customHours = 0;
+                        state.customMinutes = 0;
+                    }
+                    
                     onChange();
                 };
                 btn.onmouseover = () => btn.style.filter = 'brightness(1.1)';
@@ -409,114 +514,139 @@
                 
                 customCard.innerHTML = `
                     <div style="
-                        flex: 1;
-                        background: var(--color-10);
-                        border-bottom: var(--border-width) solid var(--border-color);
                         display: flex;
-                    ">
-                        <div style="
-                            flex: 1;
-                            border-right: var(--border-width) solid var(--border-color);
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            font-size: 7px;
-                            font-weight: 700;
-                            color: #000000;
-                        ">MONTHS</div>
-                        <div style="
-                            flex: 1;
-                            border-right: var(--border-width) solid var(--border-color);
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            font-size: 7px;
-                            font-weight: 700;
-                            color: #000000;
-                        ">DAYS</div>
-                        <div style="
-                            flex: 1;
-                            border-right: var(--border-width) solid var(--border-color);
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            font-size: 7px;
-                            font-weight: 700;
-                            color: #000000;
-                        ">HOURS</div>
-                        <div style="
-                            flex: 1;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            font-size: 7px;
-                            font-weight: 700;
-                            color: #000000;
-                        ">MINUTES</div>
-                    </div>
-                    <div style="
-                        flex: 1;
-                        display: flex;
+                        height: 100%;
                     ">
                         <div data-action="reset-custom" style="
                             flex: 1;
-                            background: var(--color-10);
+                            background: ${bgColor};
                             border-right: var(--border-width) solid var(--border-color);
                             display: flex;
                             align-items: center;
                             justify-content: center;
                             font-size: 9px;
                             font-weight: 700;
-                            color: #000000;
+                            color: var(--color-10);
                             cursor: pointer;
                             transition: filter 0.2s;
                         ">RESET</div>
                         <div style="
                             flex: 1;
-                            background: var(--bg-4);
-                            border-right: var(--border-width) solid var(--border-color);
                             display: flex;
-                            align-items: center;
-                            justify-content: center;
+                            flex-direction: column;
                         ">
-                            <input type="tel" data-custom="months" value="${state.customMonths || 0}" 
-                                pattern="[0-9]*" inputmode="numeric"
-                                style="width: 100%; background: transparent; border: none; color: var(--color-10); text-align: center; font-size: 12px; font-weight: 700; outline: none; font-family: inherit;">
+                            <div style="
+                                flex: 1;
+                                background: var(--color-10);
+                                border-bottom: var(--border-width) solid var(--border-color);
+                                border-right: var(--border-width) solid var(--border-color);
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-size: 7px;
+                                font-weight: 700;
+                                color: #000000;
+                            ">MONTHS</div>
+                            <div style="
+                                flex: 1;
+                                background: var(--bg-4);
+                                border-right: var(--border-width) solid var(--border-color);
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                            ">
+                                <input type="tel" data-custom="months" value="${state.customMonths || 0}" 
+                                    pattern="[0-9]*" inputmode="numeric"
+                                    style="width: 100%; background: transparent; border: none; color: var(--color-10); text-align: center; font-size: 12px; font-weight: 700; outline: none; font-family: inherit;">
+                            </div>
                         </div>
                         <div style="
                             flex: 1;
-                            background: var(--bg-4);
-                            border-right: var(--border-width) solid var(--border-color);
                             display: flex;
-                            align-items: center;
-                            justify-content: center;
+                            flex-direction: column;
                         ">
-                            <input type="tel" data-custom="days" value="${state.customDays || 0}" 
-                                pattern="[0-9]*" inputmode="numeric"
-                                style="width: 100%; background: transparent; border: none; color: var(--color-10); text-align: center; font-size: 12px; font-weight: 700; outline: none; font-family: inherit;">
+                            <div style="
+                                flex: 1;
+                                background: var(--color-10);
+                                border-bottom: var(--border-width) solid var(--border-color);
+                                border-right: var(--border-width) solid var(--border-color);
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-size: 7px;
+                                font-weight: 700;
+                                color: #000000;
+                            ">DAYS</div>
+                            <div style="
+                                flex: 1;
+                                background: var(--bg-4);
+                                border-right: var(--border-width) solid var(--border-color);
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                            ">
+                                <input type="tel" data-custom="days" value="${state.customDays || 0}" 
+                                    pattern="[0-9]*" inputmode="numeric"
+                                    style="width: 100%; background: transparent; border: none; color: var(--color-10); text-align: center; font-size: 12px; font-weight: 700; outline: none; font-family: inherit;">
+                            </div>
                         </div>
                         <div style="
                             flex: 1;
-                            background: var(--bg-4);
-                            border-right: var(--border-width) solid var(--border-color);
                             display: flex;
-                            align-items: center;
-                            justify-content: center;
+                            flex-direction: column;
                         ">
-                            <input type="tel" data-custom="hours" value="${state.customHours || 0}" 
-                                pattern="[0-9]*" inputmode="numeric"
-                                style="width: 100%; background: transparent; border: none; color: var(--color-10); text-align: center; font-size: 12px; font-weight: 700; outline: none; font-family: inherit;">
+                            <div style="
+                                flex: 1;
+                                background: var(--color-10);
+                                border-bottom: var(--border-width) solid var(--border-color);
+                                border-right: var(--border-width) solid var(--border-color);
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-size: 7px;
+                                font-weight: 700;
+                                color: #000000;
+                            ">HOURS</div>
+                            <div style="
+                                flex: 1;
+                                background: var(--bg-4);
+                                border-right: var(--border-width) solid var(--border-color);
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                            ">
+                                <input type="tel" data-custom="hours" value="${state.customHours || 0}" 
+                                    pattern="[0-9]*" inputmode="numeric"
+                                    style="width: 100%; background: transparent; border: none; color: var(--color-10); text-align: center; font-size: 12px; font-weight: 700; outline: none; font-family: inherit;">
+                            </div>
                         </div>
                         <div style="
                             flex: 1;
-                            background: var(--bg-4);
                             display: flex;
-                            align-items: center;
-                            justify-content: center;
+                            flex-direction: column;
                         ">
-                            <input type="tel" data-custom="minutes" value="${state.customMinutes || 0}" 
-                                pattern="[0-9]*" inputmode="numeric"
-                                style="width: 100%; background: transparent; border: none; color: var(--color-10); text-align: center; font-size: 12px; font-weight: 700; outline: none; font-family: inherit;">
+                            <div style="
+                                flex: 1;
+                                background: var(--color-10);
+                                border-bottom: var(--border-width) solid var(--border-color);
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-size: 7px;
+                                font-weight: 700;
+                                color: #000000;
+                            ">MINUTES</div>
+                            <div style="
+                                flex: 1;
+                                background: var(--bg-4);
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                            ">
+                                <input type="tel" data-custom="minutes" value="${state.customMinutes || 0}" 
+                                    pattern="[0-9]*" inputmode="numeric"
+                                    style="width: 100%; background: transparent; border: none; color: var(--color-10); text-align: center; font-size: 12px; font-weight: 700; outline: none; font-family: inherit;">
+                            </div>
                         </div>
                     </div>
                 `;
@@ -920,7 +1050,7 @@
         // ===== BUILD MODE COUNTDOWN CARD =====
         // Shows countdown with toggle and color picker in build mode
         renderCountdownCard: function(container, state, onRender) {
-            this.checkAndReset(state);
+            // Don't check for resets in build mode - only in view mode
             
             const cardColor = state.countdownColor || 'var(--color-5)';
             const cycleCard = document.createElement('div');
@@ -1025,7 +1155,7 @@
                 colorBtn.onmouseout = () => colorBtn.style.filter = 'brightness(1)';
             }
             
-            // Set up real-time countdown updates with reset detection
+            // Set up real-time countdown updates (no reset detection in build mode)
             const displayElement = cycleCard.querySelector('[data-countdown-display]');
             if (displayElement) {
                 const updateInterval = setInterval(() => {
@@ -1034,15 +1164,7 @@
                         return;
                     }
                     
-                    const oldLastReset = state.lastReset;
-                    this.checkAndReset(state);
-                    
-                    if (state.lastReset !== oldLastReset && onRender) {
-                        clearInterval(updateInterval);
-                        onRender();
-                        return;
-                    }
-                    
+                    // Just update the countdown display, don't actually reset in build mode
                     displayElement.textContent = this.getNextResetText(state);
                 }, 1000);
                 
