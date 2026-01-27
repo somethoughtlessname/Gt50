@@ -701,7 +701,8 @@ const itemDropdownColor = cardColor;
         renderView: function(container, state, onChange, tabColor) {
             const tierCount = state.tiers.length;
             const hasDropdownText = state.dropdownText && state.dropdownText.trim() !== '';
-            const showDropdown = hasDropdownText;
+            const hasTierDropdownEnabled = window.GT50GlobalSettings?.tierDropdownCheckboxes && state.tiers.length > 0;
+            const showDropdown = hasDropdownText || hasTierDropdownEnabled;
             
             // ===== TIER CALCULATION =====
             // Calculate which tier we're currently in
@@ -831,7 +832,7 @@ const itemDropdownColor = cardColor;
                     border-top: none;
                     margin-bottom: var(--margin);
                 ">
-                    <div style="
+                    ${hasDropdownText ? `<div style="
                         background: var(--bg-3);
                         border: var(--border-width) solid var(--border-color);
                         border-radius: 8px;
@@ -840,6 +841,7 @@ const itemDropdownColor = cardColor;
                         align-items: center;
                         justify-content: center;
                         overflow: hidden;
+                        margin-bottom: var(--margin);
                     ">
                         <div style="
                             flex: 1;
@@ -865,7 +867,63 @@ const itemDropdownColor = cardColor;
                                 text-align: center;
                             ">${state.dropdownText}</div>
                         </div>
-                    </div>
+                    </div>` : ''}
+                    ${hasTierDropdownEnabled ? state.tiers.map((tier, idx) => {
+                        let cumulativeForThisTier = 0;
+                        for (let i = 0; i < idx; i++) {
+                            cumulativeForThisTier += parseInt(state.tiers[i].amount) || 0;
+                        }
+                        const tierAmount = parseInt(tier.amount) || 0;
+                        const isCompleted = state.current >= cumulativeForThisTier + tierAmount;
+                        const isPartial = state.current > cumulativeForThisTier && state.current < cumulativeForThisTier + tierAmount;
+                        
+                        return `<div data-action="select-tier" data-tier-index="${idx}" style="
+                            background: ${isCompleted ? (tabColor || 'var(--color-4)') : 'var(--bg-3)'};
+                            border: var(--border-width) solid var(--border-color);
+                            border-radius: 8px;
+                            height: 32px;
+                            display: flex;
+                            align-items: center;
+                            margin-bottom: var(--margin);
+                            overflow: hidden;
+                            cursor: pointer;
+                            position: relative;
+                        ">
+                            <div style="
+                                width: 32px;
+                                height: 100%;
+                                background: ${isCompleted ? (tabColor || 'var(--color-4)') : 'var(--color-10)'};
+                                border-right: var(--border-width) solid var(--border-color);
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-size: 14px;
+                                font-weight: 700;
+                                color: ${isCompleted ? 'var(--color-10)' : (tabColor || 'var(--color-4)')};
+                                position: relative;
+                                z-index: 2;
+                            ">${isCompleted ? '✓' : (isPartial ? '●' : '')}</div>
+                            <div style="
+                                position: absolute;
+                                top: 0;
+                                left: 0;
+                                right: 0;
+                                height: 100%;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-size: 10px;
+                                font-weight: 600;
+                                color: var(--color-10);
+                                z-index: 1;
+                            ">${tier.name || `Tier ${idx + 1}`}</div>
+                            <div style="
+                                flex: 1;
+                                background: ${isCompleted ? (tabColor || 'var(--color-4)') : 'var(--bg-4)'};
+                                height: 100%;
+                            "></div>
+                        </div>`;
+                    }).join('') : ''}
                 </div>` : ''}
             `;
             
@@ -898,10 +956,46 @@ const itemDropdownColor = cardColor;
                 const toggleDropdown = container.querySelector('[data-action="toggle-dropdown"]');
                 if (toggleDropdown) {
                     toggleDropdown.onclick = () => {
+                        // If opening this dropdown, close all others globally
+                        if (!state.open && window.gt50CloseOtherDropdowns) {
+                            window.gt50CloseOtherDropdowns(state);
+                        }
+                        
                         state.open = !state.open;
                         onChange();
                     };
                 }
+                
+                // Tier selection clicks
+                container.querySelectorAll('[data-action="select-tier"]').forEach(tierBtn => {
+                    tierBtn.onclick = () => {
+                        const tierIndex = parseInt(tierBtn.dataset.tierIndex);
+                        
+                        // Calculate cumulative amount up to this tier
+                        let cumulativeAmount = 0;
+                        for (let i = 0; i < tierIndex; i++) {
+                            cumulativeAmount += parseInt(state.tiers[i].amount) || 0;
+                        }
+                        
+                        const tierAmount = parseInt(state.tiers[tierIndex].amount) || 0;
+                        const isCompleted = state.current >= cumulativeAmount + tierAmount;
+                        
+                        if (isCompleted) {
+                            // Tier is complete - empty it (reset to start of this tier)
+                            state.current = cumulativeAmount;
+                        } else {
+                            // Tier is partial or empty - complete it (set to end of this tier)
+                            state.current = cumulativeAmount + tierAmount;
+                        }
+                        
+                        // Trigger timestamp update for sort-filter
+                        if (window.GT50Lib && window.GT50Lib.SortFilter && window.GT50Lib.SortFilter.onComponentChanged) {
+                            window.GT50Lib.SortFilter.onComponentChanged(container);
+                        }
+                        
+                        onChange();
+                    };
+                });
             }
         }
     };
