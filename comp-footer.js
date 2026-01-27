@@ -294,6 +294,9 @@
         
         // ===== BUILD TOP ROW (DROPDOWN TOGGLES) =====
         buildTopRow: function(state) {
+            const topWords = ['TAP', 'HERE', 'TO', 'CHANGE', 'CARD', 'TYPES'];
+            const bottomWords = ['TAP', 'BELOW', 'TO', 'ADD', 'NEW', 'CARD'];
+            
             return state.slots.map((slot, index) => {
                 const borderRight = index < state.slots.length - 1 
                     ? 'border-right: var(--border-width) solid var(--border-color);' 
@@ -307,7 +310,34 @@
                         ${borderRight}
                         cursor: pointer;
                         transition: filter 0.2s;
-                    "></div>
+                        display: flex;
+                        flex-direction: column;
+                    ">
+                        <div style="
+                            flex: 1;
+                            background: var(--bg-4);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 10px;
+                            font-weight: 700;
+                            color: var(--color-10);
+                        ">${topWords[index]}</div>
+                        <div style="
+                            height: var(--border-width);
+                            background: #4F565E;
+                        "></div>
+                        <div style="
+                            flex: 1;
+                            background: var(--bg-4);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 10px;
+                            font-weight: 700;
+                            color: var(--color-10);
+                        ">${bottomWords[index]}</div>
+                    </div>
                 `;
             }).join('');
         },
