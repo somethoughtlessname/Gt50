@@ -48,7 +48,7 @@
                         else height = middleHeight;
                         
                         const isSelected = i === selectedIndex;
-                        const bgColor = isSelected ? 'var(--accent)' : 'var(--bg-4)';
+                        const bgColor = isSelected ? 'var(--color-4)' : 'var(--bg-4)';
                         
                         return `
                             <div data-selector-index="${i}" style="

@@ -5,12 +5,14 @@
 
 window.GT50ImportsList = [
 'game-thelongdark.js',
-    'game-stray.js',
+'game-stray.js',
+'game-holygoshdarn.js',
 'game-legoharrypottercollection.js',
 'game-hogwarts.js',
 'game-infamous2.js',
 'game-gta5.js',
-'game-spiderman2.js',
+'game-splitfiction.js',
+'game-uncharted1.js',
     // Add more import files here:
 ];
 

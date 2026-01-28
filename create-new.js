@@ -1296,13 +1296,13 @@ createEntry: function(state, nextId, currentComponents) {
                     <button data-action="cancel" style="
                         flex: 1;
                         height: 100%;
-                        background: var(--bg-4);
+                        background: var(--color-1);
                         display: flex;
                         align-items: center;
                         justify-content: center;
                         font-size: 14px;
                         font-weight: 700;
-                        color: var(--font-color-3);
+                        color: var(--color-10);
                         cursor: pointer;
                         transition: filter 0.2s;
                         border: none;
@@ -1312,7 +1312,7 @@ createEntry: function(state, nextId, currentComponents) {
                     <button data-action="create" ${!(state.name && state.name.trim() !== '') ? 'disabled' : ''} style="
                         flex: 1;
                         height: 100%;
-                        background: ${(state.name && state.name.trim() !== '') ? 'var(--accent)' : 'var(--bg-4)'};
+                        background: ${(state.name && state.name.trim() !== '') ? 'var(--color-4)' : 'var(--bg-4)'};
                         display: flex;
                         align-items: center;
                         justify-content: center;
@@ -1359,7 +1359,7 @@ createEntry: function(state, nextId, currentComponents) {
                     if (createBtn) {
                         if (hasName) {
                             createBtn.disabled = false;
-                            createBtn.style.background = 'var(--accent)';
+                            createBtn.style.background = 'var(--color-4)';
                             createBtn.style.color = 'var(--color-10)';
                             createBtn.style.cursor = 'pointer';
                         } else {

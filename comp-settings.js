@@ -48,8 +48,8 @@ render: function(container, state, onChange, onClose, cardInfoState) {
         background: var(--bg-1);
         z-index: 2000;
         overflow-y: auto;
+        padding: 4px;
         padding-top: calc(var(--card-height) + 4px);
-        padding-bottom: 4px;
     `;
     
     container.innerHTML = `
@@ -61,9 +61,7 @@ render: function(container, state, onChange, onClose, cardInfoState) {
             height: var(--card-height);
             z-index: 2001;
         "></div>
-        <div id="settings-content" style="
-            padding: var(--margin);
-        "></div>
+        <div id="settings-content"></div>
     `;
     
     // Render header
@@ -87,13 +85,76 @@ renderContent: function(container, settingsState, onChange, cardInfoState) {
     
     // FIRST CARD: Card Info Button (if CardInfo system is available)
     if (window.GT50Lib.CardInfo && cardInfoState) {
-        GT50Lib.CardInfo.renderSettingsCard(container, cardInfoState, onChange);
+        const cardInfoCard = document.createElement('div');
+        cardInfoCard.style.cssText = `
+            background: var(--bg-2);
+            border: var(--border-width) solid var(--border-color);
+            border-radius: 8px;
+            height: var(--card-height);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: filter 0.2s;
+            margin-bottom: 4px;
+        `;
+        cardInfoCard.innerHTML = `
+            <div style="
+                font-size: 16px;
+                font-weight: 700;
+                color: var(--color-10);
+                text-align: center;
+            ">CARD INFO</div>
+        `;
+        
+        cardInfoCard.onmouseover = () => cardInfoCard.style.filter = 'brightness(1.2)';
+        cardInfoCard.onmouseout = () => cardInfoCard.style.filter = 'brightness(1)';
+        cardInfoCard.onclick = () => GT50Lib.CardInfo.open(cardInfoState, 'list', onChange);
+        
+        container.appendChild(cardInfoCard);
     }
+    
+    // DIVIDER: App Settings
+    const dividerCard = document.createElement('div');
+    dividerCard.style.cssText = `
+        height: var(--card-height);
+        background: transparent;
+        border: var(--border-width) solid rgba(0, 0, 0, 0.0);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 4px;
+        position: relative;
+    `;
+    dividerCard.innerHTML = `
+        <div style="
+            position: absolute;
+            top: 50%;
+            left: calc(var(--border-width) * -1);
+            right: calc(var(--border-width) * -1);
+            height: var(--border-width);
+            background: var(--border-color);
+            transform: translateY(-50%);
+            z-index: 1;
+        "></div>
+        <div style="
+            background: var(--bg-1);
+            padding: 0 12px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--font-color-3);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: relative;
+            z-index: 2;
+        ">APP SETTINGS</div>
+    `;
+    container.appendChild(dividerCard);
     
     // SECOND CARD: Tier Dropdown Checkboxes Toggle
     const tierToggleCard = document.createElement('div');
     tierToggleCard.style.cssText = `
-        margin: var(--margin);
         background: var(--bg-2);
         border: var(--border-width) solid var(--border-color);
         border-radius: 8px;
@@ -135,24 +196,6 @@ renderContent: function(container, settingsState, onChange, cardInfoState) {
     };
     
     container.appendChild(tierToggleCard);
-    
-    // Placeholder for future settings
-    const placeholderCard = document.createElement('div');
-    placeholderCard.style.cssText = `
-        margin: var(--margin);
-        background: var(--bg-2);
-        border: var(--border-width) solid var(--border-color);
-        border-radius: 8px;
-        height: var(--card-height);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--color-9);
-        font-size: 14px;
-        font-weight: 600;
-    `;
-    placeholderCard.textContent = 'More settings coming soon...';
-    container.appendChild(placeholderCard);
 }
     };
 })();

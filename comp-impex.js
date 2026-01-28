@@ -81,6 +81,7 @@
         // ===== OPEN WINDOW =====
         open: function(state, onChange) {
             state.isOpen = true;
+            state.activeTab = 'export'; // Always open to export tab
             onChange();
         },
         
@@ -314,8 +315,6 @@
                 return {
                     success: true,
                     data: parsed.data,
-                    type: parsed.type,  // Include type (e.g., "nest")
-                    name: parsed.name,  // Include name from export
                     detectedFormat: detectedFormatName // Include detected format in result
                 };
                 
@@ -347,29 +346,77 @@
                     border: var(--border-width) solid var(--border-color);
                     border-radius: 8px;
                     display: flex;
-                    align-items: center;
                     cursor: ${canCycle ? 'pointer' : 'default'};
-                    padding: 0 16px;
                     transition: filter 0.2s;
                     margin-bottom: var(--margin);
+                    overflow: hidden;
                 ">
-                    <div style="flex: 1;">
-                        <div style="font-weight: 600; color: var(--color-10); font-size: 14px; margin-bottom: 2px;">
-                            ${formatName}
+                    <!-- Left Half: Format Name and Description -->
+                    <div style="
+                        flex: 1;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        padding: 0 12px;
+                        border-right: var(--border-width) solid var(--border-color);
+                    ">
+                        <div style="
+                            font-weight: 700;
+                            color: var(--color-10);
+                            font-size: 12px;
+                            text-align: center;
+                            margin-bottom: 2px;
+                        ">${formatName.toUpperCase()}</div>
+                        <div style="
+                            font-size: 10px;
+                            color: var(--color-10);
+                            font-weight: 700;
+                            opacity: 0.8;
+                            text-align: center;
+                        ">${formatDesc.toUpperCase()}</div>
+                    </div>
+                    
+                    ${canCycle ? `
+                    <!-- Right Half: Tap to Change + Counter -->
+                    <div style="
+                        flex: 1;
+                        display: flex;
+                    ">
+                        <!-- Left: Tap to Change -->
+                        <div style="
+                            flex: 1;
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            justify-content: center;
+                            padding: 0 8px;
+                            border-right: var(--border-width) solid var(--border-color);
+                        ">
+                            <div style="
+                                font-size: 10px;
+                                color: var(--color-10);
+                                font-weight: 700;
+                                opacity: 0.8;
+                                text-align: center;
+                                line-height: 1.2;
+                            ">TAP TO<br>CHANGE FORMAT</div>
                         </div>
-                        <div style="font-size: 11px; color: var(--color-7); opacity: 0.8;">
-                            ${formatDesc}
+                        
+                        <!-- Right: Counter -->
+                        <div style="
+                            flex: 1;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        ">
+                            <div style="
+                                font-size: 12px;
+                                color: var(--color-10);
+                                font-weight: 700;
+                            ">${currentIndex}/${totalFormats}</div>
                         </div>
                     </div>
-                    ${canCycle ? `
-                        <div style="
-                            font-size: 12px; 
-                            color: var(--color-8); 
-                            opacity: 0.6;
-                            padding: 4px 8px;
-                            background: var(--bg-3);
-                            border-radius: 4px;
-                        ">${currentIndex}/${totalFormats}</div>
                     ` : ''}
                 </div>
             `;
@@ -435,10 +482,11 @@
                     padding-top: calc(var(--card-height) * ${isExportOnly ? '1' : '2'} + var(--margin));
                     padding-left: var(--margin);
                     padding-right: var(--margin);
-                    padding-bottom: var(--margin);
+                    padding-bottom: calc(var(--card-height) + var(--margin));
                     display: flex;
                     flex-direction: column;
-                    min-height: calc(100vh - var(--card-height) * ${isExportOnly ? '1' : '2'} - var(--margin));
+                    height: 100vh;
+                    box-sizing: border-box;
                 "></div>
             `;
             
@@ -482,7 +530,7 @@
                     <div data-tab="export" style="
                         flex: 1;
                         height: 100%;
-                        background: ${state.activeTab === 'export' ? 'var(--accent)' : 'var(--bg-4)'};
+                        background: ${state.activeTab === 'export' ? 'var(--color-4)' : 'var(--bg-4)'};
                         border-right: var(--border-width) solid var(--border-color);
                         display: flex;
                         align-items: center;
@@ -496,7 +544,7 @@
                     <div data-tab="import" style="
                         flex: 1;
                         height: 100%;
-                        background: ${state.activeTab === 'import' ? 'var(--accent)' : 'var(--bg-4)'};
+                        background: ${state.activeTab === 'import' ? 'var(--color-4)' : 'var(--bg-4)'};
                         display: flex;
                         align-items: center;
                         justify-content: center;
@@ -563,52 +611,39 @@
                         font-size: 11px;
                         line-height: 1.4;
                         resize: none;
-                        margin-bottom: var(--margin);
                         outline: none;
                         word-wrap: break-word;
                         white-space: pre-wrap;
                     ">${exportText}</textarea>
                 
-                <div style="display: flex; gap: var(--margin); margin-bottom: var(--margin); flex-shrink: 0;">
+                <div style="
+                    position: fixed;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    height: var(--card-height);
+                    display: flex;
+                    background: var(--bg-3);
+                    border-top: var(--border-width) solid var(--border-color);
+                    z-index: 1000;
+                    flex-shrink: 0;
+                ">
                     <button id="copy-btn" style="
                         flex: 1;
-                        background: var(--accent);
-                        border: var(--border-width) solid var(--border-color);
-                        border-radius: 8px;
-                        height: 45px;
-                        font-weight: 600;
-                        color: var(--color-10);
+                        height: 100%;
+                        background: var(--color-4);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
                         font-size: 14px;
+                        font-weight: 700;
+                        color: var(--color-10);
                         cursor: pointer;
-                        font-family: inherit;
                         transition: filter 0.2s;
+                        border: none;
+                        font-family: inherit;
                     ">COPY TO CLIPBOARD</button>
-                    <button id="download-btn" style="
-                        flex: 1;
-                        background: var(--primary);
-                        border: var(--border-width) solid var(--border-color);
-                        border-radius: 8px;
-                        height: 45px;
-                        font-weight: 600;
-                        color: var(--color-10);
-                        font-size: 14px;
-                        cursor: pointer;
-                        font-family: inherit;
-                        transition: filter 0.2s;
-                    ">DOWNLOAD FILE</button>
                 </div>
-                
-                <div id="export-status" style="
-                    background: var(--bg-2);
-                    border: var(--border-width) solid var(--border-color);
-                    border-radius: 8px;
-                    padding: 12px;
-                    text-align: center;
-                    font-size: 12px;
-                    color: var(--color-10);
-                    opacity: 0.7;
-                    flex-shrink: 0;
-                ">Ready to export - ${formatName} format</div>
             `;
             
             // Render format selector at top
@@ -627,32 +662,9 @@
             copyBtn.onclick = () => {
                 textarea.select();
                 document.execCommand('copy');
-                document.getElementById('export-status').textContent = '✓ Copied to clipboard!';
-                setTimeout(() => {
-                    document.getElementById('export-status').textContent = `Ready to export - ${formatName} format`;
-                }, 2000);
             };
             copyBtn.onmouseover = () => copyBtn.style.filter = 'brightness(1.2)';
             copyBtn.onmouseout = () => copyBtn.style.filter = 'brightness(1)';
-            
-            // Download button
-            const downloadBtn = document.getElementById('download-btn');
-            downloadBtn.onclick = () => {
-                const ext = adapter.getFileExtension();
-                const blob = new Blob([exportText], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `GT50_Export_${new Date().toISOString().slice(0, 10)}.${ext}`;
-                a.click();
-                URL.revokeObjectURL(url);
-                document.getElementById('export-status').textContent = '✓ File downloaded!';
-                setTimeout(() => {
-                    document.getElementById('export-status').textContent = `Ready to export - ${formatName} format`;
-                }, 2000);
-            };
-            downloadBtn.onmouseover = () => downloadBtn.style.filter = 'brightness(1.2)';
-            downloadBtn.onmouseout = () => downloadBtn.style.filter = 'brightness(1)';
         },
         
         // ===== RENDER IMPORT TAB =====
@@ -662,7 +674,25 @@
             const fileExt = adapter.getFileExtension();
             
             container.innerHTML = `
-                <div id="format-selector-container"></div>
+                <div style="
+                    height: var(--card-height);
+                    background: var(--color-10);
+                    border: var(--border-width) solid var(--border-color);
+                    border-radius: 8px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin-bottom: var(--margin);
+                    padding: 0 12px;
+                ">
+                    <div style="
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: var(--color-1);
+                        text-align: center;
+                    ">WARNING: IMPORTING WILL REPLACE ALL CURRENT DATA!</div>
+                </div>
+                
                 <textarea 
                     id="import-textarea" 
                     placeholder="Paste your GT50 export here (any format will be auto-detected)..."
@@ -678,72 +708,48 @@
                         font-size: 11px;
                         line-height: 1.4;
                         resize: none;
-                        margin-bottom: var(--margin);
                         outline: none;
                         word-wrap: break-word;
                         white-space: pre-wrap;
                     "></textarea>
                 
-                <div style="display: flex; gap: var(--margin); margin-bottom: var(--margin); flex-shrink: 0;">
+                <div style="
+                    position: fixed;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    height: var(--card-height);
+                    display: flex;
+                    background: var(--bg-3);
+                    border-top: var(--border-width) solid var(--border-color);
+                    z-index: 1000;
+                    flex-shrink: 0;
+                ">
                     <button id="import-btn" style="
                         flex: 1;
-                        background: var(--accent);
-                        border: var(--border-width) solid var(--border-color);
-                        border-radius: 8px;
-                        height: 45px;
-                        font-weight: 600;
-                        color: var(--color-10);
+                        height: 100%;
+                        background: var(--color-4);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
                         font-size: 14px;
+                        font-weight: 700;
+                        color: var(--color-10);
                         cursor: pointer;
-                        font-family: inherit;
                         transition: filter 0.2s;
+                        border: none;
+                        font-family: inherit;
                     ">IMPORT DATA</button>
-                    <button id="upload-btn" style="
-                        flex: 1;
-                        background: var(--primary);
-                        border: var(--border-width) solid var(--border-color);
-                        border-radius: 8px;
-                        height: 45px;
-                        font-weight: 600;
-                        color: var(--color-10);
-                        font-size: 14px;
-                        cursor: pointer;
-                        font-family: inherit;
-                        transition: filter 0.2s;
-                    ">UPLOAD FILE</button>
                 </div>
-                
-                <div id="import-status" style="
-                    background: var(--bg-2);
-                    border: var(--border-width) solid var(--border-color);
-                    border-radius: 8px;
-                    padding: 12px;
-                    text-align: center;
-                    font-size: 12px;
-                    color: var(--color-10);
-                    opacity: 0.7;
-                    flex-shrink: 0;
-                ">⚠️ Warning: Importing will replace all current data!</div>
-                
-                <input type="file" id="file-input" accept=".${fileExt},.json,.gt50,.gt50c,.gt50u,.gt50uc,.gt50m" style="display: none;">
             `;
             
-            // Render format selector at top
-            const formatContainer = container.querySelector('#format-selector-container');
-            this.renderFormatSelector(formatContainer, state, onChange);
-            
             const importBtn = document.getElementById('import-btn');
-            const uploadBtn = document.getElementById('upload-btn');
-            const fileInput = document.getElementById('file-input');
             const textarea = document.getElementById('import-textarea');
-            const status = document.getElementById('import-status');
             
             // Import button
             importBtn.onclick = () => {
                 const text = textarea.value;
                 if (!text.trim()) {
-                    status.textContent = '❌ Error: No data to import';
-                    status.style.color = 'var(--color-1)';
                     return;
                 }
                 
@@ -751,8 +757,6 @@
                 
                 if (result.success) {
                     if (!appState) {
-                        status.textContent = '❌ Error: Cannot access app state';
-                        status.style.color = 'var(--color-1)';
                         return;
                     }
                     
@@ -794,40 +798,10 @@
                     if (typeof window !== 'undefined' && window.saveState) {
                         window.saveState();
                     }
-                    
-                    // Show success with detected format
-                    const formatMsg = result.detectedFormat ? ` (${result.detectedFormat} format)` : '';
-                    status.textContent = `✓ Import successful${formatMsg}!`;
-                    status.style.color = 'var(--accent)';
-                    
-                } else {
-                    status.textContent = `❌ Import failed: ${result.error}`;
-                    status.style.color = 'var(--color-1)';
                 }
             };
             importBtn.onmouseover = () => importBtn.style.filter = 'brightness(1.2)';
             importBtn.onmouseout = () => importBtn.style.filter = 'brightness(1)';
-            
-            // Upload button
-            uploadBtn.onclick = () => {
-                fileInput.click();
-            };
-            uploadBtn.onmouseover = () => uploadBtn.style.filter = 'brightness(1.2)';
-            uploadBtn.onmouseout = () => uploadBtn.style.filter = 'brightness(1)';
-            
-            // File input handler
-            fileInput.onchange = (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    textarea.value = event.target.result;
-                    status.textContent = `📄 File loaded: ${file.name}`;
-                    status.style.color = 'var(--primary)';
-                };
-                reader.readAsText(file);
-            };
         }
     };
     
