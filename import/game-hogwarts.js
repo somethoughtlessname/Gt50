@@ -1,4 +1,3 @@
-
 // ===== GT50 IMPORT FILE =====
 // Generated: 2026-01-17T01:06:12.967Z
 // Name: Hogwarts Legacy
@@ -1531,4 +1530,3 @@
     
     console.log('✓ Import registered: Hogwarts Legacy');
 })();
-

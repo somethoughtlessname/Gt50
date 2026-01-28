@@ -1,5 +1,5 @@
 // ===== GT50 IMPORT FILE =====
-// Generated: 2026-01-21T22:57:43.201Z
+// Generated: 2026-01-27T23:44:33.788Z
 // Name: Spider-Man 2
 //
 // INSTALLATION:
@@ -18,7 +18,7 @@
     // Export data in JSON format
     const exportedData = `{
   "version": "1.0",
-  "timestamp": "2026-01-21T22:57:41.124Z",
+  "timestamp": "2026-01-27T23:44:27.131Z",
   "app": "GT50 Tester",
   "type": "nest",
   "name": "Spider-Man 2",
@@ -47,7 +47,7 @@
     "tabComponents": [
       [
         {
-          "id": 1768973010970.4565,
+          "id": 1769438174667.0195,
           "type": "divider",
           "state": {
             "title": "Act 1",
@@ -55,7 +55,7 @@
           }
         },
         {
-          "id": 1768973010970.3113,
+          "id": 1769438174667.7122,
           "type": "list",
           "state": {
             "completed": false,
@@ -65,7 +65,7 @@
           }
         },
         {
-          "id": 1768973010970.2004,
+          "id": 1769438174667.996,
           "type": "list",
           "state": {
             "completed": false,
@@ -75,7 +75,7 @@
           }
         },
         {
-          "id": 1768973010970.8164,
+          "id": 1769438174667.693,
           "type": "list",
           "state": {
             "completed": false,
@@ -85,7 +85,7 @@
           }
         },
         {
-          "id": 1768973010970.517,
+          "id": 1769438174667.8237,
           "type": "list",
           "state": {
             "completed": false,
@@ -95,7 +95,7 @@
           }
         },
         {
-          "id": 1768973010970.0168,
+          "id": 1769438174667.1282,
           "type": "list",
           "state": {
             "completed": false,
@@ -105,7 +105,7 @@
           }
         },
         {
-          "id": 1768973010970.6318,
+          "id": 1769438174667.7554,
           "type": "list",
           "state": {
             "completed": false,
@@ -115,7 +115,7 @@
           }
         },
         {
-          "id": 1768973010970.9412,
+          "id": 1769438174667.7156,
           "type": "list",
           "state": {
             "completed": false,
@@ -125,7 +125,7 @@
           }
         },
         {
-          "id": 1768973010970.4043,
+          "id": 1769438174667.3982,
           "type": "list",
           "state": {
             "completed": false,
@@ -135,7 +135,7 @@
           }
         },
         {
-          "id": 1768973010970.032,
+          "id": 1769438174667.4917,
           "type": "list",
           "state": {
             "completed": false,
@@ -145,7 +145,7 @@
           }
         },
         {
-          "id": 1768973010970.4778,
+          "id": 1769438174667.2878,
           "type": "list",
           "state": {
             "completed": false,
@@ -155,7 +155,7 @@
           }
         },
         {
-          "id": 1768973010970.7917,
+          "id": 1769438174667.9016,
           "type": "list",
           "state": {
             "completed": false,
@@ -165,7 +165,7 @@
           }
         },
         {
-          "id": 1768973010970.3008,
+          "id": 1769438174667.2908,
           "type": "list",
           "state": {
             "completed": false,
@@ -175,7 +175,7 @@
           }
         },
         {
-          "id": 1768973010970.9373,
+          "id": 1769438174667.9363,
           "type": "list",
           "state": {
             "completed": false,
@@ -185,7 +185,7 @@
           }
         },
         {
-          "id": 1768973010970.8914,
+          "id": 1769438174667.7134,
           "type": "list",
           "state": {
             "completed": false,
@@ -195,7 +195,7 @@
           }
         },
         {
-          "id": 1768973010970.0427,
+          "id": 1769438174667.7124,
           "type": "list",
           "state": {
             "completed": false,
@@ -205,7 +205,7 @@
           }
         },
         {
-          "id": 1768973010970.0605,
+          "id": 1769438174667.0183,
           "type": "divider",
           "state": {
             "title": "Act 2",
@@ -213,7 +213,7 @@
           }
         },
         {
-          "id": 1768973010970.3276,
+          "id": 1769438174667.7505,
           "type": "list",
           "state": {
             "completed": false,
@@ -223,7 +223,7 @@
           }
         },
         {
-          "id": 1768973010970.9026,
+          "id": 1769438174667.5046,
           "type": "list",
           "state": {
             "completed": false,
@@ -233,7 +233,7 @@
           }
         },
         {
-          "id": 1768973010970.188,
+          "id": 1769438174667.0708,
           "type": "list",
           "state": {
             "completed": false,
@@ -243,7 +243,7 @@
           }
         },
         {
-          "id": 1768973010970.0334,
+          "id": 1769438174667.922,
           "type": "list",
           "state": {
             "completed": false,
@@ -253,7 +253,7 @@
           }
         },
         {
-          "id": 1768973010970.355,
+          "id": 1769438174667.287,
           "type": "list",
           "state": {
             "completed": false,
@@ -263,7 +263,7 @@
           }
         },
         {
-          "id": 1768973010970.7993,
+          "id": 1769438174667.4744,
           "type": "list",
           "state": {
             "completed": false,
@@ -273,7 +273,7 @@
           }
         },
         {
-          "id": 1768973010970.385,
+          "id": 1769438174667.858,
           "type": "list",
           "state": {
             "completed": false,
@@ -283,7 +283,7 @@
           }
         },
         {
-          "id": 1768973010970.2092,
+          "id": 1769438174667.7925,
           "type": "list",
           "state": {
             "completed": false,
@@ -293,7 +293,7 @@
           }
         },
         {
-          "id": 1768973010970.142,
+          "id": 1769438174667.775,
           "type": "list",
           "state": {
             "completed": false,
@@ -303,7 +303,7 @@
           }
         },
         {
-          "id": 1768973010970.0815,
+          "id": 1769438174667.209,
           "type": "divider",
           "state": {
             "title": "Act 3",
@@ -311,7 +311,7 @@
           }
         },
         {
-          "id": 1768973010970.861,
+          "id": 1769438174667.6875,
           "type": "list",
           "state": {
             "completed": false,
@@ -321,7 +321,7 @@
           }
         },
         {
-          "id": 1768973010970.052,
+          "id": 1769438174667.8442,
           "type": "list",
           "state": {
             "completed": false,
@@ -331,7 +331,7 @@
           }
         },
         {
-          "id": 1768973010970.121,
+          "id": 1769438174667.4602,
           "type": "list",
           "state": {
             "completed": false,
@@ -341,7 +341,7 @@
           }
         },
         {
-          "id": 1768973010970.9011,
+          "id": 1769438174667.8074,
           "type": "list",
           "state": {
             "completed": false,
@@ -351,7 +351,7 @@
           }
         },
         {
-          "id": 1768973010970.9143,
+          "id": 1769438174667.6704,
           "type": "list",
           "state": {
             "completed": false,
@@ -361,7 +361,7 @@
           }
         },
         {
-          "id": 1768973010970.8625,
+          "id": 1769438174667.4307,
           "type": "list",
           "state": {
             "completed": false,
@@ -371,7 +371,7 @@
           }
         },
         {
-          "id": 1768973010970.3516,
+          "id": 1769438174667.6824,
           "type": "list",
           "state": {
             "completed": false,
@@ -383,7 +383,7 @@
       ],
       [
         {
-          "id": 1768973010970.3186,
+          "id": 1769438174667.7869,
           "type": "checklist",
           "state": {
             "title": "FNSM App Requests",
@@ -417,7 +417,7 @@
           }
         },
         {
-          "id": 1768973010970.2385,
+          "id": 1769438174667.0742,
           "type": "checklist",
           "state": {
             "title": "The Flame (Peter)",
@@ -443,7 +443,7 @@
           }
         },
         {
-          "id": 1768973010970.1726,
+          "id": 1769438174667.404,
           "type": "checklist",
           "state": {
             "title": "Brooklyn Visions (Miles)",
@@ -473,7 +473,7 @@
           }
         },
         {
-          "id": 1768973010970.449,
+          "id": 1769438174667.4202,
           "type": "checklist",
           "state": {
             "title": "Cultural Museum (Miles)",
@@ -491,7 +491,7 @@
           }
         },
         {
-          "id": 1768973010970.5605,
+          "id": 1769438174667.4407,
           "type": "divider",
           "state": {
             "title": "Story Conclusions",
@@ -499,7 +499,7 @@
           }
         },
         {
-          "id": 1768973010970.7197,
+          "id": 1769438174667.109,
           "type": "list",
           "state": {
             "completed": false,
@@ -509,7 +509,7 @@
           }
         },
         {
-          "id": 1768973010970.398,
+          "id": 1769438174667.1746,
           "type": "list",
           "state": {
             "completed": false,
@@ -519,7 +519,7 @@
           }
         },
         {
-          "id": 1768973010970.8901,
+          "id": 1769438174667.2537,
           "type": "list",
           "state": {
             "completed": false,
@@ -531,7 +531,7 @@
       ],
       [
         {
-          "id": 1768973010970.8235,
+          "id": 1769438174667.5312,
           "type": "progress",
           "state": {
             "current": 0,
@@ -542,7 +542,7 @@
           }
         },
         {
-          "id": 1768973010970.7896,
+          "id": 1769438174667.997,
           "type": "progress",
           "state": {
             "current": 0,
@@ -553,7 +553,7 @@
           }
         },
         {
-          "id": 1768973010970.076,
+          "id": 1769438174667.4802,
           "type": "progress",
           "state": {
             "current": 0,
@@ -564,7 +564,7 @@
           }
         },
         {
-          "id": 1768973010970.9048,
+          "id": 1769438174667.2727,
           "type": "progress",
           "state": {
             "current": 0,
@@ -575,7 +575,7 @@
           }
         },
         {
-          "id": 1768973010970.4395,
+          "id": 1769438174667.0413,
           "type": "progress",
           "state": {
             "current": 0,
@@ -586,7 +586,7 @@
           }
         },
         {
-          "id": 1768973010970.6716,
+          "id": 1769438174667.1663,
           "type": "progress",
           "state": {
             "current": 0,
@@ -597,7 +597,7 @@
           }
         },
         {
-          "id": 1768973010970.4922,
+          "id": 1769438174667.3784,
           "type": "progress",
           "state": {
             "current": 0,
@@ -608,7 +608,7 @@
           }
         },
         {
-          "id": 1768973010970.2166,
+          "id": 1769438174667.8635,
           "type": "progress",
           "state": {
             "current": 0,
@@ -619,7 +619,7 @@
           }
         },
         {
-          "id": 1768973010970.6472,
+          "id": 1769438174667.7485,
           "type": "progress",
           "state": {
             "current": 0,
@@ -630,7 +630,7 @@
           }
         },
         {
-          "id": 1768973010970.976,
+          "id": 1769438174667.2766,
           "type": "progress",
           "state": {
             "current": 0,
@@ -641,7 +641,7 @@
           }
         },
         {
-          "id": 1768973010970.4084,
+          "id": 1769438174667.0913,
           "type": "divider",
           "state": {
             "title": "Suits",
@@ -649,7 +649,7 @@
           }
         },
         {
-          "id": 1768973010970.3005,
+          "id": 1769438174667.2812,
           "type": "list",
           "state": {
             "title": "Peter Parker Suits",
@@ -792,10 +792,11 @@
               }
             ],
             "dropdownText": ""
-          }
+          },
+          "lastUpdated": 1769557451865
         },
         {
-          "id": 1768973010970.4575,
+          "id": 1769438174667.8247,
           "type": "list",
           "state": {
             "title": "Miles Morales Suits",
@@ -954,11 +955,9 @@
     window.GT50.Imports.register({
         id: 'spider-man-2',
         name: 'Spider-Man 2',
-        description: 'Face the ruthless Kraven as he hunts New York's heroes.',
+        description: 'Includes: Main Story, Side Missions, Collectibles',
         data: exportedData
     });
     
     console.log('✓ Import registered: Spider-Man 2');
 })();
-
-
