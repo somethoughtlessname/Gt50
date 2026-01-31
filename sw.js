@@ -1,18 +1,19 @@
-// GT50 Service Worker v1.0.9
-const VERSION = '1.0.9';
+// GT50 Service Worker v1.1.0 - DIAGNOSTIC VERSION
+const VERSION = '1.1.0';
 const CACHE_NAME = 'gt50-cache-' + VERSION;
-const RUNTIME_CACHE = 'gt50-runtime-' + VERSION;
 
 // Detect if we're on GitHub Pages
 const isGitHubPages = self.location.hostname.includes('github.io');
 const BASE_PATH = isGitHubPages ? '/Gt50/' : './';
 
-console.log('[SW] Service Worker initializing');
-console.log('[SW] Version:', VERSION);
+console.log('========================================');
+console.log('[SW] Service Worker v' + VERSION + ' STARTING');
+console.log('[SW] Location:', self.location.href);
 console.log('[SW] Is GitHub Pages:', isGitHubPages);
 console.log('[SW] Base path:', BASE_PATH);
+console.log('========================================');
 
-// Files to cache on install - ALL LOWERCASE for GitHub Pages
+// Files to cache - ALL LOWERCASE for GitHub Pages
 const STATIC_CACHE_URLS = [
   BASE_PATH,
   BASE_PATH + 'index.html',
@@ -54,202 +55,90 @@ const STATIC_CACHE_URLS = [
   BASE_PATH + 'manifest.json'
 ];
 
-// Install event - cache static assets
+// Install - cache files individually to see failures
 self.addEventListener('install', event => {
-  console.log('[SW] Installing service worker version', VERSION);
+  console.log('[SW] INSTALL - version', VERSION);
+  
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('[SW] Caching', STATIC_CACHE_URLS.length, 'static assets');
-        return cache.addAll(STATIC_CACHE_URLS)
-          .then(() => {
-            console.log('[SW] All static assets cached successfully');
-          })
-          .catch(error => {
-            console.error('[SW] Failed to cache assets:', error);
-            // Try caching individually to see which file fails
-            return Promise.all(
-              STATIC_CACHE_URLS.map(url => 
-                cache.add(url)
-                  .then(() => console.log('[SW] Cached:', url))
-                  .catch(err => console.error('[SW] Failed to cache:', url, err))
-              )
-            );
-          });
+        console.log('[SW] Caching', STATIC_CACHE_URLS.length, 'files');
+        
+        const cachePromises = STATIC_CACHE_URLS.map((url, i) => {
+          return cache.add(url)
+            .then(() => console.log('[SW] ✓', (i+1) + '/' + STATIC_CACHE_URLS.length, url))
+            .catch(err => console.error('[SW] ✗ FAILED:', url, err));
+        });
+        
+        return Promise.all(cachePromises);
       })
-      .then(() => {
-        console.log('[SW] Install complete, skipping waiting');
-        return self.skipWaiting();
-      })
+      .then(() => self.skipWaiting())
   );
 });
 
-// Activate event - clean up old caches
+// Activate - claim clients immediately
 self.addEventListener('activate', event => {
-  console.log('[SW] Activating service worker version', VERSION);
+  console.log('[SW] ACTIVATE - version', VERSION);
+  
   event.waitUntil(
     caches.keys()
-      .then(cacheNames => {
-        return Promise.all(
-          cacheNames.map(cacheName => {
-            // Delete any cache that doesn't match current version
-            if (cacheName.startsWith('gt50-') && 
-                cacheName !== CACHE_NAME && 
-                cacheName !== RUNTIME_CACHE) {
-              console.log('[SW] Deleting old cache:', cacheName);
-              return caches.delete(cacheName);
-            }
-          })
-        );
-      })
-      .then(() => {
-        console.log('[SW] Activation complete, claiming clients');
-        return self.clients.claim();
-      })
+      .then(cacheNames => Promise.all(
+        cacheNames.map(name => {
+          if (name.startsWith('gt50-') && name !== CACHE_NAME) {
+            console.log('[SW] Deleting old cache:', name);
+            return caches.delete(name);
+          }
+        })
+      ))
+      .then(() => self.clients.claim())
+      .then(() => console.log('[SW] ✓ ACTIVATED'))
   );
 });
 
-// Fetch event - cache first, fallback to network
+// Fetch - cache first, network fallback
 self.addEventListener('fetch', event => {
   const url = event.request.url;
   
-  // Skip non-GET requests
-  if (event.request.method !== 'GET') {
+  // Skip non-GET and cross-origin
+  if (event.request.method !== 'GET' || !url.startsWith(self.location.origin)) {
     return;
   }
   
-  // Skip cross-origin requests
-  if (!url.startsWith(self.location.origin)) {
-    return;
-  }
-
   event.respondWith(
     caches.match(event.request)
-      .then(cachedResponse => {
-        if (cachedResponse) {
-          console.log('[SW] Serving from cache:', url);
-          return cachedResponse;
+      .then(cached => {
+        if (cached) {
+          console.log('[SW] CACHE:', url);
+          return cached;
         }
-
-        // Not in cache, try network
-        console.log('[SW] Fetching from network:', url);
-        return caches.open(RUNTIME_CACHE).then(cache => {
-          return fetch(event.request)
-            .then(response => {
-              // Only cache successful responses
-              if (response && response.status === 200) {
-                console.log('[SW] Caching runtime resource:', url);
-                cache.put(event.request, response.clone());
-              }
-              return response;
-            })
-            .catch(error => {
-              console.error('[SW] Network fetch failed:', url, error);
-              // If it's a navigation request and network failed, return cached index
-              if (event.request.mode === 'navigate') {
-                console.log('[SW] Navigation request failed, returning cached index.html');
-                return caches.match(BASE_PATH + 'index.html');
-              }
-              throw error;
-            });
-        });
-      })
-      .catch(error => {
-        console.error('[SW] Request failed completely:', url, error);
-        // Last resort: return cached index for navigation
-        if (event.request.mode === 'navigate') {
-          return caches.match(BASE_PATH + 'index.html');
-        }
+        
+        console.log('[SW] NETWORK:', url);
+        return fetch(event.request)
+          .then(response => {
+            if (response && response.status === 200) {
+              caches.open(CACHE_NAME).then(cache => 
+                cache.put(event.request, response.clone())
+              );
+            }
+            return response;
+          })
+          .catch(err => {
+            console.error('[SW] OFFLINE FAIL:', url);
+            if (event.request.mode === 'navigate') {
+              return caches.match(BASE_PATH + 'index.html');
+            }
+            throw err;
+          });
       })
   );
 });
 
-// Message event - for manual cache updates and control
+// Messages
 self.addEventListener('message', event => {
-  console.log('[SW] Message received:', event.data);
-  
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    console.log('[SW] Skip waiting requested');
-    self.skipWaiting();
-  }
-  
-  if (event.data && event.data.type === 'CLEAR_CACHE') {
-    console.log('[SW] Clear cache requested');
-    event.waitUntil(
-      caches.keys().then(cacheNames => {
-        return Promise.all(
-          cacheNames.map(cacheName => {
-            console.log('[SW] Deleting cache:', cacheName);
-            return caches.delete(cacheName);
-          })
-        );
-      }).then(() => {
-        console.log('[SW] All caches cleared');
-      })
-    );
-  }
-  
-  if (event.data && event.data.type === 'GET_VERSION') {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
+  if (event.data?.type === 'GET_VERSION') {
     event.ports[0].postMessage({ version: VERSION, basePath: BASE_PATH });
   }
 });
 
-console.log('[SW] Service Worker script loaded');
-            }
-          })
-        );
-      })
-      .then(() => self.clients.claim())
-  );
-});
-
-// Fetch event - serve from cache, fallback to network
-self.addEventListener('fetch', event => {
-  // Skip cross-origin requests
-  if (!event.request.url.startsWith(self.location.origin)) {
-    return;
-  }
-
-  event.respondWith(
-    caches.match(event.request)
-      .then(cachedResponse => {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-
-        return caches.open(RUNTIME_CACHE).then(cache => {
-          return fetch(event.request).then(response => {
-            // Only cache successful responses
-            if (response.status === 200) {
-              cache.put(event.request, response.clone());
-            }
-            return response;
-          });
-        });
-      })
-      .catch(() => {
-        // Return offline page if available
-        if (event.request.mode === 'navigate') {
-          return caches.match('./index.html');
-        }
-      })
-  );
-});
-
-// Message event - for manual cache updates
-self.addEventListener('message', event => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
-  
-  if (event.data && event.data.type === 'CLEAR_CACHE') {
-    event.waitUntil(
-      caches.keys().then(cacheNames => {
-        return Promise.all(
-          cacheNames.map(cacheName => caches.delete(cacheName))
-        );
-      })
-    );
-  }
-});
-
+console.log('[SW] Ready');
