@@ -164,7 +164,6 @@ html {
 <script src="comp-footer.js"></script>
     
 <script src="format-gt50.js"></script>
-<script src="format-json.js"></script>
 <script src="format-encrypted.js"></script>
 <script src="format-import.js"></script>    
     
@@ -2205,9 +2204,23 @@ setInterval(saveState, 5000);
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
+    // Determine the correct scope based on whether we're on GitHub Pages or local
+    const isGitHubPages = window.location.hostname.includes('github.io');
+    const swPath = isGitHubPages ? '/Gt50/sw.js' : './sw.js';
+    const swScope = isGitHubPages ? '/Gt50/' : './';
+    
+    navigator.serviceWorker.register(swPath, { scope: swScope })
       .then(registration => {
         console.log('[PWA] Service Worker registered:', registration.scope);
+        console.log('[PWA] Active:', registration.active);
+        console.log('[PWA] Waiting:', registration.waiting);
+        console.log('[PWA] Installing:', registration.installing);
+        
+        // Force immediate activation if waiting
+        if (registration.waiting) {
+          console.log('[PWA] Service worker waiting, activating immediately');
+          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
         
         // Check for updates periodically
         setInterval(() => {
@@ -2217,7 +2230,10 @@ if ('serviceWorker' in navigator) {
         // Handle updates
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
+          console.log('[PWA] Update found, new worker installing');
+          
           newWorker.addEventListener('statechange', () => {
+            console.log('[PWA] New worker state:', newWorker.state);
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
               if (confirm('New version available! Reload to update?')) {
                 newWorker.postMessage({ type: 'SKIP_WAITING' });
@@ -2228,12 +2244,20 @@ if ('serviceWorker' in navigator) {
         });
       })
       .catch(error => {
-        console.log('[PWA] Service Worker registration failed:', error);
+        console.error('[PWA] Service Worker registration failed:', error);
+        console.error('[PWA] Error details:', error.message);
       });
   });
   
+  // Handle service worker updates
   navigator.serviceWorker.addEventListener('controllerchange', () => {
+    console.log('[PWA] Controller changed, reloading page');
     window.location.reload();
+  });
+  
+  // Log service worker messages
+  navigator.serviceWorker.addEventListener('message', event => {
+    console.log('[PWA] Message from SW:', event.data);
   });
 }
 </script>
