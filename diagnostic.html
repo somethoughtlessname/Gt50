@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GT50 PWA Diagnostic</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: monospace;
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            font-size: 12px;
+        }
+        h1 { color: #00ff00; margin-bottom: 20px; }
+        h2 { color: #ffff00; margin: 20px 0 10px 0; }
+        button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-family: monospace;
+            font-weight: bold;
+        }
+        button:hover { background: #00dd00; }
+        .status { margin: 10px 0; }
+        .ok { color: #00ff00; }
+        .error { color: #ff0000; }
+        .warn { color: #ffaa00; }
+        .info { color: #00aaff; }
+        pre {
+            background: #000;
+            padding: 10px;
+            margin: 10px 0;
+            overflow-x: auto;
+            border-left: 3px solid #00ff00;
+        }
+        .section {
+            background: #2a2a2a;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #00ff00;
+        }
+    </style>
+</head>
+<body>
+    <h1>GT50 PWA DIAGNOSTIC TOOL</h1>
+    
+    <div class="section">
+        <h2>CONTROLS</h2>
+        <button onclick="runDiagnostic()">RUN FULL DIAGNOSTIC</button>
+        <button onclick="clearCaches()">CLEAR ALL CACHES</button>
+        <button onclick="unregisterSW()">UNREGISTER SERVICE WORKER</button>
+        <button onclick="location.reload()">RELOAD PAGE</button>
+    </div>
+
+    <div id="output"></div>
+
+    <script>
+        const output = document.getElementById('output');
+        
+        function log(msg, type = 'info') {
+            const div = document.createElement('div');
+            div.className = 'status ' + type;
+            div.textContent = '• ' + msg;
+            output.appendChild(div);
+            console.log('[DIAGNOSTIC]', msg);
+        }
+        
+        function section(title) {
+            const h2 = document.createElement('h2');
+            h2.textContent = title;
+            output.appendChild(h2);
+        }
+        
+        function pre(data) {
+            const preEl = document.createElement('pre');
+            preEl.textContent = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
+            output.appendChild(preEl);
+        }
+        
+        async function runDiagnostic() {
+            output.innerHTML = '';
+            log('Starting diagnostic...', 'info');
+            
+            // 1. Check Service Worker Support
+            section('SERVICE WORKER SUPPORT');
+            if ('serviceWorker' in navigator) {
+                log('✓ Service Worker API supported', 'ok');
+            } else {
+                log('✗ Service Worker API NOT supported', 'error');
+                return;
+            }
+            
+            // 2. Check Service Worker Registration
+            section('SERVICE WORKER REGISTRATION');
+            try {
+                const registration = await navigator.serviceWorker.getRegistration();
+                if (registration) {
+                    log('✓ Service Worker registered', 'ok');
+                    log('Scope: ' + registration.scope, 'info');
+                    
+                    if (registration.active) {
+                        log('✓ Active worker exists', 'ok');
+                        log('State: ' + registration.active.state, 'info');
+                    } else {
+                        log('✗ No active worker', 'error');
+                    }
+                    
+                    if (registration.waiting) {
+                        log('⚠ Worker waiting to activate', 'warn');
+                    }
+                    
+                    if (registration.installing) {
+                        log('Worker installing...', 'info');
+                    }
+                } else {
+                    log('✗ No service worker registered', 'error');
+                }
+            } catch (err) {
+                log('✗ Error checking registration: ' + err.message, 'error');
+            }
+            
+            // 3. Check Caches
+            section('CACHE STORAGE');
+            try {
+                const cacheNames = await caches.keys();
+                log('Found ' + cacheNames.length + ' cache(s)', 'info');
+                pre(cacheNames);
+                
+                for (const cacheName of cacheNames) {
+                    const cache = await caches.open(cacheName);
+                    const requests = await cache.keys();
+                    log('Cache "' + cacheName + '" has ' + requests.length + ' items', 'info');
+                    
+                    // Show first 10 items
+                    const urls = requests.slice(0, 10).map(req => req.url);
+                    pre(urls);
+                    if (requests.length > 10) {
+                        log('... and ' + (requests.length - 10) + ' more', 'info');
+                    }
+                }
+            } catch (err) {
+                log('✗ Error checking caches: ' + err.message, 'error');
+            }
+            
+            // 4. Check Network Status
+            section('NETWORK STATUS');
+            if (navigator.onLine) {
+                log('✓ Browser reports ONLINE', 'ok');
+            } else {
+                log('⚠ Browser reports OFFLINE', 'warn');
+            }
+            
+            // 5. Test Key Files
+            section('FILE AVAILABILITY TEST');
+            const testFiles = [
+                'index.html',
+                'comp-header.js',
+                'comp-footer.js',
+                'styles.js'
+            ];
+            
+            const basePath = window.location.hostname.includes('github.io') ? '/Gt50/' : './';
+            
+            for (const file of testFiles) {
+                try {
+                    const response = await fetch(basePath + file);
+                    if (response.ok) {
+                        log('✓ ' + file + ' (HTTP ' + response.status + ')', 'ok');
+                    } else {
+                        log('✗ ' + file + ' (HTTP ' + response.status + ')', 'error');
+                    }
+                } catch (err) {
+                    log('✗ ' + file + ' - ' + err.message, 'error');
+                }
+            }
+            
+            // 6. Check localStorage
+            section('LOCAL STORAGE');
+            try {
+                const keys = Object.keys(localStorage);
+                log('localStorage has ' + keys.length + ' keys', 'info');
+                if (keys.length > 0) {
+                    pre(keys);
+                }
+            } catch (err) {
+                log('✗ Error checking localStorage: ' + err.message, 'error');
+            }
+            
+            // 7. Environment Info
+            section('ENVIRONMENT');
+            log('Hostname: ' + window.location.hostname, 'info');
+            log('Protocol: ' + window.location.protocol, 'info');
+            log('Path: ' + window.location.pathname, 'info');
+            log('User Agent: ' + navigator.userAgent.substring(0, 100) + '...', 'info');
+            
+            log('✓ Diagnostic complete', 'ok');
+        }
+        
+        async function clearCaches() {
+            output.innerHTML = '';
+            log('Clearing all caches...', 'info');
+            
+            try {
+                const cacheNames = await caches.keys();
+                for (const name of cacheNames) {
+                    await caches.delete(name);
+                    log('✓ Deleted cache: ' + name, 'ok');
+                }
+                log('✓ All caches cleared', 'ok');
+            } catch (err) {
+                log('✗ Error clearing caches: ' + err.message, 'error');
+            }
+        }
+        
+        async function unregisterSW() {
+            output.innerHTML = '';
+            log('Unregistering service worker...', 'info');
+            
+            try {
+                const registration = await navigator.serviceWorker.getRegistration();
+                if (registration) {
+                    await registration.unregister();
+                    log('✓ Service worker unregistered', 'ok');
+                    log('⚠ Reload page to complete unregistration', 'warn');
+                } else {
+                    log('No service worker to unregister', 'info');
+                }
+            } catch (err) {
+                log('✗ Error unregistering: ' + err.message, 'error');
+            }
+        }
+        
+        // Auto-run on load
+        window.addEventListener('load', () => {
+            setTimeout(runDiagnostic, 100);
+        });
+    </script>
+</body>
+</html>
