@@ -3014,10 +3014,9 @@ window.addEventListener('beforeunload', saveState);
 setInterval(saveState, 5000);
     </script>
 
-<!-- PWA Service Worker Registration - TEMPORARILY DISABLED FOR CACHE TESTING -->
+<!-- PWA Service Worker Registration -->
 <script>
-// DISABLED TO BYPASS CACHE ISSUES
-if (false && 'serviceWorker' in navigator) {
+if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     // Determine the correct scope based on whether we're on GitHub Pages or local
     const isGitHubPages = window.location.hostname.includes('github.io');

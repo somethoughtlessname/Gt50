@@ -95,7 +95,7 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Fetch - cache first, network fallback
+// Fetch - NETWORK FIRST for JS/HTML (cache busting), cache first for others
 self.addEventListener('fetch', event => {
   const url = event.request.url;
   
@@ -104,33 +104,51 @@ self.addEventListener('fetch', event => {
     return;
   }
   
-  event.respondWith(
-    caches.match(event.request)
-      .then(cached => {
-        if (cached) {
-          console.log('[SW] CACHE:', url);
-          return cached;
-        }
-        
-        console.log('[SW] NETWORK:', url);
-        return fetch(event.request)
-          .then(response => {
-            if (response && response.status === 200) {
-              caches.open(CACHE_NAME).then(cache => 
-                cache.put(event.request, response.clone())
-              );
-            }
-            return response;
-          })
-          .catch(err => {
-            console.error('[SW] OFFLINE FAIL:', url);
-            if (event.request.mode === 'navigate') {
-              return caches.match(BASE_PATH + 'index.html');
-            }
-            throw err;
-          });
-      })
-  );
+  // Network-first for .js and .html files to bust cache
+  const isJsOrHtml = url.endsWith('.js') || url.endsWith('.html') || url.endsWith('/');
+  
+  if (isJsOrHtml) {
+    // NETWORK FIRST for code files
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response && response.status === 200) {
+            console.log('[SW] NETWORK (fresh):', url);
+            caches.open(CACHE_NAME).then(cache => 
+              cache.put(event.request, response.clone())
+            );
+          }
+          return response;
+        })
+        .catch(err => {
+          console.log('[SW] NETWORK FAIL, trying cache:', url);
+          return caches.match(event.request)
+            .then(cached => cached || Promise.reject(err));
+        })
+    );
+  } else {
+    // CACHE FIRST for assets (images, etc)
+    event.respondWith(
+      caches.match(event.request)
+        .then(cached => {
+          if (cached) {
+            console.log('[SW] CACHE:', url);
+            return cached;
+          }
+          
+          console.log('[SW] NETWORK:', url);
+          return fetch(event.request)
+            .then(response => {
+              if (response && response.status === 200) {
+                caches.open(CACHE_NAME).then(cache => 
+                  cache.put(event.request, response.clone())
+                );
+              }
+              return response;
+            });
+        })
+    );
+  }
 });
 
 // Messages
