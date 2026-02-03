@@ -156,11 +156,16 @@
             const adapter = this.getCurrentFormat();
             
             try {
-                return adapter.serialize(exportPackage);
+                const result = adapter.serialize(exportPackage);
+                if (!result) {
+                    throw new Error('Serializer returned empty result');
+                }
+                return result;
             } catch (error) {
-                console.error('Export error:', error);
-                // Fallback to built-in JSON
-                return this.builtInJSON.serialize(exportPackage);
+                console.error('Export error in', adapter.getFormatName() + ':', error);
+                console.error('Stack:', error.stack);
+                // DO NOT fallback - throw the error so it can be caught and displayed
+                throw error;
             }
         },
         
@@ -583,19 +588,45 @@
             // If we have override data (raw export package), serialize it now with current format
             // Otherwise, export the full appState
             let exportText;
-            if (state.exportOverrideData) {
-                try {
+            let errorMessage = null;
+            
+            try {
+                if (state.exportOverrideData) {
                     exportText = adapter.serialize(state.exportOverrideData);
-                } catch (error) {
-                    console.error('Export serialization error:', error);
-                    exportText = this.builtInJSON.serialize(state.exportOverrideData);
+                } else {
+                    exportText = this.exportData(appState);
                 }
-            } else {
-                exportText = this.exportData(appState);
+            } catch (error) {
+                console.error('Export serialization error:', error);
+                errorMessage = `${formatName} serialization failed: ${error.message}`;
+                // Fallback to JSON
+                const cleaned = this.cleanState(appState);
+                const exportPackage = {
+                    version: "1.0",
+                    timestamp: new Date().toISOString(),
+                    app: "GT50 Tester",
+                    data: {
+                        tabs: cleaned.tabs,
+                        tabComponents: cleaned.tabComponents
+                    }
+                };
+                exportText = this.builtInJSON.serialize(state.exportOverrideData || exportPackage);
             }
             
             container.innerHTML = `
                 <div id="format-selector-container"></div>
+                ${errorMessage ? `
+                <div style="
+                    background: var(--color-1);
+                    border: var(--border-width) solid var(--border-color);
+                    border-radius: 8px;
+                    padding: 12px;
+                    margin-bottom: var(--margin);
+                    color: var(--color-10);
+                    font-size: 12px;
+                    font-weight: 700;
+                ">⚠️ ${errorMessage} (falling back to JSON)</div>
+                ` : ''}
                 <textarea 
                     id="export-textarea" 
                     readonly
