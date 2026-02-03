@@ -232,6 +232,7 @@
             const displayName = state.name || 'Nest';
             
             // Use the nest's stored color for view mode
+            // Support both old format (names like "RED") and new format (CSS variables like "var(--color-5-2)")
             const colorMap = {
                 'RED': 'var(--color-1)',
                 'ORANGE': 'var(--color-2)',
@@ -242,7 +243,14 @@
                 'PINK': 'var(--color-7)',
                 'GRAY': 'var(--color-9)'
             };
-            const nestColor = colorMap[state.color] || 'var(--color-9)';
+            
+            // If color is already a CSS variable, use it directly; otherwise map from name
+            let nestColor;
+            if (state.color && state.color.startsWith('var(--')) {
+                nestColor = state.color; // Already a CSS variable
+            } else {
+                nestColor = colorMap[state.color] || 'var(--color-9)'; // Map from name
+            }
             
             // Initialize actionState if it doesn't exist
             if (!state.actionState) {
@@ -1027,9 +1035,33 @@
             if (!state.editWindow.tempName) {
                 state.editWindow.tempName = state.name || '';
             }
-            if (state.editWindow.tempColorIndex === undefined) {
-                const colorIndex = GT50Lib.CreateNew.colors.findIndex(c => c.name === (state.color || 'GRAY'));
-                state.editWindow.tempColorIndex = colorIndex >= 0 ? colorIndex : 7; // Default to GRAY (index 7)
+            if (state.editWindow.tempColorIndex === undefined || state.editWindow.tempVariationIndex === undefined) {
+                // Handle both old format (color names) and new format (CSS variables)
+                let colorIndex = 0;
+                let variationIndex = 0;
+                
+                if (state.color) {
+                    if (state.color.startsWith('var(--')) {
+                        // New format: CSS variable like "var(--color-5-2)"
+                        // Extract color number and variation
+                        const match = state.color.match(/var\(--color-(\d+)(?:-(\d+))?\)/);
+                        if (match) {
+                            const colorNum = parseInt(match[1]);
+                            // Map color numbers to indices: 9->0, 1->1, 2->2, 3->3, 4->4, 5->5, 6->6, 7->7
+                            const colorNumToIndex = { 9: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7 };
+                            colorIndex = colorNumToIndex[colorNum] !== undefined ? colorNumToIndex[colorNum] : 0;
+                            variationIndex = match[2] ? parseInt(match[2]) - 1 : 0; // -2 becomes 1, -3 becomes 2, etc.
+                        }
+                    } else {
+                        // Old format: color name like "RED", "BLUE"
+                        colorIndex = GT50Lib.CreateNew.colors.findIndex(c => c.name === state.color);
+                        if (colorIndex < 0) colorIndex = 0;
+                        variationIndex = 0;
+                    }
+                }
+                
+                state.editWindow.tempColorIndex = colorIndex;
+                state.editWindow.tempVariationIndex = variationIndex;
             }
             if (state.editWindow.tempType === undefined) {
                 // Determine current type - default to 'nest'
@@ -1270,7 +1302,11 @@
                     overflow: hidden;
                     margin-bottom: var(--margin);
                 ">
-                    ${GT50Lib.CreateNew.colors.map((color, index) => `
+                    ${GT50Lib.CreateNew.colors.map((color, index) => {
+                        const isActive = state.editWindow.tempColorIndex === index;
+                        const variationIndex = isActive ? (state.editWindow.tempVariationIndex || 0) : 0;
+                        const displayColor = color.variations[variationIndex];
+                        return `
                         <div data-action="select-color" data-color-index="${index}" style="
                             flex: 1;
                             height: 100%;
@@ -1285,12 +1321,13 @@
                             <div class="${shouldAnimateColor && state.editWindow._animateColorIndex === index ? 'color-circle-animated' : ''}" style="
                                 width: ${state.editWindow.tempColorIndex === index ? '200px' : '16px'};
                                 height: ${state.editWindow.tempColorIndex === index ? '200px' : '16px'};
-                                background: ${color.value};
+                                background: ${displayColor};
                                 border-radius: 50%;
                                 position: absolute;
                             "></div>
                         </div>
-                    `).join('')}
+                    `;
+                    }).join('')}
                 </div>
                 
                 <!-- Summary Divider -->
@@ -1476,17 +1513,24 @@
             colorButtons.forEach(btn => {
                 const colorIndex = parseInt(btn.dataset.colorIndex);
                 btn.onclick = () => {
-                    // Only animate if changing to a different color
-                    if (state.editWindow.tempColorIndex !== colorIndex) {
-                        state.editWindow._animateColorIndex = colorIndex;
+                    // Always trigger animation
+                    state.editWindow._animateColorIndex = colorIndex;
+                    
+                    if (state.editWindow.tempColorIndex === colorIndex) {
+                        // Same color clicked - cycle to next variation
+                        state.editWindow.tempVariationIndex = (state.editWindow.tempVariationIndex + 1) % 4;
+                    } else {
+                        // Different color clicked - switch to that color's base variation
                         state.editWindow.tempColorIndex = colorIndex;
-                        onChange();
-                        
-                        // Clear animation flag after animation completes
-                        setTimeout(() => {
-                            delete state.editWindow._animateColorIndex;
-                        }, 500);
+                        state.editWindow.tempVariationIndex = 0;
                     }
+                    
+                    onChange();
+                    
+                    // Clear animation flag after animation completes
+                    setTimeout(() => {
+                        delete state.editWindow._animateColorIndex;
+                    }, 500);
                 };
                 btn.onmouseover = () => btn.style.filter = 'brightness(1.1)';
                 btn.onmouseout = () => btn.style.filter = 'brightness(1)';

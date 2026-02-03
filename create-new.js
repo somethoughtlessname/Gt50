@@ -47,15 +47,15 @@
     window.GT50Lib.CreateNew = {
         // ===== COLOR OPTIONS =====
         colors: [
-            { name: 'GRAY', value: 'var(--color-9)' },    // Moved to index 0
-    { name: 'RED', value: 'var(--color-1)' },
-    { name: 'ORANGE', value: 'var(--color-2)' },
-    { name: 'YELLOW', value: 'var(--color-3)' },
-    { name: 'GREEN', value: 'var(--color-4)' },
-    { name: 'BLUE', value: 'var(--color-5)' },
-    { name: 'PURPLE', value: 'var(--color-6)' },
-    { name: 'PINK', value: 'var(--color-7)' }
-],
+            { name: 'GRAY', variations: ['var(--color-9)', 'var(--color-9-2)', 'var(--color-9-3)', 'var(--color-9-4)'] },
+            { name: 'RED', variations: ['var(--color-1)', 'var(--color-1-2)', 'var(--color-1-3)', 'var(--color-1-4)'] },
+            { name: 'ORANGE', variations: ['var(--color-2)', 'var(--color-2-2)', 'var(--color-2-3)', 'var(--color-2-4)'] },
+            { name: 'YELLOW', variations: ['var(--color-3)', 'var(--color-3-2)', 'var(--color-3-3)', 'var(--color-3-4)'] },
+            { name: 'GREEN', variations: ['var(--color-4)', 'var(--color-4-2)', 'var(--color-4-3)', 'var(--color-4-4)'] },
+            { name: 'BLUE', variations: ['var(--color-5)', 'var(--color-5-2)', 'var(--color-5-3)', 'var(--color-5-4)'] },
+            { name: 'PURPLE', variations: ['var(--color-6)', 'var(--color-6-2)', 'var(--color-6-3)', 'var(--color-6-4)'] },
+            { name: 'PINK', variations: ['var(--color-7)', 'var(--color-7-2)', 'var(--color-7-3)', 'var(--color-7-4)'] }
+        ],
         
         // ===== STATE FACTORY =====
         defaultState: function() {
@@ -65,6 +65,7 @@
         selectedTemplate: 'custom',
         selectedImport: null,
         currentColorIndex: 0, // Changed from 7 to 0 (GRAY is now first)
+        currentVariationIndex: 0, // 0=base, 1=-2, 2=-3, 3=-4
         cycleMode: false,
         autoSortByLastUpdated: false,
         autoSortDropdownOpen: false,
@@ -127,6 +128,14 @@ createEntry: function(state, nextId, currentComponents) {
         state.currentColorIndex = 0; // Update state for consistency
     }
     
+    // Safety check: ensure currentVariationIndex is valid, default to 0 (base) if not
+    let variationIndex = state.currentVariationIndex || 0;
+    if (typeof variationIndex !== 'number' || variationIndex < 0 || variationIndex >= 4) {
+        console.log('CreateNew.createEntry: Invalid variation index, defaulting to 0 (base)');
+        variationIndex = 0;
+        state.currentVariationIndex = 0;
+    }
+    
     const entryType = state.cycleMode ? 'cycle' : 'nest';
     const newEntry = {
         id: nextId,
@@ -137,7 +146,7 @@ createEntry: function(state, nextId, currentComponents) {
     };
     
     newEntry.state.name = state.name.trim();
-    newEntry.state.color = this.colors[colorIndex].name; // Use validated colorIndex
+    newEntry.state.color = this.colors[colorIndex].variations[variationIndex]; // Use validated colorIndex and variationIndex
     newEntry.state.autoSortByLastUpdated = state.autoSortByLastUpdated || false;
     
     // Apply summary settings
@@ -196,6 +205,7 @@ createEntry: function(state, nextId, currentComponents) {
     state.selectedTemplate = 'custom';
     state.selectedImport = null;
     state.currentColorIndex = 0; // Changed from 7 to 0 (GRAY is now first)
+    state.currentVariationIndex = 0; // Reset to base variation
     state.cycleMode = false;
     state.autoSortByLastUpdated = false;
                 state.summaryState = {
@@ -263,8 +273,9 @@ createEntry: function(state, nextId, currentComponents) {
             const templates = (window.GT50 && window.GT50.Templates) ? window.GT50.Templates.getAll() : [];
             const hasTemplates = templates && templates.length > 0;
             
-            // Determine summary color based on current card color
-            const summaryColor = this.colors[state.currentColorIndex].value;
+            // Determine summary color based on current card color and variation
+            const variationIndex = state.currentVariationIndex || 0;
+            const summaryColor = this.colors[state.currentColorIndex].variations[variationIndex];
             
             // Determine active tab
             const activeTab = state.tabs.activeViewTab === 0 ? 'templates' : 
@@ -406,7 +417,11 @@ createEntry: function(state, nextId, currentComponents) {
                     overflow: hidden;
                     margin-bottom: var(--margin);
                 ">
-                    ${this.colors.map((color, index) => `
+                    ${this.colors.map((color, index) => {
+                        const isActive = state.currentColorIndex === index;
+                        const variationIndex = isActive ? (state.currentVariationIndex || 0) : 0;
+                        const displayColor = color.variations[variationIndex];
+                        return `
                         <div data-action="select-color" data-color-index="${index}" style="
                             flex: 1;
                             height: 100%;
@@ -421,12 +436,13 @@ createEntry: function(state, nextId, currentComponents) {
                             <div class="${shouldAnimateColor && state._animateColorIndex === index ? 'color-circle-animated' : ''}" style="
                                 width: ${state.currentColorIndex === index ? '200px' : '16px'};
                                 height: ${state.currentColorIndex === index ? '200px' : '16px'};
-                                background: ${color.value};
+                                background: ${displayColor};
                                 border-radius: 50%;
                                 position: absolute;
                             "></div>
                         </div>
-                    `).join('')}
+                    `;
+                    }).join('')}
                 </div>
             `;
             
@@ -1377,17 +1393,24 @@ createEntry: function(state, nextId, currentComponents) {
             colorButtons.forEach(btn => {
                 const colorIndex = parseInt(btn.dataset.colorIndex);
                 btn.onclick = () => {
-                    // Only animate if changing to a different color
-                    if (state.currentColorIndex !== colorIndex) {
-                        state._animateColorIndex = colorIndex;
+                    // Always trigger animation
+                    state._animateColorIndex = colorIndex;
+                    
+                    if (state.currentColorIndex === colorIndex) {
+                        // Same color clicked - cycle to next variation
+                        state.currentVariationIndex = (state.currentVariationIndex + 1) % 4;
+                    } else {
+                        // Different color clicked - switch to that color's base variation
                         state.currentColorIndex = colorIndex;
-                        onChange();
-                        
-                        // Clear animation flag after animation completes
-                        setTimeout(() => {
-                            delete state._animateColorIndex;
-                        }, 500);
+                        state.currentVariationIndex = 0;
                     }
+                    
+                    onChange();
+                    
+                    // Clear animation flag after animation completes
+                    setTimeout(() => {
+                        delete state._animateColorIndex;
+                    }, 500);
                 };
                 btn.onmouseover = () => btn.style.filter = 'brightness(1.1)';
                 btn.onmouseout = () => btn.style.filter = 'brightness(1)';

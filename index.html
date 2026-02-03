@@ -748,6 +748,7 @@ html {
                 state.createNew.selectedTemplate = 'custom';
                 state.createNew.selectedImport = null;
                 state.createNew.currentColorIndex = 4;
+                state.createNew.currentVariationIndex = 0;
                 state.createNew.cycleMode = false;
                 state.createNew.autoSortByLastUpdated = false;
                 state.createNew.summaryState = {
@@ -1189,6 +1190,7 @@ html {
                 state.createNew.selectedTemplate = 'custom';
                 state.createNew.selectedImport = null;
                 state.createNew.currentColorIndex = 4;
+                state.createNew.currentVariationIndex = 0;
                 state.createNew.cycleMode = false;
                 state.createNew.autoSortByLastUpdated = false;
                 state.createNew.summaryState = {
@@ -1589,6 +1591,7 @@ html {
                     state.createNew.selectedTemplate = 'custom';
                     state.createNew.selectedImport = null;
                     state.createNew.currentColorIndex = 4;
+                state.createNew.currentVariationIndex = 0;
                     state.createNew.cycleMode = false;
                     activeMode = 'view';
                     render();
@@ -1650,6 +1653,7 @@ html {
                             state.createNew.selectedTemplate = 'custom';
                             state.createNew.selectedImport = null;
                             state.createNew.currentColorIndex = 4;
+                state.createNew.currentVariationIndex = 0;
                             state.createNew.cycleMode = false;
                             delete state.createNew.editingEntryId;
                             
@@ -1791,6 +1795,7 @@ function renderNestEditWindow() {
                     // Clear temp values and backup
                     delete openEditNest.state.editWindow.tempName;
                     delete openEditNest.state.editWindow.tempColorIndex;
+                    delete openEditNest.state.editWindow.tempVariationIndex;
                     delete openEditNest.state.editWindow.tempType;
                     delete openEditNest.state.editWindow._backup;
                     delete openEditNest.state.editWindow._animateColorIndex;
@@ -1828,13 +1833,15 @@ function renderNestEditWindow() {
                     if (openEditNest.state.editWindow.tempColorIndex !== undefined) {
                         const colors = GT50Lib.CreateNew.colors;
                         if (colors && colors[openEditNest.state.editWindow.tempColorIndex]) {
-                            openEditNest.state.color = colors[openEditNest.state.editWindow.tempColorIndex].name;
+                            const variationIndex = openEditNest.state.editWindow.tempVariationIndex || 0;
+                            openEditNest.state.color = colors[openEditNest.state.editWindow.tempColorIndex].variations[variationIndex];
                         }
                     }
                     
                     // Clear temp values and backup
                     delete openEditNest.state.editWindow.tempName;
                     delete openEditNest.state.editWindow.tempColorIndex;
+                    delete openEditNest.state.editWindow.tempVariationIndex;
                     delete openEditNest.state.editWindow.tempType;
                     delete openEditNest.state.editWindow._backup;
                     delete openEditNest.state.editWindow._animateColorIndex;
@@ -1857,13 +1864,15 @@ function renderNestEditWindow() {
                     if (openEditNest.state.editWindow.tempColorIndex !== undefined) {
                         const colors = GT50Lib.CreateNew.colors;
                         if (colors && colors[openEditNest.state.editWindow.tempColorIndex]) {
-                            openEditNest.state.color = colors[openEditNest.state.editWindow.tempColorIndex].name;
+                            const variationIndex = openEditNest.state.editWindow.tempVariationIndex || 0;
+                            openEditNest.state.color = colors[openEditNest.state.editWindow.tempColorIndex].variations[variationIndex];
                         }
                     }
                     
                     // Clear temp values and backup
                     delete openEditNest.state.editWindow.tempName;
                     delete openEditNest.state.editWindow.tempColorIndex;
+                    delete openEditNest.state.editWindow.tempVariationIndex;
                     delete openEditNest.state.editWindow.tempType;
                     delete openEditNest.state.editWindow._backup;
                     delete openEditNest.state.editWindow._animateColorIndex;
@@ -1899,6 +1908,7 @@ function renderNestEditWindow() {
                     // Clear temp values and backup
                     delete openEditNest.state.editWindow.tempName;
                     delete openEditNest.state.editWindow.tempColorIndex;
+                    delete openEditNest.state.editWindow.tempVariationIndex;
                     delete openEditNest.state.editWindow.tempType;
                     delete openEditNest.state.editWindow._backup;
                     delete openEditNest.state.editWindow._animateColorIndex;
@@ -1936,13 +1946,15 @@ function renderNestEditWindow() {
                     if (openEditNest.state.editWindow.tempColorIndex !== undefined) {
                         const colors = GT50Lib.CreateNew.colors;
                         if (colors && colors[openEditNest.state.editWindow.tempColorIndex]) {
-                            openEditNest.state.color = colors[openEditNest.state.editWindow.tempColorIndex].name;
+                            const variationIndex = openEditNest.state.editWindow.tempVariationIndex || 0;
+                            openEditNest.state.color = colors[openEditNest.state.editWindow.tempColorIndex].variations[variationIndex];
                         }
                     }
                     
                     // Clear temp values and backup
                     delete openEditNest.state.editWindow.tempName;
                     delete openEditNest.state.editWindow.tempColorIndex;
+                    delete openEditNest.state.editWindow.tempVariationIndex;
                     delete openEditNest.state.editWindow.tempType;
                     delete openEditNest.state.editWindow._backup;
                     delete openEditNest.state.editWindow._animateColorIndex;
@@ -1965,13 +1977,15 @@ function renderNestEditWindow() {
                     if (openEditNest.state.editWindow.tempColorIndex !== undefined) {
                         const colors = GT50Lib.CreateNew.colors;
                         if (colors && colors[openEditNest.state.editWindow.tempColorIndex]) {
-                            openEditNest.state.color = colors[openEditNest.state.editWindow.tempColorIndex].name;
+                            const variationIndex = openEditNest.state.editWindow.tempVariationIndex || 0;
+                            openEditNest.state.color = colors[openEditNest.state.editWindow.tempColorIndex].variations[variationIndex];
                         }
                     }
                     
                     // Clear temp values and backup
                     delete openEditNest.state.editWindow.tempName;
                     delete openEditNest.state.editWindow.tempColorIndex;
+                    delete openEditNest.state.editWindow.tempVariationIndex;
                     delete openEditNest.state.editWindow.tempType;
                     delete openEditNest.state.editWindow._backup;
                     delete openEditNest.state.editWindow._animateColorIndex;
@@ -2746,6 +2760,7 @@ if (GT50Lib.Search) {
             state.createNew.selectedTemplate = 'custom';
             state.createNew.selectedImport = null;
             state.createNew.currentColorIndex = 4;
+                state.createNew.currentVariationIndex = 0;
             state.createNew.cycleMode = false;
             state.createNew.autoSortByLastUpdated = false;
             state.createNew.summaryState = {
