@@ -211,9 +211,9 @@
                             border: var(--border-width) solid var(--border-color);
                             border-radius: 8px;
                             color: var(--color-10);
-                            padding: 12px;
+                            padding: 8px;
                             font-size: 14px;
-                            line-height: 1.6;
+                            line-height: 1.4;
                             font-family: ${fontFamily};
                             font-weight: ${state.fontWeight};
                             text-align: ${state.alignment};
@@ -335,23 +335,28 @@ renderView: function(container, state, onChange) {
             overflow: hidden;
             min-height: var(--card-height);
             display: flex;
-            align-items: stretch;
         ">
             <div style="
                 background: var(--bg-4);
-                padding: 0 8px;
-                font-size: 11px;
-                line-height: 15px;
-                white-space: pre-wrap;
-                word-wrap: break-word;
-                text-align: ${state.alignment};
-                font-weight: ${state.fontWeight};
-                font-family: ${fontFamily};
-                color: var(--color-10);
-                width: 100%;
+                flex: 1;
                 display: flex;
-                align-items: center;
-            ">${state.text || ''}</div>
+                flex-direction: column;
+                align-items: ${state.alignment === 'center' ? 'center' : (state.alignment === 'right' ? 'flex-end' : 'flex-start')};
+                justify-content: center;
+                padding: 0 8px;
+            ">
+                <div style="
+                    font-size: 11px;
+                    line-height: 1.2;
+                    white-space: pre-wrap;
+                    word-wrap: break-word;
+                    text-align: ${state.alignment};
+                    font-weight: ${state.fontWeight};
+                    font-family: ${fontFamily};
+                    color: var(--color-10);
+                    width: 100%;
+                ">${state.text || ''}</div>
+            </div>
         </div>
     `;
 }

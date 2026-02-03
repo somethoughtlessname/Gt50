@@ -228,7 +228,7 @@
         },
         
         // ===== VIEW MODE RENDERER =====
-        renderView: function(container, state, depth, onNavigate, onMove, onDelete, render, closeAllActions, parentShowsChildProgress, parentChildProgressMode) {
+        renderView: function(container, state, depth, onNavigate, onMove, onDelete, render, closeAllActions, parentShowsChildProgress, parentChildProgressMode, onEnterMoveMode, onEnterCloneMode) {
             const displayName = state.name || 'Nest';
             
             // Use the nest's stored color for view mode
@@ -522,24 +522,66 @@
                         gap: var(--margin);
                     ">
                         ${isMoreDropdownOpen ? `
-                            <!-- Export Button (replaces tab bars when More is open) -->
-                            <div data-action="export" style="
+                            <!-- More Actions Dropdown (Export, Clone, Move) -->
+                            <div style="
                                 flex: 1;
-                                height: 22.5px;
-                                background: var(--color-3);
+                                background: white;
                                 border: var(--border-width) solid var(--border-color);
                                 border-radius: 8px;
+                                height: 32px;
                                 display: flex;
                                 align-items: center;
                                 justify-content: center;
-                                cursor: pointer;
-                                font-size: 9px;
-                                font-weight: 700;
-                                text-transform: uppercase;
-                                color: var(--color-10);
-                                transition: filter 0.2s;
-                                letter-spacing: 0.5px;
-                            ">Export</div>
+                                overflow: hidden;
+                            ">
+                                <div data-action="export" style="
+                                    flex: 1;
+                                    background: white;
+                                    height: 100%;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    cursor: pointer;
+                                    font-size: var(--dropdown-text-size);
+                                    font-weight: var(--dropdown-text-weight);
+                                    text-transform: uppercase;
+                                    color: var(--color-5);
+                                    transition: filter 0.2s;
+                                    letter-spacing: 0.5px;
+                                    border-right: var(--border-width) solid var(--border-color);
+                                ">Export</div>
+                                <div data-action="clone" style="
+                                    flex: 1;
+                                    background: white;
+                                    height: 100%;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    cursor: pointer;
+                                    font-size: var(--dropdown-text-size);
+                                    font-weight: var(--dropdown-text-weight);
+                                    text-transform: uppercase;
+                                    color: var(--color-5);
+                                    transition: filter 0.2s;
+                                    letter-spacing: 0.5px;
+                                    border-right: var(--border-width) solid var(--border-color);
+                                ">Clone</div>
+                                <div data-action="move" style="
+                                    flex: 1;
+                                    background: white;
+                                    height: 100%;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    cursor: pointer;
+                                    font-size: var(--dropdown-text-size);
+                                    font-weight: var(--dropdown-text-weight);
+                                    text-transform: uppercase;
+                                    color: var(--color-5);
+                                    transition: filter 0.2s;
+                                    letter-spacing: 0.5px;
+                                ">Move</div>
+                            </div>
                         ` : showTabBars ? tabProgressData.map((tab, tabIndex) => `
                             <div class="tab-bar-clickable" data-tab-index="${tabIndex}" style="
                                 flex: 1;
@@ -864,6 +906,52 @@
                 // Hover effects
                 exportBtn.onmouseover = () => exportBtn.style.filter = 'brightness(1.2)';
                 exportBtn.onmouseout = () => exportBtn.style.filter = 'brightness(1)';
+            }
+            
+            // Clone action - enters clone mode
+            const cloneBtn = container.querySelector('[data-action="clone"]');
+            if (cloneBtn && onEnterCloneMode) {
+                cloneBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    cancelAutoClose();
+                    
+                    // Enter clone mode - Index.html will handle the rest
+                    onEnterCloneMode();
+                    
+                    // Close the nest action menu
+                    state.actionState.isOpen = false;
+                    state.actionState.moreDropdownOpen = false;
+                    state.actionState.deletePending = false;
+                    
+                    if (render) render();
+                };
+                
+                // Hover effects
+                cloneBtn.onmouseover = () => cloneBtn.style.filter = 'brightness(1.2)';
+                cloneBtn.onmouseout = () => cloneBtn.style.filter = 'brightness(1)';
+            }
+            
+            // Move action - enters move mode
+            const moveBtn = container.querySelector('[data-action="move"]');
+            if (moveBtn && onEnterMoveMode) {
+                moveBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    cancelAutoClose();
+                    
+                    // Enter move mode - Index.html will handle the rest
+                    onEnterMoveMode();
+                    
+                    // Close the nest action menu
+                    state.actionState.isOpen = false;
+                    state.actionState.moreDropdownOpen = false;
+                    state.actionState.deletePending = false;
+                    
+                    if (render) render();
+                };
+                
+                // Hover effects
+                moveBtn.onmouseover = () => moveBtn.style.filter = 'brightness(1.2)';
+                moveBtn.onmouseout = () => moveBtn.style.filter = 'brightness(1)';
             }
             
             // Add scroll animation for long tab names in tab bars mode

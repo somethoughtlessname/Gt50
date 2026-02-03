@@ -436,13 +436,19 @@
         },
         
         // ===== RENDER PREVIEW MODE FOOTER =====
-        // Special footer for Import Preview mode
-        // Shows placement instructions and INSERT/CANCEL buttons
-        renderPreview: function(container, state, onInsert, onCancel) {
+        // Special footer for Import Preview mode and Move mode
+        // Shows placement instructions and action/CANCEL buttons
+        renderPreview: function(container, state, onInsert, onCancel, options = {}) {
             const hasInsertionPoint = state && state.insertionPoint;
+            
+            // Allow customization of text for different modes
+            const prefix = options.prefix || 'INSERT AT';
+            const defaultText = options.defaultText || 'USE INSERT ON LEFT TO CHOOSE PLACEMENT';
+            const buttonText = options.buttonText || 'INSERT';
+            
             const insertionText = hasInsertionPoint 
-                ? `INSERT AT: ${state.insertionPoint.description}` 
-                : 'USE INSERT ON LEFT TO CHOOSE PLACEMENT';
+                ? `${prefix}: ${state.insertionPoint.description}` 
+                : defaultText;
             
             container.style.display = 'block';
             container.style.cssText = `
@@ -509,7 +515,7 @@
                             cursor: ${hasInsertionPoint ? 'pointer' : 'not-allowed'};
                             font-family: inherit;
                             transition: filter 0.2s;
-                        " ${!hasInsertionPoint ? 'disabled' : ''}>INSERT</button>
+                        " ${!hasInsertionPoint ? 'disabled' : ''}>${buttonText}</button>
                     </div>
                 </div>
             `;

@@ -330,7 +330,7 @@
         
         // ===== VIEW MODE RENDERER =====
         // Delegates to Nest with correct signature - passes through ALL parameters including swipe actions
-        renderView: function(container, state, depth, onNavigate, onMove, onDelete, render, closeAllActions, parentShowsChildProgress, parentChildProgressMode) {
+        renderView: function(container, state, depth, onNavigate, onMove, onDelete, render, closeAllActions, parentShowsChildProgress, parentChildProgressMode, onEnterMoveMode, onEnterCloneMode) {
             const didReset = this.checkAndReset(state);
             
             // Pass all parameters through to Nest to enable swipe menu and all features

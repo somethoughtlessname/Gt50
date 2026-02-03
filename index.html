@@ -114,6 +114,17 @@ html {
             border: 0 !important;
             pointer-events: none !important;
         }
+
+        /* Move Mode - Style for the component being moved */
+        .moving-component * {
+            background: white !important;
+            color: black !important;
+        }
+        
+        /* Preserve borders on moving component */
+        .moving-component [style*="border"] {
+            border-color: black !important;
+        }
     </style>
 </head>
 <body>
@@ -252,6 +263,7 @@ html {
         let nextId = 1;
         let activeMode = 'view';
         let selectedInsertionPoint = 0;
+        let previousSelectedBuildTab = 0;  // Track tab changes to reset insertion point
         let scrollStack = [];
         let pendingDeleteId = null;
         let deleteTimeout = null;
@@ -263,6 +275,22 @@ html {
             importData: null,
             importName: '',
             insertionPoint: null  // {index, description}
+        };
+        
+        // Move mode state (for moving nests)
+        let moveMode = {
+            active: false,
+            componentId: null,  // ID of component being moved
+            insertionPoint: null,  // {index, description}
+            savedTabBarStates: null  // Map of component IDs to saved tab bar states
+        };
+        
+        // Clone mode state (for cloning nests)
+        let cloneMode = {
+            active: false,
+            componentId: null,  // ID of component being cloned
+            insertionPoint: null,  // {index, description}
+            savedTabBarStates: null  // Map of component IDs to saved tab bar states
         };
         
         // Expose to global scope for Sort-filter to access parent nests
@@ -368,6 +396,9 @@ html {
                         state.tabs.activeViewTab = 0;
                         state.tabs.selectedBuildTab = 0;
                     }
+                    
+                    // Initialize previousSelectedBuildTab to match current tab
+                    previousSelectedBuildTab = state.tabs.selectedBuildTab;
                     
                     state.impex.isOpen = false;
                     state.settings.isOpen = false;
@@ -529,6 +560,11 @@ html {
         }
 
         function navigateInto(nestId) {
+            // Prevent navigating into the nest being moved
+            if (moveMode.active && nestId === moveMode.componentId) {
+                return; // Silently ignore - can't move a nest into itself
+            }
+            
             scrollStack.push(window.scrollY);
             window.navigationStack.push(nestId);
             
@@ -567,6 +603,24 @@ html {
             }
             
             selectedInsertionPoint = getCurrentComponents().length;
+            
+            // Reset move mode insertion point when navigating
+            if (moveMode.active) {
+                moveMode.insertionPoint = null;
+                selectedInsertionPoint = -1; // No selection when navigating
+            }
+            
+            // Reset clone mode insertion point when navigating
+            if (cloneMode.active) {
+                cloneMode.insertionPoint = null;
+                selectedInsertionPoint = -1; // No selection when navigating
+            }
+            
+            // Sync previousSelectedBuildTab to current tab after navigation
+            if (activeMode === 'build') {
+                const currentContext = getCurrentTabs();
+                previousSelectedBuildTab = currentContext.tabs.selectedBuildTab;
+            }
             
             // Scroll to top and force browser to complete scroll before rendering
             window.scrollTo(0, 0);
@@ -633,6 +687,24 @@ html {
             
             selectedInsertionPoint = getCurrentComponents().length;
             
+            // Reset move mode insertion point when navigating
+            if (moveMode.active) {
+                moveMode.insertionPoint = null;
+                selectedInsertionPoint = -1; // No selection when navigating
+            }
+            
+            // Reset clone mode insertion point when navigating
+            if (cloneMode.active) {
+                cloneMode.insertionPoint = null;
+                selectedInsertionPoint = -1; // No selection when navigating
+            }
+            
+            // Sync previousSelectedBuildTab to current tab after navigation
+            if (activeMode === 'build') {
+                const currentContext = getCurrentTabs();
+                previousSelectedBuildTab = currentContext.tabs.selectedBuildTab;
+            }
+            
             // Restore scroll position and force browser to complete scroll before rendering
             const scrollPos = scrollStack.pop();
             if (scrollPos !== undefined) {
@@ -689,11 +761,357 @@ html {
             
             selectedInsertionPoint = getCurrentComponents().length;
             
+            // Sync previousSelectedBuildTab to current tab (always 0 at home)
+            previousSelectedBuildTab = 0;
+            
             // Scroll to top and force browser to complete scroll before rendering
             window.scrollTo(0, 0);
             void document.body.offsetHeight;
             
             render(true);
+        }
+        
+        // ===== MOVE MODE FUNCTIONS =====
+        
+        // Helper function to recursively find and remove a component by ID from anywhere in the structure
+        function findAndRemoveComponent(componentId, tabComponents) {
+            if (!tabComponents || !Array.isArray(tabComponents)) return null;
+            
+            for (let tabIndex = 0; tabIndex < tabComponents.length; tabIndex++) {
+                const components = tabComponents[tabIndex];
+                if (!Array.isArray(components)) continue;
+                
+                // Check if component is in this array
+                const index = components.findIndex(c => c.id === componentId);
+                if (index !== -1) {
+                    // Found it! Remove and return
+                    const [component] = components.splice(index, 1);
+                    return component;
+                }
+                
+                // Check nested components
+                for (let i = 0; i < components.length; i++) {
+                    const component = components[i];
+                    if ((component.type === 'nest' || component.type === 'cycle') && component.state.tabComponents) {
+                        const found = findAndRemoveComponent(componentId, component.state.tabComponents);
+                        if (found) return found;
+                    }
+                }
+            }
+            
+            return null;
+        }
+        
+        // Helper function to recursively save and disable tab bar states
+        function saveAndDisableTabBars(components, stateMap) {
+            components.forEach(component => {
+                if (component.type === 'nest' || component.type === 'cycle') {
+                    // Save current state
+                    stateMap.set(component.id, {
+                        summaryShowChildNestProgress: component.state.summaryShowChildNestProgress || false,
+                        summaryChildNestProgressMode: component.state.summaryChildNestProgressMode || 'first-tab'
+                    });
+                    
+                    // Disable tab bars
+                    component.state.summaryShowChildNestProgress = false;
+                    
+                    // Recursively process nested components
+                    if (component.state.tabComponents) {
+                        component.state.tabComponents.forEach(tabArray => {
+                            if (Array.isArray(tabArray)) {
+                                saveAndDisableTabBars(tabArray, stateMap);
+                            }
+                        });
+                    }
+                }
+            });
+        }
+        
+        // Helper function to recursively restore tab bar states
+        function restoreTabBars(components, stateMap) {
+            components.forEach(component => {
+                if (component.type === 'nest' || component.type === 'cycle') {
+                    // Restore saved state
+                    const savedState = stateMap.get(component.id);
+                    if (savedState) {
+                        component.state.summaryShowChildNestProgress = savedState.summaryShowChildNestProgress;
+                        component.state.summaryChildNestProgressMode = savedState.summaryChildNestProgressMode;
+                    }
+                    
+                    // Recursively process nested components
+                    if (component.state.tabComponents) {
+                        component.state.tabComponents.forEach(tabArray => {
+                            if (Array.isArray(tabArray)) {
+                                restoreTabBars(tabArray, stateMap);
+                            }
+                        });
+                    }
+                }
+            });
+        }
+        
+        function enterMoveMode(componentId) {
+            // Close all nest actions
+            closeAllNestActions();
+            
+            // Save and disable all tab bar states across ALL tabs (not just first tab)
+            moveMode.savedTabBarStates = new Map();
+            if (state.tabComponents && Array.isArray(state.tabComponents)) {
+                state.tabComponents.forEach(tabArray => {
+                    if (Array.isArray(tabArray)) {
+                        saveAndDisableTabBars(tabArray, moveMode.savedTabBarStates);
+                    }
+                });
+            }
+            
+            // Activate move mode
+            moveMode.active = true;
+            moveMode.componentId = componentId;
+            moveMode.insertionPoint = null; // Reset insertion point
+            
+            // No selection initially - user must choose with Insert selector
+            selectedInsertionPoint = -1;
+            
+            render();
+        }
+        
+        function cancelMoveMode() {
+            // Restore tab bar states across ALL tabs
+            if (moveMode.savedTabBarStates && state.tabComponents && Array.isArray(state.tabComponents)) {
+                state.tabComponents.forEach(tabArray => {
+                    if (Array.isArray(tabArray)) {
+                        restoreTabBars(tabArray, moveMode.savedTabBarStates);
+                    }
+                });
+            }
+            
+            // Deactivate move mode without making changes
+            moveMode.active = false;
+            moveMode.componentId = null;
+            moveMode.insertionPoint = null;
+            moveMode.savedTabBarStates = null;
+            
+            render();
+        }
+        
+        function executeMoveMode() {
+            if (!moveMode.active || !moveMode.componentId || !moveMode.insertionPoint) {
+                console.error('Cannot execute move: invalid move mode state');
+                return;
+            }
+            
+            // Find and remove the component from wherever it is in the structure
+            const component = findAndRemoveComponent(moveMode.componentId, state.tabComponents);
+            
+            if (!component) {
+                console.error('Cannot execute move: component not found anywhere');
+                // Restore tab bars and cancel
+                if (moveMode.savedTabBarStates && state.tabComponents && Array.isArray(state.tabComponents)) {
+                    state.tabComponents.forEach(tabArray => {
+                        if (Array.isArray(tabArray)) {
+                            restoreTabBars(tabArray, moveMode.savedTabBarStates);
+                        }
+                    });
+                }
+                moveMode.active = false;
+                moveMode.componentId = null;
+                moveMode.insertionPoint = null;
+                moveMode.savedTabBarStates = null;
+                render();
+                return;
+            }
+            
+            // Insert at the current location
+            const currentComponents = getCurrentComponents();
+            const insertIndex = moveMode.insertionPoint.index;
+            
+            // Insert at new position
+            currentComponents.splice(insertIndex, 0, component);
+            
+            // Update insertion point
+            selectedInsertionPoint = insertIndex + 1;
+            
+            // Restore tab bars across ALL tabs
+            if (moveMode.savedTabBarStates && state.tabComponents && Array.isArray(state.tabComponents)) {
+                state.tabComponents.forEach(tabArray => {
+                    if (Array.isArray(tabArray)) {
+                        restoreTabBars(tabArray, moveMode.savedTabBarStates);
+                    }
+                });
+            }
+            
+            // Save state
+            saveState();
+            
+            // Deactivate move mode
+            moveMode.active = false;
+            moveMode.componentId = null;
+            moveMode.insertionPoint = null;
+            moveMode.savedTabBarStates = null;
+            
+            render();
+        }
+
+        // ===== CLONE MODE FUNCTIONS =====
+        
+        // Helper function to deep clone a component and assign new IDs to all nested components
+        function deepCloneComponent(component) {
+            // Create a deep copy
+            const cloned = JSON.parse(JSON.stringify(component));
+            
+            // Assign new ID to the cloned component
+            cloned.id = nextId++;
+            
+            // Recursively assign new IDs to nested components
+            function assignNewIds(comp) {
+                if (comp.type === 'nest' || comp.type === 'cycle') {
+                    if (comp.state.tabComponents && Array.isArray(comp.state.tabComponents)) {
+                        comp.state.tabComponents.forEach(tabArray => {
+                            if (Array.isArray(tabArray)) {
+                                tabArray.forEach(nestedComp => {
+                                    nestedComp.id = nextId++;
+                                    assignNewIds(nestedComp);
+                                });
+                            }
+                        });
+                    }
+                }
+            }
+            
+            assignNewIds(cloned);
+            return cloned;
+        }
+        
+        // Helper function to find a component by ID anywhere in the structure
+        function findComponentById(componentId, tabComponents) {
+            if (!tabComponents || !Array.isArray(tabComponents)) return null;
+            
+            for (let tabIndex = 0; tabIndex < tabComponents.length; tabIndex++) {
+                const components = tabComponents[tabIndex];
+                if (!Array.isArray(components)) continue;
+                
+                // Check if component is in this array
+                const component = components.find(c => c.id === componentId);
+                if (component) {
+                    return component;
+                }
+                
+                // Check nested components
+                for (let i = 0; i < components.length; i++) {
+                    const comp = components[i];
+                    if ((comp.type === 'nest' || comp.type === 'cycle') && comp.state.tabComponents) {
+                        const found = findComponentById(componentId, comp.state.tabComponents);
+                        if (found) return found;
+                    }
+                }
+            }
+            
+            return null;
+        }
+        
+        function enterCloneMode(componentId) {
+            // Close all nest actions
+            closeAllNestActions();
+            
+            // Save and disable all tab bar states across ALL tabs
+            cloneMode.savedTabBarStates = new Map();
+            if (state.tabComponents && Array.isArray(state.tabComponents)) {
+                state.tabComponents.forEach(tabArray => {
+                    if (Array.isArray(tabArray)) {
+                        saveAndDisableTabBars(tabArray, cloneMode.savedTabBarStates);
+                    }
+                });
+            }
+            
+            // Activate clone mode
+            cloneMode.active = true;
+            cloneMode.componentId = componentId;
+            cloneMode.insertionPoint = null; // Reset insertion point
+            
+            // No selection initially - user must choose with Insert selector
+            selectedInsertionPoint = -1;
+            
+            render();
+        }
+        
+        function cancelCloneMode() {
+            // Restore tab bar states across ALL tabs
+            if (cloneMode.savedTabBarStates && state.tabComponents && Array.isArray(state.tabComponents)) {
+                state.tabComponents.forEach(tabArray => {
+                    if (Array.isArray(tabArray)) {
+                        restoreTabBars(tabArray, cloneMode.savedTabBarStates);
+                    }
+                });
+            }
+            
+            // Deactivate clone mode without making changes
+            cloneMode.active = false;
+            cloneMode.componentId = null;
+            cloneMode.insertionPoint = null;
+            cloneMode.savedTabBarStates = null;
+            
+            render();
+        }
+        
+        function executeCloneMode() {
+            if (!cloneMode.active || !cloneMode.componentId || !cloneMode.insertionPoint) {
+                console.error('Cannot execute clone: invalid clone mode state');
+                return;
+            }
+            
+            // Find the component to clone
+            const originalComponent = findComponentById(cloneMode.componentId, state.tabComponents);
+            
+            if (!originalComponent) {
+                console.error('Cannot execute clone: component not found anywhere');
+                // Restore tab bars and cancel
+                if (cloneMode.savedTabBarStates && state.tabComponents && Array.isArray(state.tabComponents)) {
+                    state.tabComponents.forEach(tabArray => {
+                        if (Array.isArray(tabArray)) {
+                            restoreTabBars(tabArray, cloneMode.savedTabBarStates);
+                        }
+                    });
+                }
+                cloneMode.active = false;
+                cloneMode.componentId = null;
+                cloneMode.insertionPoint = null;
+                cloneMode.savedTabBarStates = null;
+                render();
+                return;
+            }
+            
+            // Deep clone the component with new IDs
+            const clonedComponent = deepCloneComponent(originalComponent);
+            
+            // Insert clone at the current location
+            const currentComponents = getCurrentComponents();
+            const insertIndex = cloneMode.insertionPoint.index;
+            
+            // Insert at new position
+            currentComponents.splice(insertIndex, 0, clonedComponent);
+            
+            // Update insertion point
+            selectedInsertionPoint = insertIndex + 1;
+            
+            // Restore tab bars across ALL tabs
+            if (cloneMode.savedTabBarStates && state.tabComponents && Array.isArray(state.tabComponents)) {
+                state.tabComponents.forEach(tabArray => {
+                    if (Array.isArray(tabArray)) {
+                        restoreTabBars(tabArray, cloneMode.savedTabBarStates);
+                    }
+                });
+            }
+            
+            // Save state
+            saveState();
+            
+            // Deactivate clone mode
+            cloneMode.active = false;
+            cloneMode.componentId = null;
+            cloneMode.insertionPoint = null;
+            cloneMode.savedTabBarStates = null;
+            
+            render();
         }
 
         function openDataWindow() {
@@ -784,6 +1202,9 @@ html {
             
             selectedInsertionPoint = getCurrentComponents().length;
             
+            // Sync previousSelectedBuildTab to current tab (always 0 at home)
+            previousSelectedBuildTab = 0;
+            
             saveState();  // Save changes
             render(true);
             window.scrollTo(0, 0);
@@ -811,11 +1232,36 @@ html {
                 return;
             }
             
+            // Create wrappers for navigation that check move mode and clone mode
+            const navigateBackWrapper = () => {
+                if (moveMode.active) {
+                    // In move mode, back button navigates normally (allows exploring nests)
+                    navigateBack();
+                } else if (cloneMode.active) {
+                    // In clone mode, back button navigates normally (allows exploring nests)
+                    navigateBack();
+                } else {
+                    navigateBack();
+                }
+            };
+            
+            const navigateHomeWrapper = () => {
+                if (moveMode.active) {
+                    // In move mode, home button cancels move mode
+                    cancelMoveMode();
+                } else if (cloneMode.active) {
+                    // In clone mode, home button cancels clone mode
+                    cancelCloneMode();
+                } else {
+                    navigateHome();
+                }
+            };
+            
             if (activeMode === 'build') {
                 // In build mode, use special navigation functions for back/home
                 GT50Lib.Header.renderBuild(headerContainer, state.header, render, navigateBackBuildMode, navigateHomeBuildMode, switchMode, activeMode, openDataWindow, openSettingsWindow, openNewWindow, false, false);
             } else {
-                GT50Lib.Header.renderView(headerContainer, state.header, render, navigateBack, navigateHome, switchMode, activeMode, openDataWindow, openSettingsWindow, openNewWindow);
+                GT50Lib.Header.renderView(headerContainer, state.header, render, navigateBackWrapper, navigateHomeWrapper, switchMode, activeMode, openDataWindow, openSettingsWindow, openNewWindow);
             }
         }
 
@@ -831,6 +1277,15 @@ html {
             }
             
             const currentContext = getCurrentTabs();
+            
+            // In build mode, reset insertion point to bottom when tab changes
+            if (activeMode === 'build') {
+                const currentTab = currentContext.tabs.selectedBuildTab;
+                if (currentTab !== previousSelectedBuildTab) {
+                    selectedInsertionPoint = getCurrentComponents().length;
+                    previousSelectedBuildTab = currentTab;
+                }
+            }
             
             const targetLength = Math.max(1, currentContext.tabs.tabs.length);
             
@@ -929,6 +1384,64 @@ html {
                         state.createNew.selectedImport = null;  // CRITICAL: Clear import selection
                         activeMode = 'view';
                         render();
+                    }
+                );
+                
+                return;
+            }
+            
+            // Move mode gets special footer using Footer.renderPreview()
+            if (moveMode.active) {
+                // Allow placement at any level as long as we have an insertion point
+                const canPlace = moveMode.insertionPoint !== null;
+                
+                // Temporarily override insertionPoint to control button state
+                const footerState = {
+                    active: moveMode.active,
+                    insertionPoint: canPlace ? moveMode.insertionPoint : null
+                };
+                
+                GT50Lib.Footer.renderPreview(
+                    footerContainer,
+                    footerState,
+                    // onInsert callback (renamed to "Place Here" for move mode)
+                    executeMoveMode,
+                    // onCancel callback
+                    cancelMoveMode,
+                    // Custom text for move mode
+                    {
+                        prefix: 'MOVE TO',
+                        defaultText: 'USE INSERT ON LEFT TO CHOOSE NEW LOCATION',
+                        buttonText: 'PLACE HERE'
+                    }
+                );
+                
+                return;
+            }
+            
+            // Clone mode gets special footer using Footer.renderPreview()
+            if (cloneMode.active) {
+                // Allow placement at any level as long as we have an insertion point
+                const canPlace = cloneMode.insertionPoint !== null;
+                
+                // Temporarily override insertionPoint to control button state
+                const footerState = {
+                    active: cloneMode.active,
+                    insertionPoint: canPlace ? cloneMode.insertionPoint : null
+                };
+                
+                GT50Lib.Footer.renderPreview(
+                    footerContainer,
+                    footerState,
+                    // onInsert callback (renamed to "Place Here" for clone mode)
+                    executeCloneMode,
+                    // onCancel callback
+                    cancelCloneMode,
+                    // Custom text for clone mode
+                    {
+                        prefix: 'CLONE TO',
+                        defaultText: 'USE INSERT ON LEFT TO CHOOSE NEW LOCATION',
+                        buttonText: 'PLACE HERE'
                     }
                 );
                 
@@ -1799,6 +2312,285 @@ layoutWrapper.style.cssText = 'display: flex; gap: var(--margin); align-items: f
             const container = document.getElementById('cards-main');
             container.innerHTML = '';
             
+            // In move mode, show Insert selector on the side and dimmed components in the main area
+            if (moveMode.active && moveMode.componentId) {
+                const currentComponents = getCurrentComponents();
+                
+                const depth = window.navigationStack.length;
+                const currentNest = getCurrentNest();
+                
+                const layoutWrapper = document.createElement('div');
+                layoutWrapper.style.cssText = 'display: flex; gap: var(--margin); align-items: flex-start; width: 100%;';
+                
+                const selectorContainer = document.createElement('div');
+                const moveContainer = document.createElement('div');
+                moveContainer.style.cssText = 'flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden;';
+                
+                // Always render Insert selector in move mode (allows moving to any nest)
+                const currentInsertIndex = moveMode.insertionPoint ? moveMode.insertionPoint.index : -1;
+                GT50Lib.Insert.render(selectorContainer, currentComponents.length, currentInsertIndex, (index) => {
+                    // Generate description for this insertion point
+                    let description = 'Top of workspace';
+                    if (index > 0 && index < currentComponents.length) {
+                        const prevComponent = currentComponents[index - 1];
+                        description = `After "${prevComponent.state.name || prevComponent.type}"`;
+                    } else if (index >= currentComponents.length) {
+                        description = 'Bottom of workspace';
+                    }
+                    
+                    moveMode.insertionPoint = { index, description };
+                    selectedInsertionPoint = index;
+                    render();
+                });
+                
+                // Show all components in dimmed/disabled state
+                currentComponents.forEach(component => {
+                    const wrapper = document.createElement('div');
+                    const isMovingComponent = component.id === moveMode.componentId;
+                    
+                    // Moving component gets white background with black text, others are dimmed
+                    if (isMovingComponent) {
+                        wrapper.style.cssText = 'opacity: 1;';
+                        // Add a class or direct styling to make background white and text black
+                        wrapper.classList.add('moving-component');
+                    } else {
+                        wrapper.style.cssText = 'opacity: 0.85;';
+                    }
+                    
+                    // Get current tab color
+                    const currentContext = getCurrentTabs();
+                    const currentTabColor = currentContext.tabs.tabs[currentContext.tabs.activeViewTab]?.color;
+                    
+                    // Render component in view mode - allow navigation for nests/cycles
+                    if (component.type === 'nest' || component.type === 'cycle') {
+                        const LibComponent = component.type === 'nest' ? GT50Lib.Nest : GT50Lib.Cycle;
+                        const parentShowsChildProgress = currentNest && currentNest.state && currentNest.state.summaryShowChildNestProgress;
+                        const parentChildProgressMode = currentNest && currentNest.state && currentNest.state.summaryChildNestProgressMode;
+                        
+                        LibComponent.renderView(
+                            wrapper,
+                            component.state,
+                            depth,
+                            () => navigateInto(component.id), // Enable navigation
+                            null, // No move (disable up/down arrows)
+                            null, // No delete
+                            render, // Pass render
+                            () => {}, // Empty close actions (disable swipe menu)
+                            parentShowsChildProgress,
+                            parentChildProgressMode,
+                            null // No enter move mode
+                        );
+                        
+                        // Disable swipe menu but keep navigation active
+                        wrapper.querySelectorAll('input, textarea, [data-action="edit"], [data-action="delete"], [data-action="move-up"], [data-action="move-down"], [data-action="more"], [data-action="close"]').forEach(el => {
+                            el.style.pointerEvents = 'none';
+                        });
+                    } else if (component.type === 'divider') {
+                        GT50Lib.Divider.renderView(wrapper, component.state, () => {});
+                        wrapper.querySelectorAll('button, input, textarea').forEach(el => {
+                            el.style.pointerEvents = 'none';
+                        });
+                    } else if (component.type === 'scale') {
+                        GT50Lib.Scale.renderView(wrapper, component.state, () => {}, currentTabColor);
+                        wrapper.querySelectorAll('button, input, textarea').forEach(el => {
+                            el.style.pointerEvents = 'none';
+                        });
+                    } else if (component.type === 'list') {
+                        GT50Lib.List.renderView(wrapper, component.state, () => {}, currentTabColor);
+                        wrapper.querySelectorAll('button, input, textarea').forEach(el => {
+                            el.style.pointerEvents = 'none';
+                        });
+                    } else if (component.type === 'accumulation') {
+                        GT50Lib.Accumulation.renderView(wrapper, component.state, () => {}, currentTabColor);
+                        wrapper.querySelectorAll('button, input, textarea').forEach(el => {
+                            el.style.pointerEvents = 'none';
+                        });
+                    } else if (component.type === 'history') {
+                        GT50Lib.History.renderView(wrapper, component.state, () => {}, currentTabColor);
+                        wrapper.querySelectorAll('button, input, textarea').forEach(el => {
+                            el.style.pointerEvents = 'none';
+                        });
+                    } else if (component.type === 'progress') {
+                        GT50Lib.Progress.renderView(wrapper, component.state, () => {}, currentTabColor);
+                        wrapper.querySelectorAll('button, input, textarea').forEach(el => {
+                            el.style.pointerEvents = 'none';
+                        });
+                    } else if (component.type === 'tier') {
+                        GT50Lib.Tier.renderView(wrapper, component.state, () => {}, currentTabColor);
+                        wrapper.querySelectorAll('button, input, textarea').forEach(el => {
+                            el.style.pointerEvents = 'none';
+                        });
+                    } else if (component.type === 'checklist') {
+                        GT50Lib.Checklist.renderView(wrapper, component.state, () => {}, currentTabColor);
+                        wrapper.querySelectorAll('button, input, textarea').forEach(el => {
+                            el.style.pointerEvents = 'none';
+                        });
+                    } else if (component.type === 'radio') {
+                        GT50Lib.Radio.renderView(wrapper, component.state, () => {}, currentTabColor);
+                        wrapper.querySelectorAll('button, input, textarea').forEach(el => {
+                            el.style.pointerEvents = 'none';
+                        });
+                    } else if (component.type === 'threshold') {
+                        GT50Lib.Threshold.renderView(wrapper, component.state, () => {}, currentTabColor);
+                        wrapper.querySelectorAll('button, input, textarea').forEach(el => {
+                            el.style.pointerEvents = 'none';
+                        });
+                    } else if (component.type === 'text') {
+                        GT50Lib.Text.renderView(wrapper, component.state, () => {});
+                        wrapper.querySelectorAll('button, input, textarea').forEach(el => {
+                            el.style.pointerEvents = 'none';
+                        });
+                    }
+                    
+                    moveContainer.appendChild(wrapper);
+                });
+                
+                layoutWrapper.appendChild(selectorContainer);
+                layoutWrapper.appendChild(moveContainer);
+                container.appendChild(layoutWrapper);
+                return;
+            }
+            
+            // In clone mode, show Insert selector on the side and dimmed components in the main area
+            if (cloneMode.active && cloneMode.componentId) {
+                const currentComponents = getCurrentComponents();
+                
+                const depth = window.navigationStack.length;
+                const currentNest = getCurrentNest();
+                
+                const layoutWrapper = document.createElement('div');
+                layoutWrapper.style.cssText = 'display: flex; gap: var(--margin); align-items: flex-start; width: 100%;';
+                
+                const selectorContainer = document.createElement('div');
+                const cloneContainer = document.createElement('div');
+                cloneContainer.style.cssText = 'flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden;';
+                
+                // Always render Insert selector in clone mode (allows cloning to any nest)
+                const currentInsertIndex = cloneMode.insertionPoint ? cloneMode.insertionPoint.index : -1;
+                GT50Lib.Insert.render(selectorContainer, currentComponents.length, currentInsertIndex, (index) => {
+                    // Generate description for this insertion point
+                    let description = 'Top of workspace';
+                    if (index > 0 && index < currentComponents.length) {
+                        const prevComponent = currentComponents[index - 1];
+                        description = `After "${prevComponent.state.name || prevComponent.type}"`;
+                    } else if (index >= currentComponents.length) {
+                        description = 'Bottom of workspace';
+                    }
+                    
+                    cloneMode.insertionPoint = { index, description };
+                    selectedInsertionPoint = index;
+                    render();
+                });
+                
+                // Show all components in dimmed/disabled state
+                currentComponents.forEach(component => {
+                    const wrapper = document.createElement('div');
+                    const isCloningComponent = component.id === cloneMode.componentId;
+                    
+                    // Cloning component gets white background with black text, others are dimmed
+                    if (isCloningComponent) {
+                        wrapper.style.cssText = 'opacity: 1;';
+                        // Add a class or direct styling to make background white and text black
+                        wrapper.classList.add('moving-component');
+                    } else {
+                        wrapper.style.cssText = 'opacity: 0.85;';
+                    }
+                    
+                    // Get current tab color
+                    const currentContext = getCurrentTabs();
+                    const currentTabColor = currentContext.tabs.tabs[currentContext.tabs.activeViewTab]?.color;
+                    
+                    // Render component in view mode - allow navigation for nests/cycles
+                    if (component.type === 'nest' || component.type === 'cycle') {
+                        const LibComponent = component.type === 'nest' ? GT50Lib.Nest : GT50Lib.Cycle;
+                        const parentShowsChildProgress = currentNest && currentNest.state && currentNest.state.summaryShowChildNestProgress;
+                        const parentChildProgressMode = currentNest && currentNest.state && currentNest.state.summaryChildNestProgressMode;
+                        
+                        LibComponent.renderView(
+                            wrapper,
+                            component.state,
+                            depth,
+                            () => navigateInto(component.id), // Enable navigation (can't navigate into the one being cloned)
+                            null, // No move (disable up/down arrows)
+                            null, // No delete
+                            render, // Pass render
+                            () => {}, // Empty close actions (disable swipe menu)
+                            parentShowsChildProgress,
+                            parentChildProgressMode,
+                            null, // No enter move mode
+                            null // No enter clone mode
+                        );
+                        
+                        // Disable swipe menu but keep navigation active
+                        wrapper.querySelectorAll('input, textarea, [data-action="edit"], [data-action="delete"], [data-action="move-up"], [data-action="move-down"], [data-action="more"], [data-action="close"]').forEach(el => {
+                            el.style.pointerEvents = 'none';
+                        });
+                    } else if (component.type === 'divider') {
+                        GT50Lib.Divider.renderView(wrapper, component.state, () => {});
+                        wrapper.querySelectorAll('button, input, textarea').forEach(el => {
+                            el.style.pointerEvents = 'none';
+                        });
+                    } else if (component.type === 'scale') {
+                        GT50Lib.Scale.renderView(wrapper, component.state, () => {}, currentTabColor);
+                        wrapper.querySelectorAll('button, input, textarea').forEach(el => {
+                            el.style.pointerEvents = 'none';
+                        });
+                    } else if (component.type === 'list') {
+                        GT50Lib.List.renderView(wrapper, component.state, () => {}, currentTabColor);
+                        wrapper.querySelectorAll('button, input, textarea').forEach(el => {
+                            el.style.pointerEvents = 'none';
+                        });
+                    } else if (component.type === 'accumulation') {
+                        GT50Lib.Accumulation.renderView(wrapper, component.state, () => {}, currentTabColor);
+                        wrapper.querySelectorAll('button, input, textarea').forEach(el => {
+                            el.style.pointerEvents = 'none';
+                        });
+                    } else if (component.type === 'history') {
+                        GT50Lib.History.renderView(wrapper, component.state, () => {}, currentTabColor);
+                        wrapper.querySelectorAll('button, input, textarea').forEach(el => {
+                            el.style.pointerEvents = 'none';
+                        });
+                    } else if (component.type === 'progress') {
+                        GT50Lib.Progress.renderView(wrapper, component.state, () => {}, currentTabColor);
+                        wrapper.querySelectorAll('button, input, textarea').forEach(el => {
+                            el.style.pointerEvents = 'none';
+                        });
+                    } else if (component.type === 'tier') {
+                        GT50Lib.Tier.renderView(wrapper, component.state, () => {}, currentTabColor);
+                        wrapper.querySelectorAll('button, input, textarea').forEach(el => {
+                            el.style.pointerEvents = 'none';
+                        });
+                    } else if (component.type === 'checklist') {
+                        GT50Lib.Checklist.renderView(wrapper, component.state, () => {}, currentTabColor);
+                        wrapper.querySelectorAll('button, input, textarea').forEach(el => {
+                            el.style.pointerEvents = 'none';
+                        });
+                    } else if (component.type === 'radio') {
+                        GT50Lib.Radio.renderView(wrapper, component.state, () => {}, currentTabColor);
+                        wrapper.querySelectorAll('button, input, textarea').forEach(el => {
+                            el.style.pointerEvents = 'none';
+                        });
+                    } else if (component.type === 'threshold') {
+                        GT50Lib.Threshold.renderView(wrapper, component.state, () => {}, currentTabColor);
+                        wrapper.querySelectorAll('button, input, textarea').forEach(el => {
+                            el.style.pointerEvents = 'none';
+                        });
+                    } else if (component.type === 'text') {
+                        GT50Lib.Text.renderView(wrapper, component.state, () => {});
+                        wrapper.querySelectorAll('button, input, textarea').forEach(el => {
+                            el.style.pointerEvents = 'none';
+                        });
+                    }
+                    
+                    cloneContainer.appendChild(wrapper);
+                });
+                
+                layoutWrapper.appendChild(selectorContainer);
+                layoutWrapper.appendChild(cloneContainer);
+                container.appendChild(layoutWrapper);
+                return;
+            }
+            
             const currentNest = getCurrentNest();
 if (currentNest && currentNest.type === 'cycle') {
     GT50Lib.Cycle.renderViewCountdown(container, currentNest.state, render);
@@ -1858,7 +2650,9 @@ components.forEach((component, componentIndex) => {
         render,
         closeAllNestActions,
         parentShowsChildProgress,
-        parentChildProgressMode
+        parentChildProgressMode,
+        () => enterMoveMode(component.id),  // Add move mode callback
+        () => enterCloneMode(component.id)  // Add clone mode callback
     );
 } else if (component.type === 'cycle') {
     // Get parent nest's setting for showing child nest progress
@@ -1875,7 +2669,9 @@ components.forEach((component, componentIndex) => {
         render,
         closeAllNestActions,
         parentShowsChildProgress,
-        parentChildProgressMode
+        parentChildProgressMode,
+        () => enterMoveMode(component.id),  // Add move mode callback
+        () => enterCloneMode(component.id)  // Add clone mode callback
     );
                 } else if (component.type !== 'import') {
                     if (component.type === 'list') {
@@ -1966,6 +2762,9 @@ if (GT50Lib.Search) {
     } else if (activeMode === 'build') {
         // Reset selector to bottom when entering Build mode
         selectedInsertionPoint = getCurrentComponents().length;
+        // Sync previousSelectedBuildTab to current tab
+        const currentContext = getCurrentTabs();
+        previousSelectedBuildTab = currentContext.tabs.selectedBuildTab;
     }
     
     const components = getCurrentComponents();

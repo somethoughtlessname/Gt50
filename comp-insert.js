@@ -13,12 +13,16 @@
         render: function(container, componentCount, selectedIndex, onSelect) {
             const numSections = componentCount + 1;
             
+            // Special value: -1 means no selection
+            if (selectedIndex === -1) {
+                // Keep as -1 to indicate no selection
+            }
             // If selectedIndex is not provided or invalid, default to bottom
-            if (selectedIndex === undefined || selectedIndex === null || selectedIndex < 0) {
+            else if (selectedIndex === undefined || selectedIndex === null || selectedIndex < -1) {
                 selectedIndex = componentCount; // Bottom position
             }
             // Ensure selectedIndex doesn't exceed available sections
-            if (selectedIndex > componentCount) {
+            else if (selectedIndex > componentCount) {
                 selectedIndex = componentCount;
             }
             
