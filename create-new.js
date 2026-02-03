@@ -1398,7 +1398,11 @@ createEntry: function(state, nextId, currentComponents) {
                     
                     if (state.currentColorIndex === colorIndex) {
                         // Same color clicked - cycle to next variation
-                        state.currentVariationIndex = (state.currentVariationIndex + 1) % 4;
+                        // Ensure currentVariationIndex is a valid number before incrementing
+                        const currentVariation = (typeof state.currentVariationIndex === 'number' && !isNaN(state.currentVariationIndex)) 
+                            ? state.currentVariationIndex 
+                            : 0;
+                        state.currentVariationIndex = (currentVariation + 1) % 4;
                     } else {
                         // Different color clicked - switch to that color's base variation
                         state.currentColorIndex = colorIndex;
