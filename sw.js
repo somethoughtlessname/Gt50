@@ -1,29 +1,19 @@
-// GT50 Service Worker v1.2.0 - MIME TYPE FIX
-const VERSION = '1.2.0';
+// GT50 Service Worker v2.0.0 - COLOR VARIATION UPDATE
+const VERSION = '2.0.0';
 const CACHE_NAME = 'gt50-cache-' + VERSION;
 
+// Detect if we're on GitHub Pages
 const isGitHubPages = self.location.hostname.includes('github.io');
 const BASE_PATH = isGitHubPages ? '/Gt50/' : './';
 
-console.log('[SW] v' + VERSION + ' - Base:', BASE_PATH);
+console.log('========================================');
+console.log('[SW] Service Worker v' + VERSION + ' STARTING');
+console.log('[SW] Location:', self.location.href);
+console.log('[SW] Is GitHub Pages:', isGitHubPages);
+console.log('[SW] Base path:', BASE_PATH);
+console.log('========================================');
 
-// MIME type mapping - CRITICAL for offline JavaScript execution
-const MIME_TYPES = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon'
-};
-
-function getMimeType(url) {
-  const ext = url.substring(url.lastIndexOf('.'));
-  return MIME_TYPES[ext] || 'text/plain';
-}
-
+// Files to cache - ALL LOWERCASE for GitHub Pages
 const STATIC_CACHE_URLS = [
   BASE_PATH,
   BASE_PATH + 'index.html',
@@ -65,69 +55,47 @@ const STATIC_CACHE_URLS = [
   BASE_PATH + 'manifest.json'
 ];
 
-// Install - fetch and cache with proper headers
+// Install - cache files individually to see failures
 self.addEventListener('install', event => {
-  console.log('[SW] INSTALL v' + VERSION);
+  console.log('[SW] INSTALL - version', VERSION);
   
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
         console.log('[SW] Caching', STATIC_CACHE_URLS.length, 'files');
         
-        // Cache each file individually
-        return Promise.all(
-          STATIC_CACHE_URLS.map(url => {
-            return fetch(url)
-              .then(response => {
-                if (!response.ok) {
-                  throw new Error('HTTP ' + response.status);
-                }
-                
-                // Clone response and ensure correct MIME type
-                const mimeType = getMimeType(url);
-                const headers = new Headers(response.headers);
-                headers.set('Content-Type', mimeType);
-                
-                const modifiedResponse = new Response(response.body, {
-                  status: response.status,
-                  statusText: response.statusText,
-                  headers: headers
-                });
-                
-                cache.put(url, modifiedResponse);
-                console.log('[SW] ✓', url, '(' + mimeType + ')');
-                return true;
-              })
-              .catch(err => {
-                console.error('[SW] ✗', url, err.message);
-                return false;
-              });
-          })
-        );
+        const cachePromises = STATIC_CACHE_URLS.map((url, i) => {
+          return cache.add(url)
+            .then(() => console.log('[SW] ✓', (i+1) + '/' + STATIC_CACHE_URLS.length, url))
+            .catch(err => console.error('[SW] ✗ FAILED:', url, err));
+        });
+        
+        return Promise.all(cachePromises);
       })
       .then(() => self.skipWaiting())
   );
 });
 
-// Activate
+// Activate - claim clients immediately
 self.addEventListener('activate', event => {
-  console.log('[SW] ACTIVATE v' + VERSION);
+  console.log('[SW] ACTIVATE - version', VERSION);
   
   event.waitUntil(
     caches.keys()
-      .then(names => Promise.all(
-        names.map(name => {
+      .then(cacheNames => Promise.all(
+        cacheNames.map(name => {
           if (name.startsWith('gt50-') && name !== CACHE_NAME) {
-            console.log('[SW] Delete:', name);
+            console.log('[SW] Deleting old cache:', name);
             return caches.delete(name);
           }
         })
       ))
       .then(() => self.clients.claim())
+      .then(() => console.log('[SW] ✓ ACTIVATED'))
   );
 });
 
-// Fetch - serve from cache with correct MIME types
+// Fetch - cache first, network fallback
 self.addEventListener('fetch', event => {
   const url = event.request.url;
   
@@ -140,54 +108,25 @@ self.addEventListener('fetch', event => {
     caches.match(event.request)
       .then(cached => {
         if (cached) {
-          // CRITICAL: Ensure cached response has correct MIME type
-          const mimeType = getMimeType(url);
-          const headers = new Headers(cached.headers);
-          
-          if (!headers.get('Content-Type') || headers.get('Content-Type') === 'text/plain') {
-            headers.set('Content-Type', mimeType);
-            
-            return cached.blob().then(blob => {
-              return new Response(blob, {
-                status: cached.status,
-                statusText: cached.statusText,
-                headers: headers
-              });
-            });
-          }
-          
           console.log('[SW] CACHE:', url);
           return cached;
         }
         
-        // Not in cache, fetch from network
         console.log('[SW] NETWORK:', url);
         return fetch(event.request)
           .then(response => {
             if (response && response.status === 200) {
-              const mimeType = getMimeType(url);
-              const headers = new Headers(response.headers);
-              headers.set('Content-Type', mimeType);
-              
-              const modifiedResponse = new Response(response.body, {
-                status: response.status,
-                statusText: response.statusText,
-                headers: headers
-              });
-              
-              caches.open(CACHE_NAME).then(cache => {
-                cache.put(event.request, modifiedResponse.clone());
-              });
-              
-              return modifiedResponse;
+              caches.open(CACHE_NAME).then(cache => 
+                cache.put(event.request, response.clone())
+              );
             }
             return response;
           })
           .catch(err => {
-            console.error('[SW] FAIL:', url, err.message);
-            
-            // Don't return fallback HTML - just fail
-            // This prevents serving wrong pages
+            console.error('[SW] OFFLINE FAIL:', url);
+            if (event.request.mode === 'navigate') {
+              return caches.match(BASE_PATH + 'index.html');
+            }
             throw err;
           });
       })
@@ -198,8 +137,8 @@ self.addEventListener('fetch', event => {
 self.addEventListener('message', event => {
   if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
   if (event.data?.type === 'GET_VERSION') {
-    event.ports[0].postMessage({ version: VERSION });
+    event.ports[0].postMessage({ version: VERSION, basePath: BASE_PATH });
   }
 });
 
-console.log('[SW] Ready v' + VERSION);
+console.log('[SW] Ready');
