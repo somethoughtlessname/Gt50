@@ -832,6 +832,28 @@ const itemDropdownColor = cardColor;
                     border-top: none;
                     margin-bottom: var(--margin);
                 ">
+                    ${hasTierDropdownEnabled && state.title ? `<div style="
+                        background: #ffffff;
+                        border: var(--border-width) solid var(--border-color);
+                        border-radius: 8px;
+                        height: 32px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        overflow: hidden;
+                        margin-bottom: var(--margin);
+                        padding: 0 var(--text-padding-small);
+                    ">
+                        <div style="
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: #000000;
+                            text-align: center;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                            white-space: nowrap;
+                        ">${state.title}</div>
+                    </div>` : ''}
                     ${hasDropdownText ? `<div style="
                         background: var(--bg-3);
                         border: var(--border-width) solid var(--border-color);
